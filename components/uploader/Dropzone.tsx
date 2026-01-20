@@ -1,26 +1,32 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { Upload, Loader2, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { isValidImageType } from "@/lib/image-processing";
+import { isValidImageType, resizeImageForApi } from "@/lib/image-processing";
+import { useBatchStore, LocalImageItem } from "@/store/useBatchStore";
 
 export interface DropzoneProps {
-  onFilesAccepted: (files: File[]) => void;
   maxFiles?: number;
   maxSizeMB?: number;
   disabled?: boolean;
   className?: string;
 }
 
-export function Dropzone({
-  onFilesAccepted,
-  maxFiles = 50,
-  maxSizeMB = 25,
-  disabled,
-  className,
-}: DropzoneProps) {
+export function Dropzone({ maxFiles = 50, maxSizeMB = 25, disabled, className }: DropzoneProps) {
   const [isDragActive, setIsDragActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [processingState, setProcessingState] = useState<{
+    isProcessing: boolean;
+    processed: number;
+    total: number;
+  }>({ isProcessing: false, processed: 0, total: 0 });
+
+  const {
+    ensureUnclusteredGroup,
+    addImageToGroup,
+    setProcessingState: setStoreProcessing,
+  } = useBatchStore();
 
   const validateFiles = useCallback(
     (files: File[]): { valid: File[]; errors: string[] } => {
@@ -50,36 +56,87 @@ export function Dropzone({
     [maxFiles, maxSizeMB]
   );
 
-  const handleDrop = useCallback(
-    (e: React.DragEvent<HTMLDivElement>) => {
-      e.preventDefault();
-      setIsDragActive(false);
-      setError(null);
+  const processFiles = useCallback(
+    async (files: File[]) => {
+      if (files.length === 0) return;
 
-      if (disabled) return;
+      setProcessingState({ isProcessing: true, processed: 0, total: files.length });
+      setStoreProcessing({ isUploading: true });
 
-      const files = Array.from(e.dataTransfer.files);
+      // Ensure unclustered group exists
+      ensureUnclusteredGroup();
+
+      let processed = 0;
+
+      // Process files in parallel
+      await Promise.all(
+        files.map(async (file) => {
+          try {
+            const id = crypto.randomUUID();
+            const thumbnailDataUrl = await resizeImageForApi(file, 512);
+
+            const image: LocalImageItem = {
+              id,
+              file,
+              originalFilename: file.name,
+              thumbnailDataUrl,
+              status: "pending",
+            };
+
+            addImageToGroup("unclustered", image);
+          } catch (err) {
+            console.error(`Failed to process ${file.name}:`, err);
+          } finally {
+            processed++;
+            setProcessingState((prev) => ({ ...prev, processed }));
+          }
+        })
+      );
+
+      setProcessingState({ isProcessing: false, processed: 0, total: 0 });
+      setStoreProcessing({ isUploading: false });
+    },
+    [ensureUnclusteredGroup, addImageToGroup, setStoreProcessing]
+  );
+
+  const handleFilesAccepted = useCallback(
+    (files: File[]) => {
       const { valid, errors } = validateFiles(files);
 
       if (errors.length > 0 && errors[0]) {
         setError(errors[0]);
+      } else {
+        setError(null);
       }
 
       if (valid.length > 0) {
-        onFilesAccepted(valid);
+        processFiles(valid);
       }
     },
-    [disabled, validateFiles, onFilesAccepted]
+    [validateFiles, processFiles]
+  );
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      setIsDragActive(false);
+
+      if (disabled || processingState.isProcessing) return;
+
+      const files = Array.from(e.dataTransfer.files);
+      handleFilesAccepted(files);
+    },
+    [disabled, processingState.isProcessing, handleFilesAccepted]
   );
 
   const handleDragOver = useCallback(
     (e: React.DragEvent<HTMLDivElement>) => {
       e.preventDefault();
-      if (!disabled) {
+      if (!disabled && !processingState.isProcessing) {
         setIsDragActive(true);
       }
     },
-    [disabled]
+    [disabled, processingState.isProcessing]
   );
 
   const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
@@ -89,69 +146,92 @@ export function Dropzone({
 
   const handleFileInput = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      setError(null);
       const files = e.target.files ? Array.from(e.target.files) : [];
-      const { valid, errors } = validateFiles(files);
-
-      if (errors.length > 0 && errors[0]) {
-        setError(errors[0]);
-      }
-
-      if (valid.length > 0) {
-        onFilesAccepted(valid);
-      }
+      handleFilesAccepted(files);
 
       // Reset input
       e.target.value = "";
     },
-    [validateFiles, onFilesAccepted]
+    [handleFilesAccepted]
   );
+
+  const isDisabled = disabled || processingState.isProcessing;
 
   return (
     <div className={className}>
       <div
+        role="region"
+        aria-label="Image upload dropzone"
+        aria-busy={processingState.isProcessing}
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         className={cn(
-          "relative border-2 border-dashed rounded-xl p-12 text-center transition-colors cursor-pointer",
-          isDragActive && !disabled && "border-blue-400 bg-blue-50",
+          "relative border-2 rounded-xl p-12 text-center transition-all cursor-pointer",
+          // Default state
           !isDragActive &&
-            !disabled &&
-            "border-slate-300 hover:border-blue-400 hover:bg-blue-50/50",
-          disabled && "opacity-50 cursor-not-allowed border-slate-200"
+            !isDisabled &&
+            !error &&
+            "border-dashed border-slate-300 bg-slate-50 hover:border-blue-600 hover:bg-blue-50 hover:shadow-[0_0_0_4px_rgba(37,99,235,0.1)]",
+          // Drag-active state (solid border + scale)
+          isDragActive && !isDisabled && "border-solid border-blue-600 bg-blue-100 scale-[1.02]",
+          // Processing state
+          processingState.isProcessing && "bg-blue-50 border-dashed border-blue-400",
+          // Error state
+          error && !isDragActive && "border-dashed border-red-500 bg-red-50",
+          // Disabled state
+          isDisabled &&
+            !processingState.isProcessing &&
+            "opacity-50 cursor-not-allowed border-dashed border-slate-200 bg-slate-50"
         )}
       >
+        <label htmlFor="dropzone-file-input" className="sr-only">
+          Upload images
+        </label>
         <input
+          id="dropzone-file-input"
           type="file"
           multiple
           accept="image/jpeg,image/png,image/webp"
           onChange={handleFileInput}
-          disabled={disabled}
+          disabled={isDisabled}
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
         />
 
-        <div className="text-slate-500">
-          <svg
-            className="mx-auto h-12 w-12 mb-4"
-            stroke="currentColor"
-            fill="none"
-            viewBox="0 0 48 48"
-            aria-hidden="true"
-          >
-            <path
-              d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
-              strokeWidth={2}
-              strokeLinecap="round"
-              strokeLinejoin="round"
+        {processingState.isProcessing ? (
+          <div className="text-slate-600">
+            <Loader2
+              className="mx-auto h-12 w-12 mb-4 animate-spin text-blue-600"
+              aria-hidden="true"
             />
-          </svg>
-          <p className="text-sm">
-            <span className="font-medium text-blue-600">Click to upload</span> or drag and drop
-          </p>
-          <p className="text-xs mt-1">JPG, PNG, or WebP (max {maxSizeMB}MB each)</p>
-          <p className="text-xs mt-1">Maximum {maxFiles} images per batch</p>
-        </div>
+            <p className="text-lg font-medium text-slate-700" aria-live="polite">
+              Processing {processingState.processed}/{processingState.total} images...
+            </p>
+            <p className="text-sm mt-1 text-slate-500">Resizing to 512px WebP thumbnails</p>
+          </div>
+        ) : error ? (
+          <div className="text-slate-600">
+            <AlertCircle className="mx-auto h-12 w-12 mb-4 text-red-500" aria-hidden="true" />
+            <p className="text-lg font-medium text-slate-700">
+              <span className="font-medium text-blue-600">Click to upload</span> or drag and drop
+            </p>
+            <p className="text-sm mt-1 text-slate-500">
+              JPG, PNG, or WebP (max {maxSizeMB}MB each)
+            </p>
+            <p className="text-sm mt-1 text-slate-500">Maximum {maxFiles} images per batch</p>
+          </div>
+        ) : (
+          <div className="text-slate-600">
+            <Upload className="mx-auto h-12 w-12 mb-4 text-slate-400" aria-hidden="true" />
+            <p className="text-lg font-medium text-slate-700">
+              <span className="font-medium text-blue-600">Click to upload</span> or drag and drop
+            </p>
+            <p className="text-sm mt-1 text-slate-500">
+              JPG, PNG, or WebP (max {maxSizeMB}MB each)
+            </p>
+            <p className="text-sm mt-1 text-slate-500">Maximum {maxFiles} images per batch</p>
+          </div>
+        )}
       </div>
 
       {error && (

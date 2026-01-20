@@ -1,0 +1,208 @@
+"use client";
+
+import { useState } from "react";
+import { Sparkles, Loader2, Check, Edit2 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useBatchStore, LocalGroup } from "@/store/useBatchStore";
+import { TagEditor } from "@/components/editor";
+import type { VisionTagsResponse } from "@/types";
+
+export interface GroupListProps {
+  className?: string;
+}
+
+export function GroupList({ className }: GroupListProps) {
+  const { groups } = useBatchStore();
+  const [selectedGroup, setSelectedGroup] = useState<LocalGroup | null>(null);
+
+  const clusteredGroups = groups.filter((g) => g.id !== "unclustered");
+
+  if (clusteredGroups.length === 0) return null;
+
+  return (
+    <div className={cn("space-y-6", className)}>
+      <h2 className="text-xl font-semibold text-slate-900">
+        Clustered Groups ({clusteredGroups.length})
+      </h2>
+      {clusteredGroups.map((group) => (
+        <GroupCard key={group.id} group={group} onEdit={() => setSelectedGroup(group)} />
+      ))}
+
+      {/* Tag Editor Modal */}
+      {selectedGroup && (
+        <TagEditor
+          group={selectedGroup}
+          isOpen={!!selectedGroup}
+          onClose={() => setSelectedGroup(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function GroupCard({ group, onEdit }: { group: LocalGroup; onEdit: () => void }) {
+  const [isLoading, setIsLoading] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const { marketplace, updateGroupTags } = useBatchStore();
+
+  const isTagged = group.images[0]?.aiTags && group.images[0].aiTags.length > 0;
+
+  const handleGenerateTags = async (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card click
+    if (group.images.length === 0) return;
+
+    setIsLoading(true);
+    setError(null);
+    setShowSuccess(false);
+
+    try {
+      // Send only the first image as representative
+      const representativeImage = group.images[0];
+
+      const response = await fetch("/api/vision/tags", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          images: [
+            {
+              id: representativeImage.id,
+              dataUrl: representativeImage.thumbnailDataUrl,
+            },
+          ],
+          marketplace,
+        }),
+      });
+
+      const result = (await response.json()) as {
+        success: boolean;
+        data?: VisionTagsResponse;
+        error?: string;
+      };
+
+      if (!result.success || !result.data) {
+        throw new Error(result.error || "Tag generation failed");
+      }
+
+      const tagResult = result.data.results[0];
+      if (tagResult) {
+        // Apply tags to all images in the group
+        updateGroupTags(group.id, tagResult.title, tagResult.tags, tagResult.confidence);
+
+        // Show success indicator
+        setShowSuccess(true);
+        setTimeout(() => setShowSuccess(false), 3000);
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Tag generation failed";
+      setError(message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div
+      onClick={onEdit}
+      className={cn(
+        "border border-slate-200 bg-white rounded-xl shadow-sm p-4",
+        "cursor-pointer hover:border-blue-300 hover:shadow-md transition-all"
+      )}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h3 className="font-medium text-slate-900">
+            {group.sharedTitle || `Group ${group.groupNumber}`}
+          </h3>
+          <p className="text-sm text-slate-500">
+            {group.images.length} images
+            {isTagged && " • Tagged"}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          {showSuccess && (
+            <span className="inline-flex items-center gap-1 text-sm text-green-600">
+              <Check className="h-4 w-4" />
+              Done
+            </span>
+          )}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit();
+            }}
+            className={cn(
+              "p-2 rounded-lg text-slate-500",
+              "hover:bg-slate-100 hover:text-slate-700 transition-colors"
+            )}
+            title="Edit tags"
+          >
+            <Edit2 className="h-4 w-4" />
+          </button>
+          <button
+            onClick={handleGenerateTags}
+            disabled={isLoading || group.images.length === 0}
+            className={cn(
+              "inline-flex items-center gap-2",
+              "bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm",
+              "hover:bg-blue-700 transition-colors",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2",
+              "disabled:opacity-50 disabled:pointer-events-none"
+            )}
+          >
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <Sparkles className="h-4 w-4" aria-hidden="true" />
+            )}
+            {isLoading ? "Generating..." : isTagged ? "Regenerate Tags" : "Generate Tags"}
+          </button>
+        </div>
+      </div>
+
+      {/* Error Message */}
+      {error && (
+        <div className="mb-4 p-2 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-sm text-red-700">{error}</p>
+        </div>
+      )}
+
+      {/* Tags Preview */}
+      {isTagged && group.sharedTags.length > 0 && (
+        <div className="mb-4 flex flex-wrap gap-1">
+          {group.sharedTags.slice(0, 8).map((tag, i) => (
+            <span
+              key={i}
+              className="inline-block px-2 py-0.5 bg-slate-100 text-slate-700 text-xs rounded-full"
+            >
+              {tag}
+            </span>
+          ))}
+          {group.sharedTags.length > 8 && (
+            <span className="inline-block px-2 py-0.5 text-slate-500 text-xs">
+              +{group.sharedTags.length - 8} more
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Image Grid */}
+      <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+        {group.images.map((image) => (
+          <div
+            key={image.id}
+            className="aspect-square rounded-lg overflow-hidden border border-slate-100"
+          >
+            <img
+              src={image.thumbnailDataUrl}
+              alt={image.originalFilename}
+              className="w-full h-full object-cover"
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}

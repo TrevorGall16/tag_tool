@@ -90,3 +90,51 @@ export interface CheckoutSessionResponse {
   sessionId: string;
   url: string;
 }
+
+// Vision Clustering types
+export interface VisionClusterRequest {
+  images: ClusterImageInput[];
+  marketplace: "ETSY" | "ADOBE_STOCK";
+  maxGroups?: number;
+}
+
+export interface ClusterImageInput {
+  id: string;
+  dataUrl: string;
+}
+
+export interface VisionClusterResponse {
+  groups: ImageClusterGroup[];
+  processingTimeMs: number;
+}
+
+export interface ImageClusterGroup {
+  groupId: string;
+  imageIds: string[];
+  suggestedLabel?: string;
+  confidence: number;
+}
+
+// Vision Tags types
+export interface VisionTagsRequest {
+  images: TagImageInput[];
+  marketplace: "ETSY" | "ADOBE_STOCK";
+}
+
+export interface TagImageInput {
+  id: string;
+  dataUrl: string;
+}
+
+export interface VisionTagsResponse {
+  results: ImageTagResult[];
+  processingTimeMs: number;
+}
+
+export interface ImageTagResult {
+  imageId: string;
+  title: string;
+  description: string;
+  tags: string[];
+  confidence: number;
+}
