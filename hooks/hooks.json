@@ -1,0 +1,38 @@
+{
+  "PostToolUse": [
+    {
+      "comment": "Check for TypeScript errors after every edit",
+      "matcher": "tool == \"write_to_file\" || tool == \"edit_file\"",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "pnpm tsc --noEmit",
+          "on_failure": "continue_with_output"
+        }
+      ]
+    },
+    {
+      "comment": "Auto-format code to match UI visual polish",
+      "matcher": "tool == \"write_to_file\" && tool_input.path matches \"\\.(ts|tsx|js|jsx)$\"",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "pnpm prettier --write $FILE"
+        }
+      ]
+    }
+  ],
+  "PreToolUse": [
+    {
+      "comment": "Stop Claude from committing secrets/keys",
+      "matcher": "tool == \"Bash\" && tool_input.command matches \"git push|git commit\"",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "grep -rE 'sk_live|sk_test|sk-ant' . --exclude-dir=.next",
+          "on_success": "abort_with_message 'ERROR: Potential API keys detected in codebase. Remove them before committing.'"
+        }
+      ]
+    }
+  ]
+}

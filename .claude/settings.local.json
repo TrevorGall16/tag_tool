@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir:*)",
+      "Bash(powershell -Command \"Get-ChildItem -Path ''D:\\\\Projects\\\\Tagtool'' -Force | Select-Object Name, PSIsContainer\")",
+      "Bash(powershell -Command \"Get-ChildItem -Path ''D:\\\\Projects\\\\Tagtool'' -Recurse -Directory | Select-Object FullName | head -30\")",
+      "Bash(pnpm create:*)",
+      "Bash(pnpm init:*)",
+      "Bash(pnpm add:*)",
+      "Bash(pnpm build:*)",
+      "Bash(pnpm format:*)"
+    ]
+  }
+}

@@ -1,0 +1,163 @@
+generator client {
+  provider      = "prisma-client-js"
+  engineType    = "library"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// ENUMS
+// ============================================
+
+enum Marketplace {
+  ETSY
+  ADOBE_STOCK
+}
+
+enum BatchStatus {
+  PENDING
+  UPLOADING
+  CLUSTERING
+  TAGGING
+  VERIFYING
+  COMPLETED
+  EXPORTED
+  ERROR
+}
+
+enum SubscriptionTier {
+  FREE
+  STARTER
+  PRO
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  TRIALING
+  INCOMPLETE
+}
+
+enum ImageStatus {
+  PENDING
+  CLUSTERING
+  TAGGED
+  VERIFIED
+  ERROR
+}
+
+enum LedgerReason {
+  PURCHASE
+  SUBSCRIPTION
+  USAGE
+  REFUND
+  BONUS
+  ADMIN_ADJUST
+}
+
+// ============================================
+// MODELS
+// ============================================
+
+model User {
+  id                   String              @id @default(cuid())
+  email                String              @unique @db.VarChar(255)
+  creditsBalance       Int                 @default(10)
+  subscriptionTier     SubscriptionTier    @default(FREE)
+  stripeCustomerId     String?             @unique
+  stripeSubscriptionId String?
+  subscriptionStatus   SubscriptionStatus?
+  subscriptionEndsAt   DateTime?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+
+  // Relations
+  batches       Batch[]
+  creditsLedger CreditsLedger[]
+
+  @@index([email])
+  @@index([stripeCustomerId])
+}
+
+model Batch {
+  id          String      @id @default(cuid())
+  userId      String?
+  sessionId   String      @db.VarChar(100)
+  marketplace Marketplace @default(ETSY)
+  status      BatchStatus @default(PENDING)
+  createdAt   DateTime    @default(now())
+  expiresAt   DateTime
+
+  // Relations
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+  groups Group[]
+
+  @@index([userId])
+  @@index([sessionId])
+  @@index([expiresAt])
+}
+
+model Group {
+  id          String   @id @default(cuid())
+  batchId     String
+  groupNumber Int
+  isVerified  Boolean  @default(false)
+  sharedTags  Json?
+  createdAt   DateTime @default(now())
+
+  // Relations
+  batch  Batch       @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  images ImageItem[]
+
+  @@unique([batchId, groupNumber])
+  @@index([batchId])
+}
+
+model ImageItem {
+  id               String      @id @default(cuid())
+  groupId          String
+  originalFilename String      @db.VarChar(500)
+  sanitizedSlug    String      @db.VarChar(500)
+  fileSize         Int
+  mimeType         String      @db.VarChar(100)
+  thumbnailDataUrl String?     @db.Text
+
+  // AI-generated fields
+  aiTitle      String? @db.VarChar(500)
+  aiTags       Json?
+  aiConfidence Float?
+
+  // User-modified fields
+  userTitle String?
+  userTags  Json?
+
+  status    ImageStatus @default(PENDING)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  // Relations
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@index([groupId])
+}
+
+model CreditsLedger {
+  id              String       @id @default(cuid())
+  userId          String
+  amount          Int
+  reason          LedgerReason
+  stripeSessionId String?      @db.VarChar(255)
+  description     String?      @db.Text
+  createdAt       DateTime     @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+}

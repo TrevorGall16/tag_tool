@@ -1,0 +1,6 @@
+node_modules
+.next
+.netlify
+pnpm-lock.yaml
+prisma/migrations
+public/models
