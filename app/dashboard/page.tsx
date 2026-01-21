@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useBatchStore } from "@/store/useBatchStore";
 import { Dropzone } from "@/components/uploader";
 import { ImageGallery, GroupList } from "@/components/gallery";
+import { ExportToolbar } from "@/components/export";
 
 export default function DashboardPage() {
   const { sessionId, initSession, marketplace, setMarketplace } = useBatchStore();
@@ -21,6 +22,7 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold text-slate-900">TagArchitect</h1>
             <div className="flex items-center gap-4">
+              <ExportToolbar />
               <select
                 value={marketplace}
                 onChange={(e) => setMarketplace(e.target.value as "ETSY" | "ADOBE_STOCK")}
