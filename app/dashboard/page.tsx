@@ -3,11 +3,11 @@
 import { useEffect } from "react";
 import { useBatchStore } from "@/store/useBatchStore";
 import { Dropzone } from "@/components/uploader";
-import { ImageGallery, GroupList } from "@/components/gallery";
+import { ImageGallery, GroupList, GroupSkeleton } from "@/components/gallery";
 import { ExportToolbar } from "@/components/export";
 
 export default function DashboardPage() {
-  const { sessionId, initSession, marketplace, setMarketplace } = useBatchStore();
+  const { sessionId, initSession, marketplace, setMarketplace, isClustering } = useBatchStore();
 
   useEffect(() => {
     if (!sessionId) {
@@ -50,7 +50,11 @@ export default function DashboardPage() {
         <ImageGallery className="mt-8" />
 
         {/* Clustered Groups */}
-        <GroupList className="mt-8" />
+        {isClustering ? (
+          <GroupSkeleton className="mt-8" count={3} />
+        ) : (
+          <GroupList className="mt-8" />
+        )}
 
         {sessionId && (
           <p className="text-xs text-slate-400 mt-8 text-center">
