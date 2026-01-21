@@ -5,77 +5,102 @@ export function buildClusteringPrompt(
   marketplace: MarketplaceType,
   maxGroups: number
 ): string {
-  const marketplaceContext =
+  const context =
     marketplace === "ETSY"
-      ? "These are product images for an Etsy shop. Group by product type, style, or theme."
-      : "These are stock photos for Adobe Stock. Group by subject matter, visual style, or composition.";
+      ? "Group by: product type, color scheme, or style (e.g., all earrings, all blue items)"
+      : "Group by: subject matter, composition, or visual concept (e.g., all portraits, all nature)";
 
-  return `You are an image clustering assistant. Analyze the provided images and group them by visual similarity.
+  return `Group these images by visual similarity.
 
-${marketplaceContext}
+${context}
 
-IMAGE REFERENCE:
+IMAGES:
 ${imageIndex}
 
-INSTRUCTIONS:
-1. Examine all images carefully
-2. Group visually similar images together (similar subjects, colors, styles, or themes)
-3. Create meaningful groups where images could logically share the same tags
-4. Aim for ${maxGroups} or fewer groups, but use more if the images are genuinely diverse
-5. Each image must belong to exactly one group
-6. Single-image groups are acceptable for unique images
+RULES:
+1. Aim for ${maxGroups} or fewer groups
+2. Each image in exactly one group
+3. Single-image groups OK for unique items
 
-RESPOND ONLY with valid JSON in this exact format:
+RESPOND ONLY with valid JSON:
 {
   "groups": [
     {
       "groupId": "group-1",
       "imageIds": ["id1", "id2"],
-      "suggestedLabel": "Short description of what unites this group",
-      "confidence": 0.85
+      "suggestedLabel": "Brief description",
+      "confidence": 0.9
     }
   ]
-}
-
-Use the exact image IDs provided in the IMAGE REFERENCE section.
-Confidence should be 0.0-1.0 based on how visually similar the grouped images are.`;
+}`;
 }
 
 export function buildTagPrompt(marketplace: MarketplaceType): string {
+  // --- ETSY MODE (Strict Rules) ---
   if (marketplace === "ETSY") {
-    return `You are an Etsy SEO expert. Analyze this product image and generate metadata optimized for Etsy search.
+    return `Generate Etsy metadata for this product image.
 
-REQUIREMENTS:
-1. Title: Maximum 140 characters. Front-load important keywords. Include style, material, and use case.
-2. Description: 2-3 sentences highlighting unique features and benefits. Include keywords naturally.
-3. Tags: Exactly 13 tags (Etsy's limit). Mix of broad and specific terms. No commas within tags.
+RULES:
+- Title: 140 chars max, front-load keywords.
+- Tags: Generate between 8 and 13 tags. Aim for 13, but prioritize relevance. Max 20 chars per tag. Lowercase.
+- Description: Sales-focused, inviting, mentions materials/dimensions.
 
-FOCUS ON: Handmade appeal, gift potential, style descriptors, materials, occasions, target audience.
+SAFETY FOR UNKNOWN ITEMS:
+- If the object is niche or unclear, describe its visual attributes: Material (wood, metal), Era (vintage, modern), Style (rustic, industrial), and Function. Do not hallucinate specific model names.
 
-RESPOND ONLY with valid JSON in this exact format:
+RESPOND ONLY with valid JSON:
 {
-  "title": "Your optimized title here",
-  "description": "Your compelling description here",
-  "tags": ["tag1", "tag2", "tag3", "tag4", "tag5", "tag6", "tag7", "tag8", "tag9", "tag10", "tag11", "tag12", "tag13"],
-  "confidence": 0.85
+  "title": "Handmade ceramic coffee mug blue pottery gift",
+  "description": "Enjoy your morning coffee in this handcrafted ceramic mug...",
+  "tags": ["ceramic mug", "coffee cup", "handmade gift", "blue pottery", "tea lover", "kitchen decor", "stoneware mug", "unique gift", "office mug", "pottery art", "housewarming", "artisan mug", "drinkware"],
+  "confidence": 0.95
 }`;
   }
 
-  // ADOBE_STOCK
-  return `You are a stock photography metadata expert. Analyze this image and generate metadata optimized for Adobe Stock.
+  // --- ADOBE STOCK MODE (Volume Rules) ---
+  if (marketplace === "ADOBE_STOCK") {
+    return `Generate Adobe Stock metadata for this image.
 
-REQUIREMENTS:
-1. Title: Maximum 200 characters. Descriptive and keyword-rich.
-2. Description: 1-2 sentences describing the scene, subject, and mood.
-3. Tags: 25-50 relevant keywords. Include concepts, emotions, colors, compositions, and commercial use cases.
+RULES:
+- Title: 200 chars max, descriptive, literal.
+- Tags: Generate between 25 and 49 keywords. Order by importance.
+- Description: Literal description of the scene and subject.
 
-FOCUS ON: Commercial applications, conceptual themes, technical aspects, mood/atmosphere, visual elements.
+STRATEGY:
+- Start with literal subjects (what is seen).
+- Add conceptual tags (emotions, themes).
+- Stop if keywords become irrelevant.
 
-RESPOND ONLY with valid JSON in this exact format:
+SAFETY FOR UNKNOWN ITEMS:
+- If the subject is ambiguous, focus on: Lighting, Composition, Texture, Colors, and Vibe/Mood.
+
+RESPOND ONLY with valid JSON:
 {
-  "title": "Your descriptive title here",
-  "description": "Your scene description here",
-  "tags": ["keyword1", "keyword2", "..."],
-  "confidence": 0.85
+  "title": "Portrait of smiling woman working on laptop in modern office",
+  "description": "A professional woman sitting at a desk typing on a laptop...",
+  "tags": ["business", "woman", "laptop", "office", "work", "professional", "corporate", "technology", "computer", "desk", "workspace", "career", "adult", "employee", "confident", "success", "modern", "indoor", "caucasian", "30s", "sitting", "typing", "focused", "concentration", "productivity", "entrepreneur", "freelancer", "remote work", "startup", "coworking", "bright", "natural light", "casual", "smiling"],
+  "confidence": 0.95
+}`;
+  }
+
+  // --- GENERAL / UNIVERSAL MODE (New Fallback) ---
+  // This runs if you pass "SHOPIFY", "WEBSITE", or anything else
+  return `Generate high-quality SEO metadata for this image.
+
+RULES:
+- Title: Clear, descriptive, Google-friendly (60-70 chars ideal).
+- Tags: Generate 10-30 highly relevant keywords.
+- Description: Standard eCommerce or Alt-Text style description.
+
+SAFETY FOR UNKNOWN ITEMS:
+- If the exact object is unknown, describe its physical appearance: Shape, Color, Material, Texture.
+- Use broad categories (e.g., "Machinery", "Tool", "Artifact") if specific identification is impossible.
+
+RESPOND ONLY with valid JSON:
+{
+  "title": "Descriptive Product Title for SEO",
+  "description": "A clear, detailed description of the product or image.",
+  "tags": ["keyword1", "keyword2", "keyword3", "keyword4", "keyword5", ...],
+  "confidence": 0.90
 }`;
 }
