@@ -15,6 +15,15 @@ const config: Config = {
       fontFamily: {
         sans: ["Inter", "system-ui", "sans-serif"],
       },
+      keyframes: {
+        "fade-in": {
+          "0%": { opacity: "0", transform: "translate(-50%, 4px)" },
+          "100%": { opacity: "1", transform: "translate(-50%, 0)" },
+        },
+      },
+      animation: {
+        "fade-in": "fade-in 0.15s ease-out",
+      },
     },
   },
   plugins: [],

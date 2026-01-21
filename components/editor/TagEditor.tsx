@@ -21,6 +21,7 @@ export function TagEditor({ group, isOpen, onClose }: TagEditorProps) {
   const [tags, setTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState("");
   const [copied, setCopied] = useState(false);
+  const [copiedTagIndex, setCopiedTagIndex] = useState<number | null>(null);
 
   // Sync state when group changes or modal opens
   useEffect(() => {
@@ -69,6 +70,12 @@ export function TagEditor({ group, isOpen, onClose }: TagEditorProps) {
     await navigator.clipboard.writeText(tagsText);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleCopySingleTag = async (tag: string, index: number) => {
+    await navigator.clipboard.writeText(tag);
+    setCopiedTagIndex(index);
+    setTimeout(() => setCopiedTagIndex(null), 1500);
   };
 
   const handleSave = () => {
@@ -171,11 +178,28 @@ export function TagEditor({ group, isOpen, onClose }: TagEditorProps) {
               <span
                 key={index}
                 className={cn(
-                  "inline-flex items-center gap-1 px-3 py-1",
+                  "relative inline-flex items-center gap-1 pl-3 pr-1 py-1",
                   "bg-blue-100 text-blue-800 rounded-full text-sm"
                 )}
               >
-                {tag}
+                <span
+                  onClick={() => handleCopySingleTag(tag, index)}
+                  className="cursor-pointer hover:text-blue-900 select-none"
+                  title="Click to copy"
+                >
+                  {tag}
+                </span>
+                {copiedTagIndex === index && (
+                  <span
+                    className={cn(
+                      "absolute -top-8 left-1/2 -translate-x-1/2",
+                      "px-2 py-1 bg-slate-800 text-white text-xs rounded",
+                      "whitespace-nowrap animate-fade-in"
+                    )}
+                  >
+                    Copied!
+                  </span>
+                )}
                 <button
                   onClick={() => handleRemoveTag(tag)}
                   className="hover:bg-blue-200 rounded-full p-0.5 transition-colors"
