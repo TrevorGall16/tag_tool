@@ -2,36 +2,56 @@
 
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { buildNamingContext, generateExportFilename } from "@/lib/export";
 import type { LocalGroup } from "@/store/useBatchStore";
+import type { ExportSettings } from "@/lib/export";
 
 export interface CSVPreviewModalProps {
   isOpen: boolean;
   onClose: () => void;
   groups: LocalGroup[];
+  exportSettings: ExportSettings;
 }
 
 interface PreviewRow {
   filename: string;
+  exportFilename: string;
   title: string;
   tags: string;
   group: string;
 }
 
-export function CSVPreviewModal({ isOpen, onClose, groups }: CSVPreviewModalProps) {
+export function CSVPreviewModal({ isOpen, onClose, groups, exportSettings }: CSVPreviewModalProps) {
   if (!isOpen) return null;
 
-  // Build preview rows from groups
+  // Build preview rows from groups with formatted export names
   const rows: PreviewRow[] = [];
+  let sequenceNumber = 1;
+
   for (const group of groups) {
     for (const image of group.images) {
-      const title = image.userTitle || group.sharedTitle || image.aiTitle || "";
+      // Title priority: user-edited title > AI-generated title (NOT group name)
+      const title = image.userTitle || image.aiTitle || "";
+      // Tags priority: user-edited tags > group shared tags > AI-generated tags
       const tags = (image.userTags || group.sharedTags || image.aiTags || []).join(", ");
+
+      // Generate the export filename using naming utilities
+      const context = buildNamingContext(
+        exportSettings.naming,
+        sequenceNumber,
+        image.originalFilename
+      );
+      const ext = image.originalFilename.split(".").pop() || "jpg";
+      const exportFilename = generateExportFilename(exportSettings.naming.pattern, context, ext);
+
       rows.push({
         filename: image.originalFilename,
+        exportFilename,
         title,
         tags,
         group: group.sharedTitle || `Group ${group.groupNumber}`,
       });
+      sequenceNumber++;
     }
   }
 
@@ -45,8 +65,8 @@ export function CSVPreviewModal({ isOpen, onClose, groups }: CSVPreviewModalProp
       aria-modal="true"
       aria-label="CSV Preview"
     >
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      {/* Backdrop - use onMouseDown to prevent closing when drag ends outside modal */}
+      <div className="absolute inset-0 bg-black/50" onMouseDown={onClose} />
 
       {/* Modal */}
       <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[80vh] flex flex-col">
@@ -79,7 +99,7 @@ export function CSVPreviewModal({ isOpen, onClose, groups }: CSVPreviewModalProp
               <thead className="sticky top-0 bg-slate-50">
                 <tr>
                   <th className="text-left p-2 font-medium text-slate-700 border-b border-slate-200">
-                    Filename
+                    Export Filename
                   </th>
                   <th className="text-left p-2 font-medium text-slate-700 border-b border-slate-200">
                     Title
@@ -98,8 +118,11 @@ export function CSVPreviewModal({ isOpen, onClose, groups }: CSVPreviewModalProp
                       i % 2 === 0 ? "bg-white" : "bg-slate-50/50"
                     )}
                   >
-                    <td className="p-2 text-slate-900 font-mono text-xs truncate max-w-[150px]">
-                      {row.filename}
+                    <td
+                      className="p-2 text-slate-900 font-mono text-xs truncate max-w-[200px]"
+                      title={row.filename}
+                    >
+                      {row.exportFilename}
                     </td>
                     <td className="p-2 text-slate-700 truncate max-w-[200px]">
                       {row.title || <span className="text-slate-400 italic">No title</span>}

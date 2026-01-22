@@ -187,6 +187,7 @@ export function ExportToolbar({ className }: ExportToolbarProps) {
         isOpen={showPreview}
         onClose={() => setShowPreview(false)}
         groups={groupsToExport}
+        exportSettings={exportSettings}
       />
     </div>
   );

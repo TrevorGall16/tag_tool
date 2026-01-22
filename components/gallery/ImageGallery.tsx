@@ -50,16 +50,23 @@ export function ImageGallery({ className }: ImageGalleryProps) {
       }
 
       // Transform API response into LocalGroup[] format
-      const newGroups: LocalGroup[] = result.data.groups.map((cluster, index) => ({
-        id: cluster.groupId,
-        groupNumber: index + 1,
-        images: cluster.imageIds
-          .map((id) => images.find((img) => img.id === id))
-          .filter((img): img is NonNullable<typeof img> => img !== undefined),
-        sharedTags: [],
-        isVerified: false,
-      }));
+      // CRITICAL: Always generate UUID for group IDs to ensure uniqueness
+      const newGroups: LocalGroup[] = result.data.groups.map((cluster, index) => {
+        const groupId = crypto.randomUUID(); // Always use UUID, ignore API's groupId
+        console.log(`[Clustering] Created group ${groupId} with ${cluster.imageIds.length} images`);
+        return {
+          id: groupId,
+          groupNumber: index + 1,
+          images: cluster.imageIds
+            .map((id) => images.find((img) => img.id === id))
+            .filter((img): img is NonNullable<typeof img> => img !== undefined),
+          sharedTags: [],
+          sharedTitle: cluster.suggestedLabel, // Use AI's suggested label if provided
+          isVerified: false,
+        };
+      });
 
+      console.log(`[Clustering] Created ${newGroups.length} groups with UUIDs`);
       setGroups(newGroups);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Clustering failed";

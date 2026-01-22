@@ -16,6 +16,7 @@ export interface UsePersistenceResult {
  * - Waits for Zustand persist to finish first
  * - Then hydrates full session data from IndexedDB
  * - Sets up sync subscription to persist changes
+ * - CRITICAL: Sync only starts AFTER hydration completes to prevent race conditions
  */
 export function usePersistence(): UsePersistenceResult {
   const [isRestoring, setIsRestoring] = useState(true);
@@ -24,6 +25,8 @@ export function usePersistence(): UsePersistenceResult {
   const [restoredImageCount, setRestoredImageCount] = useState(0);
   const syncSetupRef = useRef(false);
   const hydrationAttemptedRef = useRef(false);
+  // Track the image count at hydration time to detect accidental wipes
+  const hydratedImageCountRef = useRef<number>(0);
 
   const setGroups = useBatchStore((state) => state.setGroups);
   const setMarketplace = useBatchStore((state) => state.setMarketplace);
@@ -55,6 +58,9 @@ export function usePersistence(): UsePersistenceResult {
         // Count total images restored
         const totalImages = session.groups.reduce((acc, g) => acc + g.images.length, 0);
         setRestoredImageCount(totalImages);
+        // Store this count to detect accidental wipes during sync
+        hydratedImageCountRef.current = totalImages;
+        console.log(`[Persistence] Hydrated ${totalImages} images from IndexedDB`);
 
         // Validate that File objects were properly reconstructed
         let validImages = 0;
@@ -105,15 +111,33 @@ export function usePersistence(): UsePersistenceResult {
     }
   }, [performHydration]);
 
-  // Set up sync subscription after hydration is complete
+  // Set up sync subscription ONLY after hydration is FULLY complete
+  // CRITICAL: Must check BOTH isHydrated AND !isRestoring to prevent race conditions
   useEffect(() => {
-    if (!isHydrated || syncSetupRef.current) return;
+    // Block sync until hydration is completely finished
+    if (!isHydrated || isRestoring || syncSetupRef.current) return;
     syncSetupRef.current = true;
 
-    // Create debounced sync function
+    console.log("[Persistence] Hydration complete, starting sync subscription");
+
+    // Create debounced sync function with safety checks
     const debouncedSync = debounce(async () => {
       const state = useBatchStore.getState();
       if (!state.sessionId) return;
+
+      // Count current images in store
+      const currentImageCount = state.groups.reduce((acc, g) => acc + g.images.length, 0);
+
+      // SAFETY CHECK: If we hydrated with images but store is now empty,
+      // this is likely a race condition - ABORT to prevent data loss
+      if (hydratedImageCountRef.current > 0 && currentImageCount === 0) {
+        console.warn(
+          "[Persistence] ABORT SYNC: Store is empty but we hydrated with",
+          hydratedImageCountRef.current,
+          "images. This may be a race condition."
+        );
+        return;
+      }
 
       try {
         await saveBatch(state.sessionId, state.marketplace);
@@ -138,7 +162,7 @@ export function usePersistence(): UsePersistenceResult {
     return () => {
       unsubscribe();
     };
-  }, [isHydrated]);
+  }, [isHydrated, isRestoring]);
 
   return { isRestoring, isHydrated, error, restoredImageCount };
 }

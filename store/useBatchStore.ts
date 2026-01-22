@@ -131,13 +131,25 @@ export const useBatchStore = create<BatchState>()(
         },
 
         toggleGroupSelection: (groupId) => {
+          // Validation: Ensure groupId is defined
+          if (!groupId) {
+            console.error(
+              "[Selection] ERROR: Attempted to toggle selection with undefined groupId"
+            );
+            return;
+          }
           set((state) => {
             const newSelected = new Set(state.selectedGroupIds);
             if (newSelected.has(groupId)) {
               newSelected.delete(groupId);
+              console.log(`[Selection] Deselected group: ${groupId}`);
             } else {
               newSelected.add(groupId);
+              console.log(`[Selection] Selected group: ${groupId}`);
             }
+            console.log(
+              `[Selection] Now selected: ${Array.from(newSelected).join(", ") || "none"}`
+            );
             return { selectedGroupIds: newSelected };
           });
         },
@@ -273,23 +285,33 @@ export const useBatchStore = create<BatchState>()(
         },
 
         updateGroupTags: (groupId, aiTitle, aiTags, aiConfidence) => {
+          // Validation: Ensure groupId is defined
+          if (!groupId) {
+            console.error("[Tagging] ERROR: Attempted to update tags with undefined groupId");
+            return;
+          }
+          console.log(
+            `[Tagging] Updating group ${groupId} with title: "${aiTitle}", ${aiTags.length} tags`
+          );
           set((state) => ({
-            groups: state.groups.map((group) =>
-              group.id === groupId
-                ? {
-                    ...group,
-                    sharedTags: aiTags,
-                    sharedTitle: aiTitle,
-                    images: group.images.map((img) => ({
-                      ...img,
-                      aiTitle,
-                      aiTags,
-                      aiConfidence,
-                      status: "analyzed" as const,
-                    })),
-                  }
-                : group
-            ),
+            groups: state.groups.map((group) => {
+              if (group.id === groupId) {
+                console.log(`[Tagging] Matched group ${groupId} (${group.images.length} images)`);
+                return {
+                  ...group,
+                  sharedTags: aiTags,
+                  sharedTitle: aiTitle,
+                  images: group.images.map((img) => ({
+                    ...img,
+                    aiTitle,
+                    aiTags,
+                    aiConfidence,
+                    status: "analyzed" as const,
+                  })),
+                };
+              }
+              return group;
+            }),
           }));
         },
 

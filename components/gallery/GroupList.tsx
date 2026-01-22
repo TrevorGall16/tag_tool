@@ -136,6 +136,10 @@ function GroupCard({ group, onEdit, onImageClick, isSelected, onToggleSelect }: 
     e.stopPropagation(); // Prevent card click
     if (group.images.length === 0) return;
 
+    console.log(
+      `[GroupCard] Generate tags clicked for group: ${group.id} (${group.sharedTitle || `Group ${group.groupNumber}`})`
+    );
+
     setIsLoading(true);
     setError(null);
     setShowSuccess(false);
@@ -144,6 +148,8 @@ function GroupCard({ group, onEdit, onImageClick, isSelected, onToggleSelect }: 
       // Send only the first image as representative
       const representativeImage = group.images[0];
       if (!representativeImage) return;
+
+      console.log(`[GroupCard] Using representative image: ${representativeImage.id}`);
 
       const response = await fetch("/api/vision/tags", {
         method: "POST",
@@ -171,6 +177,7 @@ function GroupCard({ group, onEdit, onImageClick, isSelected, onToggleSelect }: 
 
       const tagResult = result.data.results[0];
       if (tagResult) {
+        console.log(`[GroupCard] Calling updateGroupTags for group: ${group.id}`);
         // Apply tags to all images in the group
         updateGroupTags(group.id, tagResult.title, tagResult.tags, tagResult.confidence);
 

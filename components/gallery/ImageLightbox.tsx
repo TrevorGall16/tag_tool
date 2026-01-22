@@ -101,8 +101,8 @@ export function ImageLightbox({
       aria-modal="true"
       aria-label="Image viewer"
     >
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/80" onClick={onClose} />
+      {/* Backdrop - use onMouseDown to prevent closing when drag ends outside modal */}
+      <div className="absolute inset-0 bg-black/80" onMouseDown={onClose} />
 
       {/* Main Content */}
       <div className="relative flex w-full h-full">

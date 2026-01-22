@@ -55,6 +55,16 @@ export async function saveGroups(sessionId: string, groups: LocalGroup[]): Promi
 
   // Save all current groups and their images
   for (const group of groups) {
+    // CRITICAL: Validate group has required 'id' key before saving
+    if (!group.id) {
+      console.error("[Persistence] ERROR: Attempted to save group with undefined/null id:", {
+        groupNumber: group.groupNumber,
+        sharedTitle: group.sharedTitle,
+        imageCount: group.images?.length ?? 0,
+      });
+      continue; // Skip this invalid group
+    }
+
     const groupRecord: GroupRecord = {
       id: group.id,
       sessionId,
@@ -65,10 +75,29 @@ export async function saveGroups(sessionId: string, groups: LocalGroup[]): Promi
       isVerified: group.isVerified,
     };
 
-    await groupStore.put(groupRecord);
+    try {
+      await groupStore.put(groupRecord);
+    } catch (err) {
+      console.error("[Persistence] ERROR: Failed to save group:", {
+        groupId: group.id,
+        groupNumber: group.groupNumber,
+        error: err instanceof Error ? err.message : String(err),
+        record: groupRecord,
+      });
+      continue; // Skip this group's images too
+    }
 
     // Save images in this group
     for (const image of group.images) {
+      // Validate image has required 'id' key
+      if (!image.id) {
+        console.error("[Persistence] ERROR: Attempted to save image with undefined/null id:", {
+          groupId: group.id,
+          filename: image.originalFilename,
+        });
+        continue;
+      }
+
       const imageRecord: ImageRecord = {
         id: image.id,
         sessionId,
@@ -84,20 +113,36 @@ export async function saveGroups(sessionId: string, groups: LocalGroup[]): Promi
         errorMessage: image.errorMessage,
       };
 
-      await imageStore.put(imageRecord);
+      try {
+        await imageStore.put(imageRecord);
+      } catch (err) {
+        console.error("[Persistence] ERROR: Failed to save image:", {
+          imageId: image.id,
+          groupId: group.id,
+          error: err instanceof Error ? err.message : String(err),
+        });
+        continue;
+      }
 
       // Save blob if file exists and hasn't been saved yet
       if (image.file) {
-        const existingBlob = await blobStore.get(image.id);
-        if (!existingBlob) {
-          const arrayBuffer = await image.file.arrayBuffer();
-          const blobRecord: BlobRecord = {
-            id: image.id,
-            type: image.file.type,
-            data: arrayBuffer,
-            size: image.file.size,
-          };
-          await blobStore.put(blobRecord);
+        try {
+          const existingBlob = await blobStore.get(image.id);
+          if (!existingBlob) {
+            const arrayBuffer = await image.file.arrayBuffer();
+            const blobRecord: BlobRecord = {
+              id: image.id,
+              type: image.file.type,
+              data: arrayBuffer,
+              size: image.file.size,
+            };
+            await blobStore.put(blobRecord);
+          }
+        } catch (err) {
+          console.error("[Persistence] ERROR: Failed to save blob:", {
+            imageId: image.id,
+            error: err instanceof Error ? err.message : String(err),
+          });
         }
       }
     }
