@@ -118,8 +118,12 @@ export const useBatchStore = create<BatchState>()(
 
         // Actions
         initSession: () => {
+          // DEBUG: Use static session ID to eliminate ID mismatch issues
+          // TODO: Remove this after debugging persistence issues
+          const STATIC_SESSION_ID = "default-user-session";
+          console.log(`[Store] initSession called, using static ID: "${STATIC_SESSION_ID}"`);
           set({
-            sessionId: crypto.randomUUID(),
+            sessionId: STATIC_SESSION_ID,
             groups: [],
             currentGroupIndex: 0,
             error: null,

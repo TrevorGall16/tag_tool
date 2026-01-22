@@ -3,7 +3,7 @@ import type { BatchRecord, BlobRecord, GroupRecord, ImageRecord } from "./schema
 import type { LocalGroup, LocalImageItem, MarketplaceType } from "@/store/useBatchStore";
 
 /**
- * Save a batch record
+ * Save a batch record (standalone - prefer saveSessionAtomic for full saves)
  */
 export async function saveBatch(sessionId: string, marketplace: MarketplaceType): Promise<void> {
   const db = await getDB();
@@ -17,6 +17,191 @@ export async function saveBatch(sessionId: string, marketplace: MarketplaceType)
   };
 
   await db.put("batches", record);
+}
+
+/**
+ * ATOMIC save of entire session (batch + groups + images + blobs) in a single transaction.
+ * CRITICAL: All async work (like File.arrayBuffer()) must happen BEFORE opening the transaction.
+ */
+export async function saveSessionAtomic(
+  sessionId: string,
+  marketplace: MarketplaceType,
+  groups: LocalGroup[]
+): Promise<{ savedGroups: number; savedImages: number }> {
+  const totalImages = groups.reduce((acc, g) => acc + g.images.length, 0);
+  console.log(`[SAVE] ====== ATOMIC SAVE START ======`);
+  console.log(`[SAVE] Session: "${sessionId}"`);
+  console.log(`[SAVE] Marketplace: ${marketplace}`);
+  console.log(`[SAVE] Groups to save: ${groups.length}`);
+  console.log(`[SAVE] Total images to save: ${totalImages}`);
+
+  // ============================================================
+  // PHASE 1: Prepare ALL data BEFORE opening transaction
+  // ============================================================
+  console.log(`[SAVE] Phase 1: Preparing data (converting Files to ArrayBuffers)...`);
+
+  const batchRecord: BatchRecord = {
+    sessionId,
+    marketplace,
+    createdAt: Date.now(),
+    lastModified: Date.now(),
+  };
+
+  const groupRecords: GroupRecord[] = [];
+  const imageRecords: ImageRecord[] = [];
+  const blobRecords: BlobRecord[] = [];
+
+  for (const group of groups) {
+    if (!group.id) {
+      console.error("[SAVE] Skipping group with undefined id");
+      continue;
+    }
+
+    groupRecords.push({
+      id: group.id,
+      sessionId,
+      groupNumber: group.groupNumber,
+      sharedTitle: group.sharedTitle,
+      sharedDescription: group.sharedDescription,
+      sharedTags: group.sharedTags,
+      isVerified: group.isVerified,
+    });
+
+    for (const image of group.images) {
+      if (!image.id) {
+        console.error("[SAVE] Skipping image with undefined id");
+        continue;
+      }
+
+      imageRecords.push({
+        id: image.id,
+        sessionId,
+        groupId: group.id,
+        originalFilename: image.originalFilename,
+        thumbnailDataUrl: image.thumbnailDataUrl,
+        aiTitle: image.aiTitle,
+        aiTags: image.aiTags,
+        aiConfidence: image.aiConfidence,
+        userTitle: image.userTitle,
+        userTags: image.userTags,
+        status: image.status,
+        errorMessage: image.errorMessage,
+      });
+
+      // Convert File to ArrayBuffer NOW, before transaction
+      if (image.file && image.file.size > 0) {
+        try {
+          const arrayBuffer = await image.file.arrayBuffer();
+          blobRecords.push({
+            id: image.id,
+            type: image.file.type,
+            data: arrayBuffer,
+            size: image.file.size,
+          });
+          console.log(
+            `[SAVE] Prepared blob for "${image.id.slice(0, 8)}" (${image.file.size} bytes)`
+          );
+        } catch (err) {
+          console.error(`[SAVE] Failed to read File for image "${image.id}":`, err);
+        }
+      }
+    }
+  }
+
+  console.log(
+    `[SAVE] Phase 1 complete: ${groupRecords.length} groups, ${imageRecords.length} images, ${blobRecords.length} blobs prepared`
+  );
+
+  // ============================================================
+  // PHASE 2: Execute ALL writes in a single synchronous transaction
+  // ============================================================
+  console.log(`[SAVE] Phase 2: Writing to IndexedDB...`);
+
+  const db = await getDB();
+  const tx = db.transaction(["batches", "groups", "images", "blobs"], "readwrite");
+
+  const batchStore = tx.objectStore("batches");
+  const groupStore = tx.objectStore("groups");
+  const imageStore = tx.objectStore("images");
+  const blobStore = tx.objectStore("blobs");
+
+  try {
+    // Get existing batch to preserve createdAt
+    const existingBatch = await batchStore.get(sessionId);
+    if (existingBatch) {
+      batchRecord.createdAt = existingBatch.createdAt;
+    }
+
+    // Get existing data for cleanup
+    const existingGroups = await groupStore.index("bySession").getAll(sessionId);
+    const existingImages = await imageStore.index("bySession").getAll(sessionId);
+
+    const newGroupIds = new Set(groupRecords.map((g) => g.id));
+    const newImageIds = new Set(imageRecords.map((i) => i.id));
+
+    // Collect all write operations
+    const writeOps: Promise<unknown>[] = [];
+
+    // Write batch
+    writeOps.push(batchStore.put(batchRecord));
+
+    // Delete obsolete groups
+    for (const existing of existingGroups) {
+      if (!newGroupIds.has(existing.id)) {
+        writeOps.push(groupStore.delete(existing.id));
+      }
+    }
+
+    // Delete obsolete images and blobs
+    for (const existing of existingImages) {
+      if (!newImageIds.has(existing.id)) {
+        writeOps.push(imageStore.delete(existing.id));
+        writeOps.push(blobStore.delete(existing.id));
+      }
+    }
+
+    // Write all groups
+    for (const record of groupRecords) {
+      writeOps.push(groupStore.put(record));
+    }
+
+    // Write all images
+    for (const record of imageRecords) {
+      writeOps.push(imageStore.put(record));
+    }
+
+    // Write all blobs (these are already converted to ArrayBuffers)
+    for (const record of blobRecords) {
+      writeOps.push(blobStore.put(record));
+    }
+
+    // Execute ALL operations in parallel within the transaction
+    console.log(`[SAVE] Executing ${writeOps.length} write operations...`);
+    await Promise.all(writeOps);
+
+    // Commit transaction
+    await tx.done;
+
+    console.log(`[SAVE] ====== ATOMIC SAVE COMPLETE ======`);
+    console.log(
+      `[SAVE] Saved: ${groupRecords.length} groups, ${imageRecords.length} images, ${blobRecords.length} blobs`
+    );
+
+    // Verify save by reading back (outside transaction)
+    const verifyBatch = await db.get("batches", sessionId);
+    const verifyGroups = await db.getAllFromIndex("groups", "bySession", sessionId);
+    const verifyImages = await db.getAllFromIndex("images", "bySession", sessionId);
+    const verifyBlobs = await db.getAll("blobs");
+    console.log(
+      `[SAVE] VERIFY: batch=${!!verifyBatch}, groups=${verifyGroups.length}, images=${verifyImages.length}, blobs=${verifyBlobs.length}`
+    );
+
+    return { savedGroups: groupRecords.length, savedImages: imageRecords.length };
+  } catch (err) {
+    console.error("[SAVE] ====== ATOMIC SAVE FAILED ======");
+    console.error("[SAVE] Error:", err);
+    throw err;
+  }
 }
 
 /**

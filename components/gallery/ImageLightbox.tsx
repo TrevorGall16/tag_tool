@@ -14,6 +14,8 @@ export interface ImageLightboxProps {
   onNext?: () => void;
   hasPrevious?: boolean;
   hasNext?: boolean;
+  /** Optional callback to trigger immediate persistence after save */
+  onSaveComplete?: () => void;
 }
 
 export function ImageLightbox({
@@ -25,6 +27,7 @@ export function ImageLightbox({
   onNext,
   hasPrevious = false,
   hasNext = false,
+  onSaveComplete,
 }: ImageLightboxProps) {
   const { updateImageTags } = useBatchStore();
 
@@ -83,7 +86,9 @@ export function ImageLightbox({
     if (!image) return;
     updateImageTags(groupId, image.id, editedTags, editedTitle);
     setHasChanges(false);
-  }, [image, groupId, editedTags, editedTitle, updateImageTags]);
+    // Trigger immediate persistence after save
+    onSaveComplete?.();
+  }, [image, groupId, editedTags, editedTitle, updateImageTags, onSaveComplete]);
 
   const handleTagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {

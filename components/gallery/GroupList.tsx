@@ -11,6 +11,8 @@ import type { VisionTagsResponse } from "@/types";
 
 export interface GroupListProps {
   className?: string;
+  /** Optional callback to trigger immediate persistence after Lightbox save */
+  onLightboxSave?: () => void;
 }
 
 interface LightboxState {
@@ -19,7 +21,7 @@ interface LightboxState {
   imageIndex: number;
 }
 
-export function GroupList({ className }: GroupListProps) {
+export function GroupList({ className, onLightboxSave }: GroupListProps) {
   const { groups, selectedGroupIds, toggleGroupSelection } = useBatchStore();
   const [selectedGroup, setSelectedGroup] = useState<LocalGroup | null>(null);
   const [lightboxState, setLightboxState] = useState<LightboxState>({
@@ -109,6 +111,7 @@ export function GroupList({ className }: GroupListProps) {
           onNext={handleLightboxNext}
           hasPrevious={hasPrevious}
           hasNext={hasNext}
+          onSaveComplete={onLightboxSave}
         />
       </div>
     </BatchDndContext>

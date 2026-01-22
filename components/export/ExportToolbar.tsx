@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Download, CheckCircle, AlertCircle, Settings2, Eye } from "lucide-react";
+import { Download, CheckCircle, AlertCircle, Settings2, Eye, Save, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { useBatchStore } from "@/store/useBatchStore";
 import { ExportEngine } from "@/lib/export";
+import { saveSessionAtomic, nukeAllData } from "@/lib/persistence";
 import { ExportSettings } from "./ExportSettings";
 import { CSVPreviewModal } from "./CSVPreviewModal";
 import type {
@@ -26,14 +27,57 @@ export function ExportToolbar({ className }: ExportToolbarProps) {
     updateExportSettings,
     selectedGroupIds,
     selectAllGroups,
+    sessionId,
   } = useBatchStore();
 
   const [isExporting, setIsExporting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [progress, setProgress] = useState<ExportProgress | null>(null);
   const [result, setResult] = useState<ExportResult | null>(null);
   const [showResult, setShowResult] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+
+  // DEBUG: Emergency save handler
+  const handleForceSave = async () => {
+    if (!sessionId) {
+      setSaveMessage("No session ID!");
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveMessage(null);
+
+    try {
+      console.log("[DEBUG] Force save triggered");
+      const result = await saveSessionAtomic(sessionId, marketplace, groups);
+      setSaveMessage(`Saved ${result.savedGroups} groups, ${result.savedImages} images`);
+      setTimeout(() => setSaveMessage(null), 5000);
+    } catch (err) {
+      console.error("[DEBUG] Force save failed:", err);
+      setSaveMessage(`FAILED: ${err instanceof Error ? err.message : "Unknown error"}`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // DEBUG: Nuke all data handler
+  const handleNukeDB = async () => {
+    if (!confirm("This will DELETE ALL DATA from IndexedDB. Are you sure?")) {
+      return;
+    }
+
+    try {
+      await nukeAllData();
+      setSaveMessage("Database cleared! Refresh page.");
+      // Clear Zustand store too
+      useBatchStore.getState().clearBatch();
+    } catch (err) {
+      console.error("[DEBUG] Nuke failed:", err);
+      setSaveMessage(`NUKE FAILED: ${err instanceof Error ? err.message : "Unknown error"}`);
+    }
+  };
 
   const exportableGroups = groups.filter(
     (g) =>
@@ -123,6 +167,46 @@ export function ExportToolbar({ className }: ExportToolbarProps) {
 
   return (
     <div className={cn("flex items-center gap-2", className)}>
+      {/* DEBUG: Emergency Save Button */}
+      <Button
+        onClick={handleForceSave}
+        variant="outline"
+        size="md"
+        title="DEBUG: Force Save to IndexedDB"
+        disabled={isSaving || groups.length === 0}
+        className="border-orange-300 text-orange-600 hover:bg-orange-50"
+      >
+        <Save className="h-4 w-4 mr-1" />
+        {isSaving ? "Saving..." : "Force Save"}
+      </Button>
+
+      {/* DEBUG: Nuke Database Button */}
+      <Button
+        onClick={handleNukeDB}
+        variant="outline"
+        size="md"
+        title="DEBUG: Delete ALL data from IndexedDB"
+        className="border-red-300 text-red-600 hover:bg-red-50"
+      >
+        <Trash2 className="h-4 w-4 mr-1" />
+        Nuke DB
+      </Button>
+
+      {saveMessage && (
+        <span
+          className={cn(
+            "text-xs px-2 py-1 rounded",
+            saveMessage.startsWith("FAILED") || saveMessage.startsWith("NUKE")
+              ? "bg-red-100 text-red-700"
+              : "bg-green-100 text-green-700"
+          )}
+        >
+          {saveMessage}
+        </span>
+      )}
+
+      <div className="w-px h-6 bg-slate-200" />
+
       <Button
         onClick={handlePreview}
         variant="outline"

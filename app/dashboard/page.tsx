@@ -10,7 +10,12 @@ import { MarketplaceInfo } from "@/components/ui";
 
 export default function DashboardPage() {
   const { sessionId, initSession, marketplace, setMarketplace, isClustering } = useBatchStore();
-  const { isRestoring, error: persistenceError, restoredImageCount } = usePersistence();
+  const {
+    isRestoring,
+    error: persistenceError,
+    restoredImageCount,
+    triggerSync,
+  } = usePersistence();
 
   useEffect(() => {
     if (!sessionId) {
@@ -82,7 +87,7 @@ export default function DashboardPage() {
         {isClustering ? (
           <GroupSkeleton className="mt-8" count={3} />
         ) : (
-          <GroupList className="mt-8" />
+          <GroupList className="mt-8" onLightboxSave={triggerSync} />
         )}
 
         {sessionId && (
