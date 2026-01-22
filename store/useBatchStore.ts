@@ -41,6 +41,9 @@ interface BatchState {
   groups: LocalGroup[];
   currentGroupIndex: number;
 
+  // Selection state for export
+  selectedGroupIds: Set<string>;
+
   // Processing state
   isProcessing: boolean;
   isUploading: boolean;
@@ -56,6 +59,9 @@ interface BatchState {
   // Actions
   initSession: () => void;
   setMarketplace: (marketplace: MarketplaceType) => void;
+  toggleGroupSelection: (groupId: string) => void;
+  selectAllGroups: () => void;
+  deselectAllGroups: () => void;
   setGroups: (groups: LocalGroup[]) => void;
   addGroup: (group: LocalGroup) => void;
   updateGroup: (groupId: string, updates: Partial<LocalGroup>) => void;
@@ -102,6 +108,7 @@ export const useBatchStore = create<BatchState>()(
         marketplace: "ETSY",
         groups: [],
         currentGroupIndex: 0,
+        selectedGroupIds: new Set<string>(),
         isProcessing: false,
         isUploading: false,
         isClustering: false,
@@ -121,6 +128,31 @@ export const useBatchStore = create<BatchState>()(
 
         setMarketplace: (marketplace) => {
           set({ marketplace });
+        },
+
+        toggleGroupSelection: (groupId) => {
+          set((state) => {
+            const newSelected = new Set(state.selectedGroupIds);
+            if (newSelected.has(groupId)) {
+              newSelected.delete(groupId);
+            } else {
+              newSelected.add(groupId);
+            }
+            return { selectedGroupIds: newSelected };
+          });
+        },
+
+        selectAllGroups: () => {
+          set((state) => {
+            const exportableGroupIds = state.groups
+              .filter((g) => g.id !== "unclustered" && g.images.length > 0)
+              .map((g) => g.id);
+            return { selectedGroupIds: new Set(exportableGroupIds) };
+          });
+        },
+
+        deselectAllGroups: () => {
+          set({ selectedGroupIds: new Set() });
         },
 
         setGroups: (groups) => {
@@ -294,6 +326,7 @@ export const useBatchStore = create<BatchState>()(
             sessionId: null,
             groups: [],
             currentGroupIndex: 0,
+            selectedGroupIds: new Set(),
             isProcessing: false,
             isUploading: false,
             isClustering: false,

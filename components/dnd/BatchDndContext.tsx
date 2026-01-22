@@ -12,6 +12,7 @@ import {
 } from "@dnd-kit/core";
 import { useBatchStore, type LocalImageItem } from "@/store/useBatchStore";
 import { ImageDragPreview } from "./DraggableImage";
+import { DragContext } from "./DragContext";
 
 export interface BatchDndContextProps {
   children: React.ReactNode;
@@ -58,12 +59,16 @@ export function BatchDndContext({ children }: BatchDndContextProps) {
     }
   };
 
+  const isDragging = activeImage !== null;
+
   return (
-    <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-      {children}
-      <DragOverlay dropAnimation={null}>
-        {activeImage && <ImageDragPreview image={activeImage} />}
-      </DragOverlay>
-    </DndContext>
+    <DragContext.Provider value={{ isDragging }}>
+      <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+        {children}
+        <DragOverlay dropAnimation={null}>
+          {activeImage && <ImageDragPreview image={activeImage} />}
+        </DragOverlay>
+      </DndContext>
+    </DragContext.Provider>
   );
 }

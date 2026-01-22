@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { Sparkles, Loader2, Check, Edit2 } from "lucide-react";
+import { Sparkles, Loader2, Check, Edit2, Square, CheckSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useBatchStore, LocalGroup, LocalImageItem } from "@/store/useBatchStore";
 import { TagEditor } from "@/components/editor";
@@ -20,7 +20,7 @@ interface LightboxState {
 }
 
 export function GroupList({ className }: GroupListProps) {
-  const { groups } = useBatchStore();
+  const { groups, selectedGroupIds, toggleGroupSelection } = useBatchStore();
   const [selectedGroup, setSelectedGroup] = useState<LocalGroup | null>(null);
   const [lightboxState, setLightboxState] = useState<LightboxState>({
     image: null,
@@ -84,6 +84,8 @@ export function GroupList({ className }: GroupListProps) {
               group={group}
               onEdit={() => setSelectedGroup(group)}
               onImageClick={handleImageClick}
+              isSelected={selectedGroupIds.has(group.id)}
+              onToggleSelect={() => toggleGroupSelection(group.id)}
             />
           </DroppableGroup>
         ))}
@@ -117,9 +119,11 @@ interface GroupCardProps {
   group: LocalGroup;
   onEdit: () => void;
   onImageClick: (image: LocalImageItem, groupId: string) => void;
+  isSelected: boolean;
+  onToggleSelect: () => void;
 }
 
-function GroupCard({ group, onEdit, onImageClick }: GroupCardProps) {
+function GroupCard({ group, onEdit, onImageClick, isSelected, onToggleSelect }: GroupCardProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -192,14 +196,31 @@ function GroupCard({ group, onEdit, onImageClick }: GroupCardProps) {
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <div>
-          <h3 className="font-medium text-slate-900">
-            {group.sharedTitle || `Group ${group.groupNumber}`}
-          </h3>
-          <p className="text-sm text-slate-500">
-            {group.images.length} images
-            {isTagged && " • Tagged"}
-          </p>
+        <div className="flex items-center gap-3">
+          {/* Selection Checkbox */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleSelect();
+            }}
+            className={cn(
+              "p-0.5 rounded transition-colors",
+              isSelected ? "text-blue-600" : "text-slate-400 hover:text-slate-600"
+            )}
+            title={isSelected ? "Deselect for export" : "Select for export"}
+            aria-label={isSelected ? "Deselect group" : "Select group"}
+          >
+            {isSelected ? <CheckSquare className="h-5 w-5" /> : <Square className="h-5 w-5" />}
+          </button>
+          <div>
+            <h3 className="font-medium text-slate-900">
+              {group.sharedTitle || `Group ${group.groupNumber}`}
+            </h3>
+            <p className="text-sm text-slate-500">
+              {group.images.length} images
+              {isTagged && " • Tagged"}
+            </p>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           {showSuccess && (

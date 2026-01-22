@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Download, CheckCircle, AlertCircle, Settings2 } from "lucide-react";
+import { Download, CheckCircle, AlertCircle, Settings2, Eye } from "lucide-react";
 import { Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { useBatchStore } from "@/store/useBatchStore";
 import { ExportEngine } from "@/lib/export";
 import { ExportSettings } from "./ExportSettings";
+import { CSVPreviewModal } from "./CSVPreviewModal";
 import type {
   ExportProgress,
   ExportResult,
@@ -18,19 +19,34 @@ export interface ExportToolbarProps {
 }
 
 export function ExportToolbar({ className }: ExportToolbarProps) {
-  const { groups, marketplace, exportSettings, updateExportSettings } = useBatchStore();
+  const {
+    groups,
+    marketplace,
+    exportSettings,
+    updateExportSettings,
+    selectedGroupIds,
+    selectAllGroups,
+  } = useBatchStore();
 
   const [isExporting, setIsExporting] = useState(false);
   const [progress, setProgress] = useState<ExportProgress | null>(null);
   const [result, setResult] = useState<ExportResult | null>(null);
   const [showResult, setShowResult] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
 
   const exportableGroups = groups.filter(
     (g) =>
       g.id !== "unclustered" && g.images.length > 0 && (g.sharedTitle || g.sharedTags.length > 0)
   );
-  const totalExportableImages = exportableGroups.reduce((sum, g) => sum + g.images.length, 0);
+
+  // Calculate what will be exported based on selection
+  const groupsToExport =
+    selectedGroupIds.size > 0
+      ? exportableGroups.filter((g) => selectedGroupIds.has(g.id))
+      : exportableGroups;
+
+  const totalExportableImages = groupsToExport.reduce((sum, g) => sum + g.images.length, 0);
   const canExport = totalExportableImages > 0 && !isExporting;
 
   const handleExport = async () => {
@@ -42,7 +58,11 @@ export function ExportToolbar({ className }: ExportToolbarProps) {
     setProgress(null);
 
     try {
-      const engine = new ExportEngine({ marketplace, settings: exportSettings });
+      const engine = new ExportEngine({
+        marketplace,
+        settings: exportSettings,
+        selectedGroupIds: selectedGroupIds.size > 0 ? selectedGroupIds : undefined,
+      });
       engine.onProgress(setProgress);
 
       const exportResult = await engine.exportGroups(groups);
@@ -83,6 +103,9 @@ export function ExportToolbar({ className }: ExportToolbarProps) {
     if (totalExportableImages === 0) {
       return "No images to export";
     }
+    if (selectedGroupIds.size > 0) {
+      return `Download Selected (${totalExportableImages})`;
+    }
     return `Download All (${totalExportableImages})`;
   };
 
@@ -90,8 +113,26 @@ export function ExportToolbar({ className }: ExportToolbarProps) {
     updateExportSettings(newSettings);
   };
 
+  const handlePreview = () => {
+    // Auto-select all if nothing is selected
+    if (selectedGroupIds.size === 0 && exportableGroups.length > 0) {
+      selectAllGroups();
+    }
+    setShowPreview(true);
+  };
+
   return (
-    <div className={cn("flex items-center gap-3", className)}>
+    <div className={cn("flex items-center gap-2", className)}>
+      <Button
+        onClick={handlePreview}
+        variant="outline"
+        size="md"
+        title="Preview Metadata"
+        disabled={exportableGroups.length === 0}
+      >
+        <Eye className="h-4 w-4" />
+      </Button>
+
       <Button
         onClick={() => setShowSettings(true)}
         variant="outline"
@@ -140,6 +181,12 @@ export function ExportToolbar({ className }: ExportToolbarProps) {
         onSettingsChange={handleSettingsChange}
         isOpen={showSettings}
         onClose={() => setShowSettings(false)}
+      />
+
+      <CSVPreviewModal
+        isOpen={showPreview}
+        onClose={() => setShowPreview(false)}
+        groups={groupsToExport}
       />
     </div>
   );

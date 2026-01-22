@@ -71,6 +71,7 @@ export interface ExportOptions {
   marketplace: MarketplaceType;
   includeUnverified?: boolean;
   settings?: ExportSettings;
+  selectedGroupIds?: Set<string>;
 }
 
 export interface ExportProgress {

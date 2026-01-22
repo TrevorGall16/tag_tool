@@ -16,17 +16,19 @@ import { DEFAULT_EXPORT_SETTINGS } from "./types";
 import type { LocalImageItem } from "@/store/useBatchStore";
 
 export class ExportEngine {
-  private options: Required<Omit<ExportOptions, "settings">>;
+  private options: Required<Omit<ExportOptions, "settings" | "selectedGroupIds">>;
   private settings: ExportSettings;
+  private selectedGroupIds?: Set<string>;
   private progressCallback?: ExportProgressCallback;
 
   constructor(options: ExportOptions) {
-    const { settings, ...rest } = options;
+    const { settings, selectedGroupIds, ...rest } = options;
     this.options = {
       includeUnverified: true,
       ...rest,
     };
     this.settings = settings ?? DEFAULT_EXPORT_SETTINGS;
+    this.selectedGroupIds = selectedGroupIds;
   }
 
   /**
@@ -168,6 +170,10 @@ export class ExportEngine {
   private filterGroups(groups: LocalGroup[]): LocalGroup[] {
     return groups.filter((group) => {
       if (group.id === "unclustered") return false;
+      // If selectedGroupIds is provided, only include selected groups
+      if (this.selectedGroupIds && this.selectedGroupIds.size > 0) {
+        if (!this.selectedGroupIds.has(group.id)) return false;
+      }
       if (!this.options.includeUnverified && !group.isVerified) {
         return group.sharedTitle || group.sharedTags.length > 0;
       }
