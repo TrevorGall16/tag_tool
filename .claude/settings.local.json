@@ -9,7 +9,8 @@
       "Bash(pnpm add:*)",
       "Bash(pnpm build:*)",
       "Bash(pnpm format:*)",
-      "Bash(pnpm prettier:*)"
+      "Bash(pnpm prettier:*)",
+      "Bash(pnpm next build:*)"
     ]
   }
 }

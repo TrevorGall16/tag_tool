@@ -63,7 +63,8 @@ export class AnthropicVisionProvider implements IVisionProvider {
       ],
     });
 
-    const responseText = message.content[0].type === "text" ? message.content[0].text : "";
+    const firstContent = message.content[0];
+    const responseText = firstContent?.type === "text" ? firstContent.text : "";
 
     return this.parseClusterResponse(responseText, images);
   }
@@ -123,7 +124,8 @@ export class AnthropicVisionProvider implements IVisionProvider {
       ],
     });
 
-    const responseText = message.content[0].type === "text" ? message.content[0].text : "";
+    const firstContent = message.content[0];
+    const responseText = firstContent?.type === "text" ? firstContent.text : "";
 
     return this.parseTagResponse(responseText, image.id);
   }

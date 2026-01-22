@@ -1,24 +1,30 @@
 "use client";
 
 import { useState } from "react";
-import { Download, CheckCircle, AlertCircle } from "lucide-react";
+import { Download, CheckCircle, AlertCircle, Settings2 } from "lucide-react";
 import { Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { useBatchStore } from "@/store/useBatchStore";
 import { ExportEngine } from "@/lib/export";
-import type { ExportProgress, ExportResult } from "@/lib/export";
+import { ExportSettings } from "./ExportSettings";
+import type {
+  ExportProgress,
+  ExportResult,
+  ExportSettings as ExportSettingsType,
+} from "@/lib/export";
 
 export interface ExportToolbarProps {
   className?: string;
 }
 
 export function ExportToolbar({ className }: ExportToolbarProps) {
-  const { groups, marketplace } = useBatchStore();
+  const { groups, marketplace, exportSettings, updateExportSettings } = useBatchStore();
 
   const [isExporting, setIsExporting] = useState(false);
   const [progress, setProgress] = useState<ExportProgress | null>(null);
   const [result, setResult] = useState<ExportResult | null>(null);
   const [showResult, setShowResult] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   const exportableGroups = groups.filter(
     (g) =>
@@ -36,7 +42,7 @@ export function ExportToolbar({ className }: ExportToolbarProps) {
     setProgress(null);
 
     try {
-      const engine = new ExportEngine({ marketplace });
+      const engine = new ExportEngine({ marketplace, settings: exportSettings });
       engine.onProgress(setProgress);
 
       const exportResult = await engine.exportGroups(groups);
@@ -80,8 +86,21 @@ export function ExportToolbar({ className }: ExportToolbarProps) {
     return `Download All (${totalExportableImages})`;
   };
 
+  const handleSettingsChange = (newSettings: ExportSettingsType) => {
+    updateExportSettings(newSettings);
+  };
+
   return (
     <div className={cn("flex items-center gap-3", className)}>
+      <Button
+        onClick={() => setShowSettings(true)}
+        variant="outline"
+        size="md"
+        title="Export Settings"
+      >
+        <Settings2 className="h-4 w-4" />
+      </Button>
+
       <Button
         onClick={handleExport}
         disabled={!canExport}
@@ -115,6 +134,13 @@ export function ExportToolbar({ className }: ExportToolbarProps) {
           )}
         </div>
       )}
+
+      <ExportSettings
+        settings={exportSettings}
+        onSettingsChange={handleSettingsChange}
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+      />
     </div>
   );
 }

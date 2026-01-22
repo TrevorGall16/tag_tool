@@ -1,46 +1,125 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Sparkles, Loader2, Check, Edit2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useBatchStore, LocalGroup } from "@/store/useBatchStore";
+import { useBatchStore, LocalGroup, LocalImageItem } from "@/store/useBatchStore";
 import { TagEditor } from "@/components/editor";
+import { BatchDndContext, DraggableImage, DroppableGroup } from "@/components/dnd";
+import { ImageLightbox } from "./ImageLightbox";
 import type { VisionTagsResponse } from "@/types";
 
 export interface GroupListProps {
   className?: string;
 }
 
+interface LightboxState {
+  image: LocalImageItem | null;
+  groupId: string;
+  imageIndex: number;
+}
+
 export function GroupList({ className }: GroupListProps) {
   const { groups } = useBatchStore();
   const [selectedGroup, setSelectedGroup] = useState<LocalGroup | null>(null);
+  const [lightboxState, setLightboxState] = useState<LightboxState>({
+    image: null,
+    groupId: "",
+    imageIndex: -1,
+  });
 
   const clusteredGroups = groups.filter((g) => g.id !== "unclustered");
+
+  const handleImageClick = useCallback(
+    (image: LocalImageItem, groupId: string) => {
+      const group = groups.find((g) => g.id === groupId);
+      const imageIndex = group?.images.findIndex((img) => img.id === image.id) ?? -1;
+      setLightboxState({ image, groupId, imageIndex });
+    },
+    [groups]
+  );
+
+  const handleLightboxClose = useCallback(() => {
+    setLightboxState({ image: null, groupId: "", imageIndex: -1 });
+  }, []);
+
+  const handleLightboxPrevious = useCallback(() => {
+    const group = groups.find((g) => g.id === lightboxState.groupId);
+    if (!group || lightboxState.imageIndex <= 0) return;
+    const newIndex = lightboxState.imageIndex - 1;
+    const newImage = group.images[newIndex];
+    if (newImage) {
+      setLightboxState({ image: newImage, groupId: lightboxState.groupId, imageIndex: newIndex });
+    }
+  }, [groups, lightboxState]);
+
+  const handleLightboxNext = useCallback(() => {
+    const group = groups.find((g) => g.id === lightboxState.groupId);
+    if (!group || lightboxState.imageIndex >= group.images.length - 1) return;
+    const newIndex = lightboxState.imageIndex + 1;
+    const newImage = group.images[newIndex];
+    if (newImage) {
+      setLightboxState({ image: newImage, groupId: lightboxState.groupId, imageIndex: newIndex });
+    }
+  }, [groups, lightboxState]);
+
+  const currentGroup = groups.find((g) => g.id === lightboxState.groupId);
+  const hasPrevious = lightboxState.imageIndex > 0;
+  const hasNext = currentGroup ? lightboxState.imageIndex < currentGroup.images.length - 1 : false;
 
   if (clusteredGroups.length === 0) return null;
 
   return (
-    <div className={cn("space-y-6", className)}>
-      <h2 className="text-xl font-semibold text-slate-900">
-        Clustered Groups ({clusteredGroups.length})
-      </h2>
-      {clusteredGroups.map((group) => (
-        <GroupCard key={group.id} group={group} onEdit={() => setSelectedGroup(group)} />
-      ))}
+    <BatchDndContext>
+      <div className={cn("space-y-6", className)}>
+        <h2 className="text-xl font-semibold text-slate-900">
+          Clustered Groups ({clusteredGroups.length})
+        </h2>
+        <p className="text-sm text-slate-500 -mt-4">
+          Drag images between groups to reorganize. Click an image to view and edit.
+        </p>
+        {clusteredGroups.map((group) => (
+          <DroppableGroup key={group.id} groupId={group.id}>
+            <GroupCard
+              group={group}
+              onEdit={() => setSelectedGroup(group)}
+              onImageClick={handleImageClick}
+            />
+          </DroppableGroup>
+        ))}
 
-      {/* Tag Editor Modal */}
-      {selectedGroup && (
-        <TagEditor
-          group={selectedGroup}
-          isOpen={!!selectedGroup}
-          onClose={() => setSelectedGroup(null)}
+        {/* Tag Editor Modal */}
+        {selectedGroup && (
+          <TagEditor
+            group={selectedGroup}
+            isOpen={!!selectedGroup}
+            onClose={() => setSelectedGroup(null)}
+          />
+        )}
+
+        {/* Image Lightbox */}
+        <ImageLightbox
+          image={lightboxState.image}
+          groupId={lightboxState.groupId}
+          isOpen={!!lightboxState.image}
+          onClose={handleLightboxClose}
+          onPrevious={handleLightboxPrevious}
+          onNext={handleLightboxNext}
+          hasPrevious={hasPrevious}
+          hasNext={hasNext}
         />
-      )}
-    </div>
+      </div>
+    </BatchDndContext>
   );
 }
 
-function GroupCard({ group, onEdit }: { group: LocalGroup; onEdit: () => void }) {
+interface GroupCardProps {
+  group: LocalGroup;
+  onEdit: () => void;
+  onImageClick: (image: LocalImageItem, groupId: string) => void;
+}
+
+function GroupCard({ group, onEdit, onImageClick }: GroupCardProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -60,6 +139,7 @@ function GroupCard({ group, onEdit }: { group: LocalGroup; onEdit: () => void })
     try {
       // Send only the first image as representative
       const representativeImage = group.images[0];
+      if (!representativeImage) return;
 
       const response = await fetch("/api/vision/tags", {
         method: "POST",
@@ -189,18 +269,17 @@ function GroupCard({ group, onEdit }: { group: LocalGroup; onEdit: () => void })
       )}
 
       {/* Image Grid */}
-      <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+      <div
+        className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2"
+        onClick={(e) => e.stopPropagation()}
+      >
         {group.images.map((image) => (
-          <div
+          <DraggableImage
             key={image.id}
-            className="aspect-square rounded-lg overflow-hidden border border-slate-100"
-          >
-            <img
-              src={image.thumbnailDataUrl}
-              alt={image.originalFilename}
-              className="w-full h-full object-cover"
-            />
-          </div>
+            image={image}
+            groupId={group.id}
+            onImageClick={(img) => onImageClick(img, group.id)}
+          />
         ))}
       </div>
     </div>

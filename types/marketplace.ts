@@ -5,6 +5,8 @@ export interface MarketplaceConfig {
   maxTitleLength: number;
   csvColumns: string[];
   tagSeparator: string;
+  tooltipSummary: string;
+  tooltipDetails: string[];
 }
 
 export const MARKETPLACE_CONFIGS: Record<string, MarketplaceConfig> = {
@@ -15,6 +17,13 @@ export const MARKETPLACE_CONFIGS: Record<string, MarketplaceConfig> = {
     maxTitleLength: 140,
     csvColumns: ["Title", "Tags", "Image1"],
     tagSeparator: ", ",
+    tooltipSummary: "Etsy Listing Requirements",
+    tooltipDetails: [
+      "Title: Max 140 characters",
+      "Tags: Exactly 13 tags required",
+      "Each tag: Max 20 characters",
+      "No special characters in tags",
+    ],
   },
   ADOBE_STOCK: {
     name: "Adobe Stock",
@@ -23,6 +32,13 @@ export const MARKETPLACE_CONFIGS: Record<string, MarketplaceConfig> = {
     maxTitleLength: 200,
     csvColumns: ["Filename", "Title", "Keywords"],
     tagSeparator: ", ",
+    tooltipSummary: "Adobe Stock Requirements",
+    tooltipDetails: [
+      "Title: Max 200 characters",
+      "Keywords: 5-50 tags required",
+      "Tags ordered by relevance",
+      "Each keyword: Max 50 characters",
+    ],
   },
 };
 

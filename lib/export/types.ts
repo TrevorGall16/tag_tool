@@ -1,8 +1,76 @@
 import type { LocalGroup, MarketplaceType } from "@/store/useBatchStore";
 
+// ============================================
+// EXPORT NAMING TYPES
+// ============================================
+
+export interface ExportNamingOptions {
+  pattern: string;
+  sequencePadding: number;
+  projectName: string;
+}
+
+export interface NamingContext {
+  date: string;
+  project: string;
+  seq: string;
+  original: string;
+}
+
+export type NamingPlaceholder = "{date}" | "{project}" | "{seq}" | "{original}";
+
+// ============================================
+// METADATA TYPES
+// ============================================
+
+export interface MetadataOptions {
+  enabled: boolean;
+  burnExif: boolean;
+  burnIptc: boolean;
+}
+
+export interface ImageMetadata {
+  title: string;
+  keywords: string[];
+  description?: string;
+}
+
+export interface MetadataWriteResult {
+  success: boolean;
+  data?: ArrayBuffer;
+  error?: string;
+}
+
+// ============================================
+// EXPORT SETTINGS
+// ============================================
+
+export interface ExportSettings {
+  naming: ExportNamingOptions;
+  metadata: MetadataOptions;
+}
+
+export const DEFAULT_EXPORT_SETTINGS: ExportSettings = {
+  naming: {
+    pattern: "{project}_{seq}",
+    sequencePadding: 3,
+    projectName: "export",
+  },
+  metadata: {
+    enabled: true,
+    burnExif: true,
+    burnIptc: true,
+  },
+};
+
+// ============================================
+// EXPORT OPTIONS
+// ============================================
+
 export interface ExportOptions {
   marketplace: MarketplaceType;
   includeUnverified?: boolean;
+  settings?: ExportSettings;
 }
 
 export interface ExportProgress {

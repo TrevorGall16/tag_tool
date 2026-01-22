@@ -1,6 +1,8 @@
 import JSZip from "jszip";
 import { slugify, sanitizeForCsv } from "@/lib/utils";
 import { generateCsv } from "./csv-generator";
+import { buildNamingContext, generateExportFilename } from "./export-namer";
+import { embedMetadata, buildImageMetadata } from "./metadata-service";
 import type {
   ExportOptions,
   ExportProgress,
@@ -8,18 +10,23 @@ import type {
   ExportResult,
   CsvRow,
   LocalGroup,
+  ExportSettings,
 } from "./types";
+import { DEFAULT_EXPORT_SETTINGS } from "./types";
 import type { LocalImageItem } from "@/store/useBatchStore";
 
 export class ExportEngine {
-  private options: Required<ExportOptions>;
+  private options: Required<Omit<ExportOptions, "settings">>;
+  private settings: ExportSettings;
   private progressCallback?: ExportProgressCallback;
 
   constructor(options: ExportOptions) {
+    const { settings, ...rest } = options;
     this.options = {
       includeUnverified: true,
-      ...options,
+      ...rest,
     };
+    this.settings = settings ?? DEFAULT_EXPORT_SETTINGS;
   }
 
   /**
@@ -56,10 +63,10 @@ export class ExportEngine {
       phase: "preparing",
     });
 
+    let globalSequence = 1;
+
     try {
       for (const group of filteredGroups) {
-        const baseSlug = this.getGroupSlug(group);
-
         for (let i = 0; i < group.images.length; i++) {
           const image = group.images[i];
           if (!image) {
@@ -73,7 +80,11 @@ export class ExportEngine {
           }
 
           const extension = this.getFileExtension(image.originalFilename);
-          const filename = this.generateFilename(baseSlug, i, group.images.length, extension);
+          const filename = this.generateFilenameWithPattern(
+            image.originalFilename,
+            globalSequence,
+            extension
+          );
 
           this.reportProgress({
             current: processedImages,
@@ -82,12 +93,13 @@ export class ExportEngine {
             currentFile: filename,
           });
 
-          const arrayBuffer = await image.file.arrayBuffer();
+          const arrayBuffer = await this.processImageWithMetadata(image, group);
           zip.file(filename, arrayBuffer);
 
           csvRows.push(this.createCsvRow(filename, group, image));
 
           processedImages++;
+          globalSequence++;
         }
       }
 
@@ -179,16 +191,33 @@ export class ExportEngine {
     return parts.length > 1 ? parts.pop()!.toLowerCase() : "jpg";
   }
 
-  private generateFilename(
-    baseSlug: string,
-    index: number,
-    total: number,
+  private generateFilenameWithPattern(
+    originalFilename: string,
+    sequenceNumber: number,
     extension: string
   ): string {
-    if (total === 1) {
-      return `${baseSlug}.${extension}`;
+    const context = buildNamingContext(this.settings.naming, sequenceNumber, originalFilename);
+    return generateExportFilename(this.settings.naming.pattern, context, extension);
+  }
+
+  private async processImageWithMetadata(
+    image: LocalImageItem,
+    group: LocalGroup
+  ): Promise<ArrayBuffer> {
+    const metadata = buildImageMetadata(
+      image.userTitle || group.sharedTitle || image.aiTitle,
+      image.userTags || group.sharedTags || image.aiTags,
+      group.sharedDescription
+    );
+
+    if (this.settings.metadata.enabled && image.file) {
+      const result = await embedMetadata(image.file, metadata, this.settings.metadata);
+      if (result.success && result.data) {
+        return result.data;
+      }
     }
-    return `${baseSlug}-${index + 1}.${extension}`;
+
+    return image.file?.arrayBuffer() ?? new ArrayBuffer(0);
   }
 
   private createCsvRow(filename: string, group: LocalGroup, image: LocalImageItem): CsvRow {

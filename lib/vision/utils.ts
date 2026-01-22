@@ -9,7 +9,7 @@ export function getMediaType(dataUrl: string): ImageMediaType {
 
 export function extractBase64Data(dataUrl: string): string {
   const base64Match = dataUrl.match(/base64,(.+)/);
-  return base64Match ? base64Match[1] : dataUrl;
+  return base64Match?.[1] ?? dataUrl;
 }
 
 export function extractJsonFromResponse(responseText: string): unknown {

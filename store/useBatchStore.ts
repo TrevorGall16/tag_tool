@@ -2,6 +2,8 @@
 
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
+import type { ExportSettings } from "@/lib/export";
+import { DEFAULT_EXPORT_SETTINGS } from "@/lib/export";
 
 // Types for the store
 export interface LocalImageItem {
@@ -48,6 +50,9 @@ interface BatchState {
   // Error state
   error: string | null;
 
+  // Export settings
+  exportSettings: ExportSettings;
+
   // Actions
   initSession: () => void;
   setMarketplace: (marketplace: MarketplaceType) => void;
@@ -84,6 +89,8 @@ interface BatchState {
   setError: (error: string | null) => void;
   clearBatch: () => void;
   ensureUnclusteredGroup: () => string;
+  updateExportSettings: (settings: ExportSettings) => void;
+  resetExportSettings: () => void;
 }
 
 export const useBatchStore = create<BatchState>()(
@@ -100,6 +107,7 @@ export const useBatchStore = create<BatchState>()(
         isClustering: false,
         isTagging: false,
         error: null,
+        exportSettings: DEFAULT_EXPORT_SETTINGS,
 
         // Actions
         initSession: () => {
@@ -154,9 +162,19 @@ export const useBatchStore = create<BatchState>()(
         moveImageToGroup: (imageId, fromGroupId, toGroupId) => {
           set((state) => {
             const fromGroup = state.groups.find((g) => g.id === fromGroupId);
+            const toGroup = state.groups.find((g) => g.id === toGroupId);
             const image = fromGroup?.images.find((i) => i.id === imageId);
 
-            if (!image) return state;
+            if (!image || !toGroup) return state;
+
+            // Inherit target group's tags and title when moving
+            const updatedImage = {
+              ...image,
+              aiTags: toGroup.sharedTags.length > 0 ? toGroup.sharedTags : image.aiTags,
+              aiTitle: toGroup.sharedTitle || image.aiTitle,
+              userTags: toGroup.sharedTags.length > 0 ? toGroup.sharedTags : image.userTags,
+              userTitle: toGroup.sharedTitle || image.userTitle,
+            };
 
             return {
               groups: state.groups.map((group) => {
@@ -169,7 +187,7 @@ export const useBatchStore = create<BatchState>()(
                 if (group.id === toGroupId) {
                   return {
                     ...group,
-                    images: [...group.images, image],
+                    images: [...group.images, updatedImage],
                   };
                 }
                 return group;
@@ -300,6 +318,14 @@ export const useBatchStore = create<BatchState>()(
           set({ groups: [unclusteredGroup, ...state.groups] });
           return unclusteredGroup.id;
         },
+
+        updateExportSettings: (settings) => {
+          set({ exportSettings: settings });
+        },
+
+        resetExportSettings: () => {
+          set({ exportSettings: DEFAULT_EXPORT_SETTINGS });
+        },
       }),
       {
         name: "tagarchitect-batch-storage",
@@ -308,6 +334,7 @@ export const useBatchStore = create<BatchState>()(
           sessionId: state.sessionId,
           marketplace: state.marketplace,
           currentGroupIndex: state.currentGroupIndex,
+          exportSettings: state.exportSettings,
         }),
       }
     ),
