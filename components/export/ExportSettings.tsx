@@ -28,6 +28,7 @@ const PLACEHOLDER_HELP = [
   { placeholder: "{seq}", description: "Sequential number (required)" },
   { placeholder: "{date}", description: "Current date (YYYY-MM-DD)" },
   { placeholder: "{original}", description: "Original filename" },
+  { placeholder: "{group}", description: "Group name/title" },
 ];
 
 export function ExportSettings({
@@ -259,26 +260,6 @@ export function ExportSettings({
                   <span className="text-sm text-slate-700">EXIF Tags</span>
                   <span className="text-xs text-slate-500 block">
                     XPTitle, XPKeywords, XPSubject (Windows)
-                  </span>
-                </div>
-              </label>
-
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={localSettings.metadata.burnIptc}
-                  onChange={(e) =>
-                    setLocalSettings({
-                      ...localSettings,
-                      metadata: { ...localSettings.metadata, burnIptc: e.target.checked },
-                    })
-                  }
-                  className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                />
-                <div>
-                  <span className="text-sm text-slate-700">IPTC Keywords</span>
-                  <span className="text-xs text-slate-500 block">
-                    Standard keyword field (future enhancement)
                   </span>
                 </div>
               </label>

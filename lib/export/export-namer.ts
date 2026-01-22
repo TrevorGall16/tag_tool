@@ -7,14 +7,16 @@ import type { NamingContext, ExportNamingOptions } from "./types";
 export function buildNamingContext(
   options: ExportNamingOptions,
   sequenceNumber: number,
-  originalFilename: string
+  originalFilename: string,
+  groupName?: string
 ): NamingContext {
   const date = new Date().toISOString().slice(0, 10);
   const project = slugify(options.projectName) || "export";
   const seq = String(sequenceNumber).padStart(options.sequencePadding, "0");
   const original = extractBasename(originalFilename);
+  const group = groupName ? slugify(groupName) : "ungrouped";
 
-  return { date, project, seq, original };
+  return { date, project, seq, original, group };
 }
 
 /**
@@ -29,7 +31,8 @@ export function generateExportFilename(
     .replace(/\{date\}/g, context.date)
     .replace(/\{project\}/g, context.project)
     .replace(/\{seq\}/g, context.seq)
-    .replace(/\{original\}/g, context.original);
+    .replace(/\{original\}/g, context.original)
+    .replace(/\{group\}/g, context.group);
 
   result = sanitizeFilenameSegment(result);
 
@@ -84,8 +87,9 @@ export function validatePattern(pattern: string): { valid: boolean; error?: stri
 export function previewFilename(
   options: ExportNamingOptions,
   sampleSequence: number = 1,
-  sampleOriginal: string = "IMG_1234.jpg"
+  sampleOriginal: string = "IMG_1234.jpg",
+  sampleGroup: string = "my-group"
 ): string {
-  const context = buildNamingContext(options, sampleSequence, sampleOriginal);
+  const context = buildNamingContext(options, sampleSequence, sampleOriginal, sampleGroup);
   return generateExportFilename(options.pattern, context, "jpg");
 }

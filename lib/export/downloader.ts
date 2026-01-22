@@ -82,10 +82,12 @@ export class ExportEngine {
           }
 
           const extension = this.getFileExtension(image.originalFilename);
+          const groupName = group.sharedTitle || `group-${group.groupNumber}`;
           const filename = this.generateFilenameWithPattern(
             image.originalFilename,
             globalSequence,
-            extension
+            extension,
+            groupName
           );
 
           this.reportProgress({
@@ -200,9 +202,15 @@ export class ExportEngine {
   private generateFilenameWithPattern(
     originalFilename: string,
     sequenceNumber: number,
-    extension: string
+    extension: string,
+    groupName?: string
   ): string {
-    const context = buildNamingContext(this.settings.naming, sequenceNumber, originalFilename);
+    const context = buildNamingContext(
+      this.settings.naming,
+      sequenceNumber,
+      originalFilename,
+      groupName
+    );
     return generateExportFilename(this.settings.naming.pattern, context, extension);
   }
 

@@ -15,9 +15,10 @@ export interface NamingContext {
   project: string;
   seq: string;
   original: string;
+  group: string;
 }
 
-export type NamingPlaceholder = "{date}" | "{project}" | "{seq}" | "{original}";
+export type NamingPlaceholder = "{date}" | "{project}" | "{seq}" | "{original}" | "{group}";
 
 // ============================================
 // METADATA TYPES
