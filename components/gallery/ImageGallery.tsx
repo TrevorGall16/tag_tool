@@ -1,8 +1,10 @@
 "use client";
 
-import { Layers, ImageIcon, Loader2 } from "lucide-react";
+import { Layers, ImageIcon, Loader2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useBatchStore, LocalGroup } from "@/store/useBatchStore";
+import { deleteImageData } from "@/lib/persistence";
+import { markExplicitClear } from "@/hooks/usePersistence";
 import type { VisionClusterResponse } from "@/types";
 
 export interface ImageGalleryProps {
@@ -10,11 +12,32 @@ export interface ImageGalleryProps {
 }
 
 export function ImageGallery({ className }: ImageGalleryProps) {
-  const { groups, marketplace, isClustering, error, setGroups, setProcessingState, setError } =
-    useBatchStore();
+  const {
+    groups,
+    marketplace,
+    isClustering,
+    error,
+    setGroups,
+    setProcessingState,
+    setError,
+    removeImageFromGroup,
+  } = useBatchStore();
 
   const unclusteredGroup = groups.find((g) => g.id === "unclustered");
   const images = unclusteredGroup?.images ?? [];
+
+  const handleDeleteImage = async (imageId: string) => {
+    // Mark explicit clear to allow sync with reduced image count
+    markExplicitClear();
+    // Remove from store
+    removeImageFromGroup("unclustered", imageId);
+    // Delete from IndexedDB
+    try {
+      await deleteImageData(imageId);
+    } catch (err) {
+      console.error("[ImageGallery] Failed to delete image from IndexedDB:", err);
+    }
+  };
 
   const handleClusterClick = async () => {
     if (images.length < 2) {
@@ -124,13 +147,27 @@ export function ImageGallery({ className }: ImageGalleryProps) {
             <div
               key={image.id}
               className={cn(
-                "relative aspect-square rounded-xl overflow-hidden",
+                "group relative aspect-square rounded-xl overflow-hidden",
                 "border border-slate-200 bg-white",
                 "shadow-sm hover:shadow-lg",
-                "hover:scale-105 transition-all duration-200",
-                "cursor-pointer"
+                "hover:scale-105 transition-all duration-200"
               )}
             >
+              {/* Delete button */}
+              <button
+                type="button"
+                onClick={() => handleDeleteImage(image.id)}
+                className={cn(
+                  "absolute top-1 right-1 z-10 p-1 rounded-full",
+                  "bg-red-500/80 text-white",
+                  "opacity-0 group-hover:opacity-100 transition-opacity",
+                  "hover:bg-red-600 hover:scale-110"
+                )}
+                title={`Remove ${image.originalFilename}`}
+                aria-label={`Remove ${image.originalFilename}`}
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
               <img
                 src={image.thumbnailDataUrl}
                 alt={image.originalFilename}

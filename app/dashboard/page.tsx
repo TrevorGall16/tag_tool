@@ -86,7 +86,7 @@ export default function DashboardPage() {
             <h1 className="text-2xl font-bold text-slate-900">TagArchitect</h1>
             <div className="flex items-center gap-4">
               <ExportToolbar />
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-2">
                 <select
                   value={marketplace}
                   onChange={(e) => setMarketplace(e.target.value as "ETSY" | "ADOBE_STOCK")}
@@ -96,6 +96,15 @@ export default function DashboardPage() {
                   <option value="ADOBE_STOCK">Adobe Stock</option>
                 </select>
                 <MarketplaceInfo marketplace={marketplace} />
+                <button
+                  onClick={handleNewBatch}
+                  disabled={isResetting}
+                  className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm hover:bg-slate-50 hover:border-slate-400 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                  title="Start new batch (clears all images)"
+                >
+                  <RotateCcw className={`h-4 w-4 ${isResetting ? "animate-spin" : ""}`} />
+                  New Batch
+                </button>
               </div>
             </div>
           </div>
