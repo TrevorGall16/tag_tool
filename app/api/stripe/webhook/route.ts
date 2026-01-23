@@ -40,10 +40,38 @@ export async function POST(request: NextRequest) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
         const customerId = session.customer as string;
+        const userId = session.metadata?.userId || session.client_reference_id;
         const credits = session.metadata?.credits;
+        const plan = session.metadata?.plan;
 
-        if (credits) {
-          // Credit purchase completed
+        if (credits && userId) {
+          // Credit purchase completed - use userId from metadata
+          console.log(
+            `[Stripe Webhook] Processing checkout for user ${userId}: +${credits} credits (${plan})`
+          );
+
+          await prisma.$transaction(async (tx) => {
+            await tx.user.update({
+              where: { id: userId },
+              data: { creditsBalance: { increment: parseInt(credits) } },
+            });
+
+            await tx.creditsLedger.create({
+              data: {
+                userId,
+                amount: parseInt(credits),
+                reason: "PURCHASE",
+                stripeSessionId: session.id,
+                description: plan
+                  ? `${plan} plan - ${credits} credits`
+                  : `Purchased ${credits} credits`,
+              },
+            });
+          });
+
+          console.log(`[Stripe Webhook] Successfully added ${credits} credits to user ${userId}`);
+        } else if (credits && customerId) {
+          // Fallback: use stripeCustomerId
           await prisma.$transaction(async (tx) => {
             const user = await tx.user.update({
               where: { stripeCustomerId: customerId },

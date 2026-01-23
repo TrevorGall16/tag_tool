@@ -119,12 +119,21 @@ export const useBatchStore = create<BatchState>()(
 
         // Actions
         initSession: () => {
-          // DEBUG: Use static session ID to eliminate ID mismatch issues
-          // TODO: Remove this after debugging persistence issues
-          const STATIC_SESSION_ID = "default-user-session";
-          console.log(`[Store] initSession called, using static ID: "${STATIC_SESSION_ID}"`);
+          // Check for existing session in Zustand or generate new one
+          const existingSessionId = get().sessionId;
+          const sessionId = existingSessionId || `session_${crypto.randomUUID()}`;
+
+          console.log(`[Store] initSession called, using ID: "${sessionId}"`);
+
+          // Set cookie for auth promotion (30 days expiry)
+          if (typeof document !== "undefined") {
+            const expires = new Date();
+            expires.setDate(expires.getDate() + 30);
+            document.cookie = `tagarchitect_session=${sessionId}; path=/; expires=${expires.toUTCString()}; SameSite=Lax`;
+          }
+
           set({
-            sessionId: STATIC_SESSION_ID,
+            sessionId,
             groups: [],
             currentGroupIndex: 0,
             error: null,

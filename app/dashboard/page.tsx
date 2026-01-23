@@ -1,14 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { RotateCcw } from "lucide-react";
 import { useBatchStore } from "@/store/useBatchStore";
 import { usePersistence, markExplicitClear } from "@/hooks/usePersistence";
 import { nukeAllData } from "@/lib/persistence";
 import { Dropzone } from "@/components/uploader";
 import { ImageGallery, GroupList, GroupSkeleton } from "@/components/gallery";
-import { ExportToolbar } from "@/components/export";
-import { MarketplaceInfo, Button, ConfirmationModal } from "@/components/ui";
+import { Header } from "@/components/layout";
+import { ConfirmationModal } from "@/components/ui";
 
 export default function DashboardPage() {
   const { sessionId, initSession, marketplace, setMarketplace, isClustering, clearBatch, groups } =
@@ -85,36 +84,12 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100">
-      <header className="bg-white border-b border-slate-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">TagArchitect</h1>
-            <div className="flex items-center gap-4">
-              <ExportToolbar />
-              <div className="flex items-center gap-2">
-                <select
-                  value={marketplace}
-                  onChange={(e) => setMarketplace(e.target.value as "ETSY" | "ADOBE_STOCK")}
-                  className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 hover:border-slate-400"
-                >
-                  <option value="ETSY">Etsy</option>
-                  <option value="ADOBE_STOCK">Adobe Stock</option>
-                </select>
-                <MarketplaceInfo marketplace={marketplace} />
-                <button
-                  onClick={handleNewBatchClick}
-                  disabled={isResetting}
-                  className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 hover:border-slate-400 hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:pointer-events-none disabled:hover:scale-100"
-                  title="Start new batch (clears all images)"
-                >
-                  <RotateCcw className={`h-4 w-4 ${isResetting ? "animate-spin" : ""}`} />
-                  New Batch
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
+      <Header
+        marketplace={marketplace}
+        onMarketplaceChange={setMarketplace}
+        onNewBatch={handleNewBatchClick}
+        isResetting={isResetting}
+      />
 
       <main className="max-w-7xl mx-auto px-8 py-12">
         {/* Title Section */}
