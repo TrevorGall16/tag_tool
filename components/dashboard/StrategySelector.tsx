@@ -16,25 +16,27 @@ interface StrategyOption {
 
 const strategies: StrategyOption[] = [
   {
-    value: "standard",
-    label: "Standard",
-    description: "Balanced SEO",
-    tooltip: "Balanced SEO for blogs and general websites.",
-    icon: <Sparkles className="h-4 w-4" />,
-  },
-  {
     value: "etsy",
-    label: "Etsy SEO",
-    description: "Creative & emotional",
-    tooltip: "Best for handmade & creative shops. Uses emotional & gift-based keywords.",
+    label: "Etsy Optimized",
+    description: "Creative & emotional keywords",
+    tooltip:
+      "Best for handmade & creative shops. Uses emotional & gift-based keywords optimized for Etsy search.",
     icon: <ShoppingBag className="h-4 w-4" />,
   },
   {
     value: "stock",
-    label: "Stock Expert",
-    description: "Technical & objective",
-    tooltip: "Technical & objective. Perfect for Adobe Stock & Getty.",
+    label: "Adobe Stock Expert",
+    description: "Technical & objective tags",
+    tooltip:
+      "Technical & objective tagging perfect for Adobe Stock, Getty, and Shutterstock submissions.",
     icon: <Camera className="h-4 w-4" />,
+  },
+  {
+    value: "standard",
+    label: "Standard SEO",
+    description: "Balanced for general use",
+    tooltip: "Balanced SEO keywords suitable for blogs, websites, and general content.",
+    icon: <Sparkles className="h-4 w-4" />,
   },
 ];
 
@@ -84,17 +86,17 @@ export function StrategySelector({ className }: StrategySelectorProps) {
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "flex items-center gap-2 px-3 py-1.5 rounded-md border border-slate-300 bg-white min-w-[120px]",
+          "flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-300 bg-white",
           "text-sm font-medium text-slate-700",
           "hover:border-slate-400 hover:bg-slate-50",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500",
           "transition-all duration-150"
         )}
       >
-        {selectedOption.icon}
-        <span className="hidden sm:inline">{selectedOption.label}</span>
+        <span className="text-slate-500">{selectedOption.icon}</span>
+        <span>{selectedOption.label}</span>
         <ChevronDown
-          className={cn("h-4 w-4 text-slate-400 transition-transform", isOpen && "rotate-180")}
+          className={cn("h-4 w-4 text-slate-400 transition-transform ml-1", isOpen && "rotate-180")}
         />
       </button>
 

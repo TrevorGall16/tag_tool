@@ -6,24 +6,13 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { RotateCcw, LogIn, LogOut, User, ChevronDown, Coins, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ExportToolbar } from "@/components/export";
-import { MarketplaceInfo } from "@/components/ui";
-import { StrategySelector } from "@/components/dashboard";
-import type { MarketplaceType } from "@/store/useBatchStore";
 
 export interface HeaderProps {
-  marketplace: MarketplaceType;
-  onMarketplaceChange: (marketplace: MarketplaceType) => void;
   onNewBatch: () => void;
   isResetting?: boolean;
 }
 
-export function Header({
-  marketplace,
-  onMarketplaceChange,
-  onNewBatch,
-  isResetting = false,
-}: HeaderProps) {
+export function Header({ onNewBatch, isResetting = false }: HeaderProps) {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -54,42 +43,23 @@ export function Header({
             </nav>
           </div>
 
+          {/* Right: Actions */}
           <div className="flex items-center gap-3">
-            <ExportToolbar />
-
-            {/* Batch Settings Group */}
-            <div className="flex items-center gap-2 px-3 py-1 rounded-lg bg-slate-50 border border-slate-200">
-              <select
-                value={marketplace}
-                onChange={(e) => onMarketplaceChange(e.target.value as MarketplaceType)}
-                className="rounded-md border border-slate-300 px-2 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 hover:border-slate-400 bg-white"
-              >
-                <option value="ETSY">Etsy</option>
-                <option value="ADOBE_STOCK">Adobe Stock</option>
-              </select>
-              <MarketplaceInfo marketplace={marketplace} />
-              <div className="w-px h-5 bg-slate-300" />
-              <StrategySelector />
-            </div>
-
             <button
               onClick={onNewBatch}
               disabled={isResetting}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 hover:border-slate-400 hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:pointer-events-none disabled:hover:scale-100"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 hover:border-slate-400 transition-all duration-200 disabled:opacity-50 disabled:pointer-events-none"
               title="Start new batch (clears all images)"
             >
               <RotateCcw className={`h-4 w-4 ${isResetting ? "animate-spin" : ""}`} />
               New Batch
             </button>
 
-            {/* Divider */}
-            <div className="w-px h-6 bg-slate-200" />
-
-            {/* Credits Badge (visible in header) */}
+            {/* Credits Badge */}
             {isAuthenticated && session.user.creditsBalance !== undefined && (
               <button
                 onClick={() => router.push("/pricing")}
-                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 text-sm font-medium hover:bg-amber-100 hover:border-amber-300 hover:scale-105 transition-all duration-200"
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 text-sm font-medium hover:bg-amber-100 hover:border-amber-300 transition-all duration-200"
                 title="Buy more credits"
               >
                 <Coins className="w-4 h-4" />
@@ -193,7 +163,7 @@ export function Header({
                 className={cn(
                   "inline-flex items-center gap-2 px-4 py-2 rounded-lg",
                   "bg-blue-600 text-white text-sm font-medium",
-                  "hover:bg-blue-700 hover:scale-105",
+                  "hover:bg-blue-700",
                   "transition-all duration-200",
                   "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                 )}

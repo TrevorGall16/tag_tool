@@ -5,13 +5,12 @@ import { useBatchStore } from "@/store/useBatchStore";
 import { usePersistence, markExplicitClear } from "@/hooks/usePersistence";
 import { nukeAllData } from "@/lib/persistence";
 import { Dropzone } from "@/components/uploader";
-import { ImageGallery, GroupList, GroupSkeleton } from "@/components/gallery";
+import { ImageGallery, GroupList, GroupSkeleton, BatchToolbar } from "@/components/gallery";
 import { Header } from "@/components/layout";
 import { ConfirmationModal } from "@/components/ui";
 
 export default function DashboardPage() {
-  const { sessionId, initSession, marketplace, setMarketplace, isClustering, clearBatch, groups } =
-    useBatchStore();
+  const { sessionId, initSession, isClustering, clearBatch, groups } = useBatchStore();
   const {
     isRestoring,
     error: persistenceError,
@@ -84,12 +83,7 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100">
-      <Header
-        marketplace={marketplace}
-        onMarketplaceChange={setMarketplace}
-        onNewBatch={handleNewBatchClick}
-        isResetting={isResetting}
-      />
+      <Header onNewBatch={handleNewBatchClick} isResetting={isResetting} />
 
       <main className="max-w-7xl mx-auto px-8 py-12">
         {/* Title Section */}
@@ -104,11 +98,14 @@ export default function DashboardPage() {
         {/* Image Gallery */}
         <ImageGallery className="mt-12" />
 
+        {/* Batch Toolbar - Strategy & Export */}
+        <BatchToolbar className="mt-8" />
+
         {/* Clustered Groups */}
         {isClustering ? (
-          <GroupSkeleton className="mt-12" count={3} />
+          <GroupSkeleton className="mt-6" count={3} />
         ) : (
-          <GroupList className="mt-12" onLightboxSave={triggerSync} />
+          <GroupList className="mt-6" onLightboxSave={triggerSync} />
         )}
       </main>
 

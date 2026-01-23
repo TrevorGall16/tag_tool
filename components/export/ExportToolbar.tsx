@@ -37,6 +37,7 @@ export function ExportToolbar({ className }: ExportToolbarProps) {
   const {
     groups,
     marketplace,
+    strategy,
     exportSettings,
     updateExportSettings,
     selectedGroupIds,
@@ -156,8 +157,10 @@ export function ExportToolbar({ className }: ExportToolbarProps) {
       return;
     }
     const csv = generateAdobeStockCSV(groupsToExport);
-    downloadString(csv, "tagarchitect-export.csv", "text/csv;charset=utf-8");
-    toast.success("Downloaded Adobe Stock CSV");
+    const date = new Date().toISOString().split("T")[0];
+    const filename = `tagarchitect-${strategy}-${date}.csv`;
+    downloadString(csv, filename, "text/csv;charset=utf-8");
+    toast.success("Downloaded CSV");
   };
 
   return (
