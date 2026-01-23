@@ -6,6 +6,7 @@ import type {
   TagImageInput,
   ImageTagResult,
   MarketplaceType,
+  StrategyType,
 } from "../types";
 
 export interface OpenAIProviderConfig {
@@ -44,11 +45,20 @@ function buildClusteringPrompt(ids: string, market: string, max: number) {
   `.trim();
 }
 
-function buildTagPrompt(market: string) {
+const STRATEGY_PERSONAS: Record<StrategyType, string> = {
+  standard: "",
+  etsy: "Act as an Etsy SEO expert. Use high-conversion, long-tail keywords and describe the mood/aesthetic.",
+  stock:
+    "Act as a professional Stock Content Manager. Use objective, technical terms. Do not use subjective language.",
+};
+
+function buildTagPrompt(market: string, strategy: StrategyType = "standard") {
+  const persona = STRATEGY_PERSONAS[strategy] || "";
+  const personaLine = persona ? `\n    PERSONA: ${persona}\n` : "";
   // OPTIMIZATION: Minified + Specific Tag Count
-  return `
+  return `${personaLine}
     Generate high-ranking SEO tags for this ${market} product image.
-    
+
     CRITICAL OUTPUT RULES:
     1. Return strictly valid JSON.
     2. MINIFY your JSON (no line breaks, no indentation, no whitespace).
@@ -112,7 +122,8 @@ export class OpenAIVisionProvider implements IVisionProvider {
 
   async generateTags(
     images: TagImageInput[],
-    marketplace: MarketplaceType
+    marketplace: MarketplaceType,
+    strategy: StrategyType = "standard"
   ): Promise<ImageTagResult[]> {
     const image = images[0];
 
@@ -122,7 +133,7 @@ export class OpenAIVisionProvider implements IVisionProvider {
       return [];
     }
 
-    const prompt = buildTagPrompt(marketplace);
+    const prompt = buildTagPrompt(marketplace, strategy);
 
     const response = (await this.client.chat.completions.create({
       model: this.model,

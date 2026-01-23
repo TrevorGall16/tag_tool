@@ -110,12 +110,6 @@ export default function DashboardPage() {
         ) : (
           <GroupList className="mt-12" onLightboxSave={triggerSync} />
         )}
-
-        {sessionId && (
-          <p className="text-xs text-slate-400 mt-12 text-center">
-            Session: {sessionId.slice(0, 8)}...
-          </p>
-        )}
       </main>
 
       {/* Reset Confirmation Modal */}

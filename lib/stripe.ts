@@ -70,6 +70,7 @@ export async function createCheckoutSession({
     // Use line_items with price_data if no price ID is configured
     return stripe.checkout.sessions.create({
       mode: "payment",
+      payment_method_types: ["card"],
       customer_email: userEmail,
       client_reference_id: userId,
       line_items: [
@@ -98,6 +99,7 @@ export async function createCheckoutSession({
   // Use pre-configured price ID
   return stripe.checkout.sessions.create({
     mode: "payment",
+    payment_method_types: ["card"],
     customer_email: userEmail,
     client_reference_id: userId,
     line_items: [

@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import prisma from "@/lib/prisma";
 import type { ApiResponse, VisionTagsRequest, VisionTagsResponse } from "@/types";
 import { generateTagsForImages } from "@/lib/vision/tags";
+
+const STRATEGY_LABELS: Record<string, string> = {
+  standard: "Standard",
+  etsy: "Etsy SEO",
+  stock: "Stock Expert",
+};
 
 const MAX_IMAGES_PER_REQUEST = 10;
 
@@ -38,7 +47,7 @@ export async function POST(
       return NextResponse.json({ success: false, error: validationError }, { status: 400 });
     }
 
-    const { images, marketplace } = body;
+    const { images, marketplace, strategy = "standard" } = body;
 
     if (images.length > MAX_IMAGES_PER_REQUEST) {
       return NextResponse.json(
@@ -50,7 +59,46 @@ export async function POST(
       );
     }
 
-    const results = await generateTagsForImages(images, marketplace);
+    const results = await generateTagsForImages(images, marketplace, strategy);
+
+    // Deduct credits for authenticated users
+    const session = await getServerSession(authOptions);
+    if (session?.user?.id) {
+      const creditsToDeduct = images.length;
+      const strategyLabel = STRATEGY_LABELS[strategy] || "Standard";
+
+      try {
+        await prisma.$transaction(async (tx) => {
+          // Deduct credits
+          const user = await tx.user.update({
+            where: { id: session.user.id },
+            data: { creditsBalance: { decrement: creditsToDeduct } },
+          });
+
+          // Check for negative balance
+          if (user.creditsBalance < 0) {
+            throw new Error("Insufficient credits");
+          }
+
+          // Log to ledger
+          await tx.creditsLedger.create({
+            data: {
+              userId: session.user.id,
+              amount: -creditsToDeduct,
+              reason: "USAGE",
+              description: `AI Analysis: ${strategyLabel} Mode`,
+            },
+          });
+        });
+
+        console.log(
+          `[Credits] Deducted ${creditsToDeduct} credits from user ${session.user.id} for ${strategyLabel} analysis`
+        );
+      } catch (creditError) {
+        console.error("[Credits] Failed to deduct credits:", creditError);
+        // Continue with the response - credits deduction failure shouldn't block the user
+      }
+    }
 
     return NextResponse.json({
       success: true,

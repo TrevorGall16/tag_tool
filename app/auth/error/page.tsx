@@ -1,7 +1,8 @@
 "use client";
 
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { AlertTriangle, ArrowLeft } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 
 const ERROR_MESSAGES: Record<string, string> = {
@@ -21,7 +22,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   Default: "An unexpected error occurred. Please try again.",
 };
 
-export default function AuthErrorPage() {
+function AuthErrorContent() {
   const searchParams = useSearchParams();
   const error = searchParams.get("error") || "Default";
 
@@ -61,5 +62,19 @@ export default function AuthErrorPage() {
         <p className="mt-8 text-xs text-slate-400">Error code: {error}</p>
       </div>
     </div>
+  );
+}
+
+export default function AuthErrorPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+        </div>
+      }
+    >
+      <AuthErrorContent />
+    </Suspense>
   );
 }

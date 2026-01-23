@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
 
     // Build success and cancel URLs
     const baseUrl = process.env.NEXTAUTH_URL || request.nextUrl.origin;
-    const successUrl = `${baseUrl}/dashboard?checkout=success&session_id={CHECKOUT_SESSION_ID}`;
+    const successUrl = `${baseUrl}/pricing/success?session_id={CHECKOUT_SESSION_ID}`;
     const cancelUrl = `${baseUrl}/pricing?checkout=cancelled`;
 
     // Create Stripe Checkout session

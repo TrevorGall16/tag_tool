@@ -7,6 +7,7 @@ import type {
   TagImageInput,
   ImageTagResult,
   MarketplaceType,
+  StrategyType,
 } from "../types";
 import { getMediaType, extractBase64Data, extractJsonFromResponse } from "../utils";
 import { buildClusteringPrompt, buildTagPrompt } from "../prompts";
@@ -71,13 +72,14 @@ export class AnthropicVisionProvider implements IVisionProvider {
 
   async generateTags(
     images: TagImageInput[],
-    marketplace: MarketplaceType
+    marketplace: MarketplaceType,
+    strategy: StrategyType = "standard"
   ): Promise<ImageTagResult[]> {
     const results: ImageTagResult[] = [];
 
     for (const image of images) {
       try {
-        const result = await this.generateTagsForImage(image, marketplace);
+        const result = await this.generateTagsForImage(image, marketplace, strategy);
         results.push(result);
       } catch (error) {
         console.error(`Failed to generate tags for image ${image.id}:`, error);
@@ -96,9 +98,10 @@ export class AnthropicVisionProvider implements IVisionProvider {
 
   private async generateTagsForImage(
     image: TagImageInput,
-    marketplace: MarketplaceType
+    marketplace: MarketplaceType,
+    strategy: StrategyType
   ): Promise<ImageTagResult> {
-    const prompt = buildTagPrompt(marketplace);
+    const prompt = buildTagPrompt(marketplace, strategy);
 
     const message = await this.client.messages.create({
       model: this.model,

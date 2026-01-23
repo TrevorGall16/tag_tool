@@ -1,4 +1,19 @@
-import type { MarketplaceType } from "./types";
+import type { MarketplaceType, StrategyType } from "./types";
+
+// Strategy-based personas for AI prompting
+const STRATEGY_PERSONAS: Record<StrategyType, string> = {
+  standard: "",
+  etsy: `PERSONA: Act as an Etsy SEO expert. Use high-conversion, long-tail keywords and describe the mood/aesthetic. Focus on emotional appeal, lifestyle context, and buyer intent. Include trending search terms and gift-related keywords where appropriate.
+
+`,
+  stock: `PERSONA: Act as a professional Stock Content Manager. Use objective, technical terms. Do not use subjective language. Focus on literal descriptions, composition details, and universal concepts. Prioritize searchability over creativity.
+
+`,
+};
+
+export function getStrategyPersona(strategy: StrategyType): string {
+  return STRATEGY_PERSONAS[strategy] || "";
+}
 
 export function buildClusteringPrompt(
   imageIndex: string,
@@ -35,10 +50,15 @@ RESPOND ONLY with valid JSON:
 }`;
 }
 
-export function buildTagPrompt(marketplace: MarketplaceType): string {
+export function buildTagPrompt(
+  marketplace: MarketplaceType,
+  strategy: StrategyType = "standard"
+): string {
+  const persona = getStrategyPersona(strategy);
+
   // --- ETSY MODE (Strict Rules) ---
   if (marketplace === "ETSY") {
-    return `Generate Etsy metadata for this product image.
+    return `${persona}Generate Etsy metadata for this product image.
 
 RULES:
 - Title: 140 chars max, front-load keywords.
@@ -59,7 +79,7 @@ RESPOND ONLY with valid JSON:
 
   // --- ADOBE STOCK MODE (Volume Rules) ---
   if (marketplace === "ADOBE_STOCK") {
-    return `Generate Adobe Stock metadata for this image.
+    return `${persona}Generate Adobe Stock metadata for this image.
 
 RULES:
 - Title: 200 chars max, descriptive, literal.
@@ -85,7 +105,7 @@ RESPOND ONLY with valid JSON:
 
   // --- GENERAL / UNIVERSAL MODE (New Fallback) ---
   // This runs if you pass "SHOPIFY", "WEBSITE", or anything else
-  return `Generate high-quality SEO metadata for this image.
+  return `${persona}Generate high-quality SEO metadata for this image.
 
 RULES:
 - Title: Clear, descriptive, Google-friendly (60-70 chars ideal).

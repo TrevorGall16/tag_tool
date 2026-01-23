@@ -119,6 +119,7 @@ export interface ImageClusterGroup {
 export interface VisionTagsRequest {
   images: TagImageInput[];
   marketplace: "ETSY" | "ADOBE_STOCK";
+  strategy?: "standard" | "etsy" | "stock";
 }
 
 export interface TagImageInput {

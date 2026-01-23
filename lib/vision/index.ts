@@ -6,6 +6,7 @@ import type {
   TagImageInput,
   ImageTagResult,
   MarketplaceType,
+  StrategyType,
 } from "./types";
 import { AnthropicVisionProvider, type AnthropicProviderConfig } from "./providers/anthropic";
 import { OpenAIVisionProvider, type OpenAIProviderConfig } from "./providers/openai";
@@ -19,6 +20,7 @@ export type {
   TagImageInput,
   ImageTagResult,
   MarketplaceType,
+  StrategyType,
 };
 
 export type VisionProviderConfig = AnthropicProviderConfig | OpenAIProviderConfig;
@@ -70,7 +72,12 @@ export async function clusterImagesWithVision(
 
 export async function generateTagsForImages(
   images: TagImageInput[],
-  marketplace: string
+  marketplace: string,
+  strategy: string = "standard"
 ): Promise<ImageTagResult[]> {
-  return VisionFactory.getProvider().generateTags(images, marketplace as MarketplaceType);
+  return VisionFactory.getProvider().generateTags(
+    images,
+    marketplace as MarketplaceType,
+    strategy as StrategyType
+  );
 }

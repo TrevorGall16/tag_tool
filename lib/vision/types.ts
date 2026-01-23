@@ -2,6 +2,7 @@ import type { ClusterImageInput, ImageClusterGroup, TagImageInput, ImageTagResul
 
 export type VisionProviderType = "anthropic" | "openai";
 export type MarketplaceType = "ETSY" | "ADOBE_STOCK";
+export type StrategyType = "standard" | "etsy" | "stock";
 
 export interface ClusterResult {
   groups: ImageClusterGroup[];
@@ -14,7 +15,11 @@ export interface IVisionProvider {
     marketplace: MarketplaceType,
     maxGroups: number
   ): Promise<ClusterResult>;
-  generateTags(images: TagImageInput[], marketplace: MarketplaceType): Promise<ImageTagResult[]>;
+  generateTags(
+    images: TagImageInput[],
+    marketplace: MarketplaceType,
+    strategy?: StrategyType
+  ): Promise<ImageTagResult[]>;
 }
 
 export type ImageMediaType = "image/jpeg" | "image/png" | "image/webp" | "image/gif";

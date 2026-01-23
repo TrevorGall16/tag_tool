@@ -31,11 +31,13 @@ export interface LocalGroup {
 }
 
 export type MarketplaceType = "ETSY" | "ADOBE_STOCK";
+export type StrategyType = "standard" | "etsy" | "stock";
 
 interface BatchState {
   // Session state
   sessionId: string | null;
   marketplace: MarketplaceType;
+  strategy: StrategyType;
 
   // Batch data
   groups: LocalGroup[];
@@ -59,6 +61,7 @@ interface BatchState {
   // Actions
   initSession: () => void;
   setMarketplace: (marketplace: MarketplaceType) => void;
+  setStrategy: (strategy: StrategyType) => void;
   toggleGroupSelection: (groupId: string) => void;
   selectAllGroups: () => void;
   deselectAllGroups: () => void;
@@ -107,6 +110,7 @@ export const useBatchStore = create<BatchState>()(
         // Initial state
         sessionId: null,
         marketplace: "ETSY",
+        strategy: "standard",
         groups: [],
         currentGroupIndex: 0,
         selectedGroupIds: new Set<string>(),
@@ -142,6 +146,10 @@ export const useBatchStore = create<BatchState>()(
 
         setMarketplace: (marketplace) => {
           set({ marketplace });
+        },
+
+        setStrategy: (strategy) => {
+          set({ strategy });
         },
 
         toggleGroupSelection: (groupId) => {
@@ -413,6 +421,7 @@ export const useBatchStore = create<BatchState>()(
         partialize: (state) => ({
           sessionId: state.sessionId,
           marketplace: state.marketplace,
+          strategy: state.strategy,
           currentGroupIndex: state.currentGroupIndex,
           exportSettings: state.exportSettings,
         }),
