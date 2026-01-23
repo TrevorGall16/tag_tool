@@ -124,11 +124,11 @@ export function ImageGallery({ className }: ImageGalleryProps) {
           disabled={images.length < 2 || isClustering}
           className={cn(
             "inline-flex items-center gap-2",
-            "bg-blue-600 text-white px-4 py-2 rounded-lg",
+            "bg-blue-600 text-white px-4 py-2 rounded-lg font-medium",
             "hover:bg-blue-700 hover:scale-105",
-            "transition-all duration-150",
+            "transition-all duration-200",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2",
-            "disabled:opacity-50 disabled:pointer-events-none"
+            "disabled:opacity-50 disabled:pointer-events-none disabled:hover:scale-100"
           )}
         >
           {isClustering ? (
@@ -148,7 +148,7 @@ export function ImageGallery({ className }: ImageGalleryProps) {
               key={image.id}
               className={cn(
                 "group relative aspect-square rounded-xl overflow-hidden",
-                "border border-slate-200 bg-white",
+                "border border-slate-200 border-t-2 border-t-white/20 bg-white",
                 "shadow-sm hover:shadow-lg",
                 "hover:scale-105 transition-all duration-200"
               )}

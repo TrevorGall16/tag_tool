@@ -21,8 +21,29 @@ interface PreviewRow {
   group: string;
 }
 
+/**
+ * Merge image tags with global tags, avoiding duplicates
+ */
+function mergeWithGlobalTags(imageTags: string[], globalTags: string[]): string[] {
+  if (globalTags.length === 0) return imageTags;
+
+  const tagSet = new Set(imageTags.map((t) => t.toLowerCase()));
+  const mergedTags = [...imageTags];
+
+  for (const globalTag of globalTags) {
+    if (!tagSet.has(globalTag.toLowerCase())) {
+      mergedTags.push(globalTag);
+      tagSet.add(globalTag.toLowerCase());
+    }
+  }
+
+  return mergedTags;
+}
+
 export function CSVPreviewModal({ isOpen, onClose, groups, exportSettings }: CSVPreviewModalProps) {
   if (!isOpen) return null;
+
+  const globalTags = exportSettings.globalTags || [];
 
   // Build preview rows from groups with formatted export names
   const rows: PreviewRow[] = [];
@@ -33,7 +54,9 @@ export function CSVPreviewModal({ isOpen, onClose, groups, exportSettings }: CSV
       // Title priority: user-edited title > AI-generated title (NOT group name)
       const title = image.userTitle || image.aiTitle || "";
       // Tags priority: user-edited tags > group shared tags > AI-generated tags
-      const tags = (image.userTags || group.sharedTags || image.aiTags || []).join(", ");
+      const baseTags = image.userTags || group.sharedTags || image.aiTags || [];
+      const mergedTags = mergeWithGlobalTags(baseTags, globalTags);
+      const tags = mergedTags.join(", ");
 
       // Generate the export filename using naming utilities
       const context = buildNamingContext(
@@ -160,13 +183,23 @@ export function CSVPreviewModal({ isOpen, onClose, groups, exportSettings }: CSV
 
         {/* Footer */}
         <div className="p-4 border-t border-slate-200 bg-slate-50 flex justify-between items-center">
-          <p className="text-sm text-slate-500">
-            This data will be exported to{" "}
-            <code className="bg-slate-200 px-1 rounded">metadata.csv</code>
-          </p>
+          <div className="text-sm text-slate-500">
+            <p>
+              This data will be exported to{" "}
+              <code className="bg-slate-200 px-1 rounded">metadata.csv</code>
+            </p>
+            {globalTags.length > 0 && (
+              <p className="mt-1 text-xs">
+                <span className="inline-block px-1.5 py-0.5 bg-green-100 text-green-700 rounded mr-1">
+                  +{globalTags.length} global
+                </span>
+                tags will be appended to all images
+              </p>
+            )}
+          </div>
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors"
+            className="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors hover:scale-105 transition-transform"
           >
             Close
           </button>

@@ -214,13 +214,38 @@ export class ExportEngine {
     return generateExportFilename(this.settings.naming.pattern, context, extension);
   }
 
+  /**
+   * Merge image tags with global tags, avoiding duplicates
+   */
+  private mergeWithGlobalTags(imageTags: string[]): string[] {
+    const globalTags = this.settings.globalTags || [];
+    if (globalTags.length === 0) return imageTags;
+
+    // Create a Set from image tags (lowercase for comparison)
+    const tagSet = new Set(imageTags.map((t) => t.toLowerCase()));
+    const mergedTags = [...imageTags];
+
+    // Append global tags that aren't already present
+    for (const globalTag of globalTags) {
+      if (!tagSet.has(globalTag.toLowerCase())) {
+        mergedTags.push(globalTag);
+        tagSet.add(globalTag.toLowerCase());
+      }
+    }
+
+    return mergedTags;
+  }
+
   private async processImageWithMetadata(
     image: LocalImageItem,
     group: LocalGroup
   ): Promise<ArrayBuffer> {
+    const baseTags = image.userTags || group.sharedTags || image.aiTags || [];
+    const mergedTags = this.mergeWithGlobalTags(baseTags);
+
     const metadata = buildImageMetadata(
       image.userTitle || group.sharedTitle || image.aiTitle,
-      image.userTags || group.sharedTags || image.aiTags,
+      mergedTags,
       group.sharedDescription
     );
 
@@ -237,13 +262,14 @@ export class ExportEngine {
   private createCsvRow(filename: string, group: LocalGroup, image: LocalImageItem): CsvRow {
     const title = image.userTitle || group.sharedTitle || image.aiTitle || "";
     const description = group.sharedDescription || "";
-    const tags = image.userTags || group.sharedTags || image.aiTags || [];
+    const baseTags = image.userTags || group.sharedTags || image.aiTags || [];
+    const mergedTags = this.mergeWithGlobalTags(baseTags);
 
     return {
       filename,
       title: sanitizeForCsv(title),
       description: sanitizeForCsv(description),
-      tags: tags.map(sanitizeForCsv).join(", "),
+      tags: mergedTags.map(sanitizeForCsv).join(", "),
     };
   }
 

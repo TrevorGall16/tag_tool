@@ -49,6 +49,8 @@ export interface MetadataWriteResult {
 export interface ExportSettings {
   naming: ExportNamingOptions;
   metadata: MetadataOptions;
+  /** Global tags to append to every image during export */
+  globalTags: string[];
 }
 
 export const DEFAULT_EXPORT_SETTINGS: ExportSettings = {
@@ -62,6 +64,7 @@ export const DEFAULT_EXPORT_SETTINGS: ExportSettings = {
     burnExif: true,
     burnIptc: true,
   },
+  globalTags: [],
 };
 
 // ============================================

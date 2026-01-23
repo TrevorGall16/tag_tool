@@ -40,10 +40,12 @@ export function DraggableImage({
     <div
       ref={setNodeRef}
       className={cn(
-        "relative aspect-square rounded-lg overflow-hidden border border-slate-100",
-        "transition-all duration-150 group",
-        "hover:border-blue-300 hover:shadow-sm",
-        isDragging && "opacity-40 scale-95 ring-2 ring-blue-400"
+        "relative aspect-square rounded-xl overflow-hidden",
+        "border border-slate-200 border-t-2 border-t-white/20",
+        "shadow-sm bg-white",
+        "transition-all duration-200 group",
+        "hover:border-blue-300 hover:shadow-md hover:scale-105",
+        isDragging && "opacity-40 scale-95 ring-2 ring-blue-400 shadow-lg"
       )}
     >
       {/* Drag Handle - Only this triggers dragging */}

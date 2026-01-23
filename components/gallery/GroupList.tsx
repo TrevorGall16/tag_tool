@@ -287,8 +287,8 @@ function GroupCard({
     <div
       onClick={onEdit}
       className={cn(
-        "border border-slate-200 bg-white rounded-xl shadow-sm p-4",
-        "cursor-pointer hover:border-blue-300 hover:shadow-md transition-all"
+        "border border-slate-200 border-t-2 border-t-white/10 bg-white rounded-xl shadow-sm p-6",
+        "cursor-pointer hover:border-blue-300 hover:shadow-lg transition-all duration-200"
       )}
     >
       {/* Header */}
@@ -363,10 +363,10 @@ function GroupCard({
             disabled={isLoading || group.images.length === 0}
             className={cn(
               "inline-flex items-center gap-2",
-              "bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm",
-              "hover:bg-blue-700 transition-colors",
+              "bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium",
+              "hover:bg-blue-700 hover:scale-105 transition-all duration-200",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2",
-              "disabled:opacity-50 disabled:pointer-events-none"
+              "disabled:opacity-50 disabled:pointer-events-none disabled:hover:scale-100"
             )}
           >
             {isLoading ? (

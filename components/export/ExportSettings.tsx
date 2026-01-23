@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { X, Settings2, HelpCircle } from "lucide-react";
+import { useState, useEffect, useRef, KeyboardEvent } from "react";
+import { X, Settings2, HelpCircle, Plus, Tag } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui";
 import { previewFilename, validatePattern } from "@/lib/export/export-namer";
@@ -42,13 +42,48 @@ export function ExportSettings({
   const [localSettings, setLocalSettings] = useState<ExportSettingsType>(settings);
   const [patternError, setPatternError] = useState<string | null>(null);
   const [showPlaceholderHelp, setShowPlaceholderHelp] = useState(false);
+  const [globalTagInput, setGlobalTagInput] = useState("");
 
   useEffect(() => {
     if (isOpen) {
-      setLocalSettings(settings);
+      // Ensure globalTags is always an array (handles legacy persisted state)
+      const normalizedSettings = {
+        ...settings,
+        globalTags: settings.globalTags ?? [],
+      };
+      setLocalSettings(normalizedSettings);
       setPatternError(null);
+      setGlobalTagInput("");
     }
   }, [isOpen, settings]);
+
+  // Safe accessor for globalTags
+  const globalTags = localSettings.globalTags ?? [];
+
+  const handleAddGlobalTag = () => {
+    const tag = globalTagInput.trim().toLowerCase();
+    if (tag && !globalTags.includes(tag)) {
+      setLocalSettings({
+        ...localSettings,
+        globalTags: [...globalTags, tag],
+      });
+    }
+    setGlobalTagInput("");
+  };
+
+  const handleRemoveGlobalTag = (tagToRemove: string) => {
+    setLocalSettings({
+      ...localSettings,
+      globalTags: globalTags.filter((tag) => tag !== tagToRemove),
+    });
+  };
+
+  const handleGlobalTagKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      handleAddGlobalTag();
+    }
+  };
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -216,6 +251,72 @@ export function ExportSettings({
             <span className="text-xs text-slate-500 block mb-1">Preview</span>
             <code className="text-sm text-slate-800">{filenamePreview}</code>
           </div>
+        </section>
+
+        {/* Global Tags Section */}
+        <section className="mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <Tag className="h-4 w-4 text-slate-600" />
+            <h3 className="text-sm font-medium text-slate-700">Global Tags</h3>
+          </div>
+          <p className="text-xs text-slate-500 mb-3">
+            These tags will be appended to every image during export.
+          </p>
+
+          {/* Tag Input */}
+          <div className="flex gap-2 mb-3">
+            <input
+              type="text"
+              value={globalTagInput}
+              onChange={(e) => setGlobalTagInput(e.target.value)}
+              onKeyDown={handleGlobalTagKeyDown}
+              placeholder="Add a tag and press Enter"
+              className={cn(
+                "flex-1 px-3 py-2 rounded-lg border border-slate-300",
+                "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
+                "text-sm"
+              )}
+            />
+            <button
+              type="button"
+              onClick={handleAddGlobalTag}
+              disabled={!globalTagInput.trim()}
+              className={cn(
+                "px-3 py-2 rounded-lg bg-blue-600 text-white",
+                "hover:bg-blue-700 transition-colors",
+                "disabled:opacity-50 disabled:cursor-not-allowed",
+                "flex items-center gap-1"
+              )}
+            >
+              <Plus className="h-4 w-4" />
+            </button>
+          </div>
+
+          {/* Tags Display */}
+          {globalTags.length > 0 ? (
+            <div className="flex flex-wrap gap-2 p-3 bg-slate-50 rounded-lg min-h-[60px]">
+              {globalTags.map((tag) => (
+                <span
+                  key={tag}
+                  className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 text-sm rounded-full"
+                >
+                  {tag}
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveGlobalTag(tag)}
+                    className="hover:text-blue-900 transition-colors"
+                    aria-label={`Remove ${tag}`}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          ) : (
+            <div className="p-3 bg-slate-50 rounded-lg text-center">
+              <p className="text-sm text-slate-400">No global tags added</p>
+            </div>
+          )}
         </section>
 
         {/* Metadata Section */}
