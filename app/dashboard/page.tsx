@@ -7,7 +7,10 @@ import { nukeAllData } from "@/lib/persistence";
 import { Dropzone } from "@/components/uploader";
 import { ImageGallery, GroupList, GroupSkeleton, BatchToolbar } from "@/components/gallery";
 import { Header } from "@/components/layout";
+import { ProjectList } from "@/components/dashboard";
 import { ConfirmationModal } from "@/components/ui";
+import { cn } from "@/lib/utils";
+import { PanelLeftClose, PanelLeft } from "lucide-react";
 
 export default function DashboardPage() {
   const { sessionId, initSession, isClustering, clearBatch, groups } = useBatchStore();
@@ -19,6 +22,9 @@ export default function DashboardPage() {
   } = usePersistence();
   const [isResetting, setIsResetting] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   useEffect(() => {
     if (!sessionId) {
@@ -31,7 +37,6 @@ export default function DashboardPage() {
     if (totalImages > 0) {
       setShowResetModal(true);
     } else {
-      // No images, just reset directly
       performReset();
     }
   };
@@ -40,13 +45,9 @@ export default function DashboardPage() {
     setIsResetting(true);
     setShowResetModal(false);
     try {
-      // Mark explicit clear to allow zero-image save
       markExplicitClear();
-      // Clear IndexedDB
       await nukeAllData();
-      // Clear Zustand store
       clearBatch();
-      // Re-initialize session
       initSession();
     } catch (err) {
       console.error("[Dashboard] Reset failed:", err);
@@ -55,10 +56,8 @@ export default function DashboardPage() {
     }
   };
 
-  // Check if there are any images in the batch
   const hasImages = groups.some((g) => g.images.length > 0);
 
-  // Show loading state while restoring from IndexedDB
   if (isRestoring) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -71,12 +70,10 @@ export default function DashboardPage() {
     );
   }
 
-  // Show error if persistence failed
   if (persistenceError) {
     console.error("Persistence error:", persistenceError);
   }
 
-  // Show restoration success message briefly (could be toast in future)
   if (restoredImageCount > 0) {
     console.log(`[Session] Restored ${restoredImageCount} images from previous session`);
   }
@@ -85,29 +82,78 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100">
       <Header onNewBatch={handleNewBatchClick} isResetting={isResetting} />
 
-      <main className="max-w-7xl mx-auto px-8 py-12">
-        {/* Title Section */}
-        <div className="text-center mb-12">
-          <h2 className="text-4xl font-bold text-slate-900 mb-3 tracking-tight">Tag Architect</h2>
-          <p className="text-lg text-slate-600">Upload, Cluster, and Tag</p>
-        </div>
+      <div className="flex">
+        {/* Sidebar */}
+        <aside
+          className={cn(
+            "bg-white border-r border-slate-200 transition-all duration-300 shrink-0",
+            sidebarOpen ? "w-64" : "w-0 overflow-hidden"
+          )}
+        >
+          <ProjectList
+            selectedProjectId={selectedProjectId}
+            onSelectProject={setSelectedProjectId}
+            showArchived={showArchived}
+            onToggleArchived={() => setShowArchived(!showArchived)}
+            className="h-[calc(100vh-73px)]"
+          />
+        </aside>
 
-        {/* Dropzone */}
-        <Dropzone />
+        {/* Main Content */}
+        <main className="flex-1 min-w-0">
+          {/* Sidebar Toggle + Breadcrumb */}
+          <div className="px-8 pt-6 pb-2 flex items-center gap-3">
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="p-2 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+              title={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
+            >
+              {sidebarOpen ? (
+                <PanelLeftClose className="h-5 w-5" />
+              ) : (
+                <PanelLeft className="h-5 w-5" />
+              )}
+            </button>
+            <div className="text-sm text-slate-500">
+              {showArchived ? (
+                <span className="font-medium text-amber-600">Archived Batches</span>
+              ) : selectedProjectId ? (
+                <span>
+                  Projects / <span className="font-medium text-slate-700">Selected Project</span>
+                </span>
+              ) : (
+                <span className="font-medium text-slate-700">All Batches</span>
+              )}
+            </div>
+          </div>
 
-        {/* Image Gallery */}
-        <ImageGallery className="mt-12" />
+          <div className="max-w-6xl mx-auto px-8 py-6">
+            {/* Title Section */}
+            <div className="text-center mb-10">
+              <h2 className="text-4xl font-bold text-slate-900 mb-3 tracking-tight">
+                Tag Architect
+              </h2>
+              <p className="text-lg text-slate-600">Upload, Cluster, and Tag</p>
+            </div>
 
-        {/* Batch Toolbar - Strategy & Export */}
-        <BatchToolbar className="mt-8" />
+            {/* Dropzone */}
+            <Dropzone />
 
-        {/* Clustered Groups */}
-        {isClustering ? (
-          <GroupSkeleton className="mt-6" count={3} />
-        ) : (
-          <GroupList className="mt-6" onLightboxSave={triggerSync} />
-        )}
-      </main>
+            {/* Image Gallery */}
+            <ImageGallery className="mt-12" />
+
+            {/* Batch Toolbar - Strategy & Export */}
+            <BatchToolbar className="mt-8" selectedProjectId={selectedProjectId} />
+
+            {/* Clustered Groups */}
+            {isClustering ? (
+              <GroupSkeleton className="mt-6" count={3} />
+            ) : (
+              <GroupList className="mt-6" onLightboxSave={triggerSync} />
+            )}
+          </div>
+        </main>
+      </div>
 
       {/* Reset Confirmation Modal */}
       <ConfirmationModal

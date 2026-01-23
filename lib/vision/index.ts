@@ -73,11 +73,13 @@ export async function clusterImagesWithVision(
 export async function generateTagsForImages(
   images: TagImageInput[],
   marketplace: string,
-  strategy: string = "standard"
+  strategy: string = "standard",
+  maxTags: number = 25
 ): Promise<ImageTagResult[]> {
   return VisionFactory.getProvider().generateTags(
     images,
     marketplace as MarketplaceType,
-    strategy as StrategyType
+    strategy as StrategyType,
+    maxTags
   );
 }

@@ -47,7 +47,7 @@ export async function POST(
       return NextResponse.json({ success: false, error: validationError }, { status: 400 });
     }
 
-    const { images, marketplace, strategy = "standard" } = body;
+    const { images, marketplace, strategy = "standard", maxTags = 25 } = body;
 
     if (images.length > MAX_IMAGES_PER_REQUEST) {
       return NextResponse.json(
@@ -59,7 +59,7 @@ export async function POST(
       );
     }
 
-    const results = await generateTagsForImages(images, marketplace, strategy);
+    const results = await generateTagsForImages(images, marketplace, strategy, maxTags);
 
     // Deduct credits for authenticated users
     const session = await getServerSession(authOptions);

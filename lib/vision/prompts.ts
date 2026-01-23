@@ -50,19 +50,51 @@ RESPOND ONLY with valid JSON:
 }`;
 }
 
+export interface TagPromptOptions {
+  marketplace: MarketplaceType;
+  strategy?: StrategyType;
+  maxTags?: number;
+}
+
+export function buildTagPrompt(options: TagPromptOptions): string;
 export function buildTagPrompt(
   marketplace: MarketplaceType,
-  strategy: StrategyType = "standard"
+  strategy?: StrategyType,
+  maxTags?: number
+): string;
+export function buildTagPrompt(
+  marketplaceOrOptions: MarketplaceType | TagPromptOptions,
+  strategyArg?: StrategyType,
+  maxTagsArg?: number
 ): string {
+  // Handle both old and new signatures
+  let marketplace: MarketplaceType;
+  let strategy: StrategyType;
+  let maxTags: number;
+
+  if (typeof marketplaceOrOptions === "object") {
+    marketplace = marketplaceOrOptions.marketplace;
+    strategy = marketplaceOrOptions.strategy || "standard";
+    maxTags = marketplaceOrOptions.maxTags || 25;
+  } else {
+    marketplace = marketplaceOrOptions;
+    strategy = strategyArg || "standard";
+    maxTags = maxTagsArg || 25;
+  }
+
   const persona = getStrategyPersona(strategy);
+
+  // Clamp maxTags to valid range
+  const tagLimit = Math.max(5, Math.min(50, maxTags));
 
   // --- ETSY MODE (Strict Rules) ---
   if (marketplace === "ETSY") {
+    const etsyLimit = Math.min(tagLimit, 13); // Etsy max is 13
     return `${persona}Generate Etsy metadata for this product image.
 
 RULES:
 - Title: 140 chars max, front-load keywords.
-- Tags: Generate between 8 and 13 tags. Aim for 13, but prioritize relevance. Max 20 chars per tag. Lowercase.
+- Tags: Generate exactly ${etsyLimit} tags. Max 20 chars per tag. Lowercase. Never exceed ${etsyLimit} tags.
 - Description: Sales-focused, inviting, mentions materials/dimensions.
 
 SAFETY FOR UNKNOWN ITEMS:
@@ -83,13 +115,13 @@ RESPOND ONLY with valid JSON:
 
 RULES:
 - Title: 200 chars max, descriptive, literal.
-- Tags: Generate between 25 and 49 keywords. Order by importance.
+- Tags: Generate exactly ${tagLimit} keywords. Order by importance. Never exceed ${tagLimit} tags.
 - Description: Literal description of the scene and subject.
 
 STRATEGY:
 - Start with literal subjects (what is seen).
 - Add conceptual tags (emotions, themes).
-- Stop if keywords become irrelevant.
+- Stop when you reach ${tagLimit} tags.
 
 SAFETY FOR UNKNOWN ITEMS:
 - If the subject is ambiguous, focus on: Lighting, Composition, Texture, Colors, and Vibe/Mood.
@@ -98,18 +130,17 @@ RESPOND ONLY with valid JSON:
 {
   "title": "Portrait of smiling woman working on laptop in modern office",
   "description": "A professional woman sitting at a desk typing on a laptop...",
-  "tags": ["business", "woman", "laptop", "office", "work", "professional", "corporate", "technology", "computer", "desk", "workspace", "career", "adult", "employee", "confident", "success", "modern", "indoor", "caucasian", "30s", "sitting", "typing", "focused", "concentration", "productivity", "entrepreneur", "freelancer", "remote work", "startup", "coworking", "bright", "natural light", "casual", "smiling"],
+  "tags": ["business", "woman", "laptop", "office", "work", "professional", "corporate", "technology", "computer", "desk", "workspace", "career", "adult", "employee", "confident", "success", "modern", "indoor", "caucasian", "30s", "sitting", "typing", "focused", "concentration", "productivity"],
   "confidence": 0.95
 }`;
   }
 
   // --- GENERAL / UNIVERSAL MODE (New Fallback) ---
-  // This runs if you pass "SHOPIFY", "WEBSITE", or anything else
   return `${persona}Generate high-quality SEO metadata for this image.
 
 RULES:
 - Title: Clear, descriptive, Google-friendly (60-70 chars ideal).
-- Tags: Generate 10-30 highly relevant keywords.
+- Tags: Generate exactly ${tagLimit} highly relevant keywords. Never exceed ${tagLimit} tags.
 - Description: Standard eCommerce or Alt-Text style description.
 
 SAFETY FOR UNKNOWN ITEMS:
@@ -120,7 +151,7 @@ RESPOND ONLY with valid JSON:
 {
   "title": "Descriptive Product Title for SEO",
   "description": "A clear, detailed description of the product or image.",
-  "tags": ["keyword1", "keyword2", "keyword3", "keyword4", "keyword5", ...],
+  "tags": ["keyword1", "keyword2", "keyword3", ...up to ${tagLimit} tags],
   "confidence": 0.90
 }`;
 }

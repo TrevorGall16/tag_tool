@@ -8,6 +8,12 @@ export interface ClusterResult {
   groups: ImageClusterGroup[];
 }
 
+export interface GenerateTagsOptions {
+  marketplace: MarketplaceType;
+  strategy?: StrategyType;
+  maxTags?: number;
+}
+
 export interface IVisionProvider {
   readonly name: string;
   clusterImages(
@@ -18,7 +24,8 @@ export interface IVisionProvider {
   generateTags(
     images: TagImageInput[],
     marketplace: MarketplaceType,
-    strategy?: StrategyType
+    strategy?: StrategyType,
+    maxTags?: number
   ): Promise<ImageTagResult[]>;
 }
 

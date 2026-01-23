@@ -220,7 +220,7 @@ function GroupCard({
   const [showSuccess, setShowSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { marketplace, strategy, updateGroupTags } = useBatchStore();
+  const { marketplace, strategy, maxTags, updateGroupTags } = useBatchStore();
 
   const isTagged = group.images[0]?.aiTags && group.images[0].aiTags.length > 0;
 
@@ -255,6 +255,7 @@ function GroupCard({
           ],
           marketplace,
           strategy,
+          maxTags,
         }),
       });
 

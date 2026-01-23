@@ -38,6 +38,7 @@ interface BatchState {
   sessionId: string | null;
   marketplace: MarketplaceType;
   strategy: StrategyType;
+  maxTags: number;
 
   // Batch data
   groups: LocalGroup[];
@@ -62,6 +63,7 @@ interface BatchState {
   initSession: () => void;
   setMarketplace: (marketplace: MarketplaceType) => void;
   setStrategy: (strategy: StrategyType) => void;
+  setMaxTags: (maxTags: number) => void;
   toggleGroupSelection: (groupId: string) => void;
   selectAllGroups: () => void;
   deselectAllGroups: () => void;
@@ -110,7 +112,8 @@ export const useBatchStore = create<BatchState>()(
         // Initial state
         sessionId: null,
         marketplace: "ETSY",
-        strategy: "standard",
+        strategy: "etsy",
+        maxTags: 25,
         groups: [],
         currentGroupIndex: 0,
         selectedGroupIds: new Set<string>(),
@@ -150,6 +153,12 @@ export const useBatchStore = create<BatchState>()(
 
         setStrategy: (strategy) => {
           set({ strategy });
+        },
+
+        setMaxTags: (maxTags) => {
+          // Clamp between 5 and 50
+          const clamped = Math.max(5, Math.min(50, maxTags));
+          set({ maxTags: clamped });
         },
 
         toggleGroupSelection: (groupId) => {
@@ -422,6 +431,7 @@ export const useBatchStore = create<BatchState>()(
           sessionId: state.sessionId,
           marketplace: state.marketplace,
           strategy: state.strategy,
+          maxTags: state.maxTags,
           currentGroupIndex: state.currentGroupIndex,
           exportSettings: state.exportSettings,
         }),

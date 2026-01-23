@@ -73,13 +73,14 @@ export class AnthropicVisionProvider implements IVisionProvider {
   async generateTags(
     images: TagImageInput[],
     marketplace: MarketplaceType,
-    strategy: StrategyType = "standard"
+    strategy: StrategyType = "standard",
+    maxTags: number = 25
   ): Promise<ImageTagResult[]> {
     const results: ImageTagResult[] = [];
 
     for (const image of images) {
       try {
-        const result = await this.generateTagsForImage(image, marketplace, strategy);
+        const result = await this.generateTagsForImage(image, marketplace, strategy, maxTags);
         results.push(result);
       } catch (error) {
         console.error(`Failed to generate tags for image ${image.id}:`, error);
@@ -99,9 +100,10 @@ export class AnthropicVisionProvider implements IVisionProvider {
   private async generateTagsForImage(
     image: TagImageInput,
     marketplace: MarketplaceType,
-    strategy: StrategyType
+    strategy: StrategyType,
+    maxTags: number = 25
   ): Promise<ImageTagResult> {
-    const prompt = buildTagPrompt(marketplace, strategy);
+    const prompt = buildTagPrompt(marketplace, strategy, maxTags);
 
     const message = await this.client.messages.create({
       model: this.model,

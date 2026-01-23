@@ -52,9 +52,10 @@ const STRATEGY_PERSONAS: Record<StrategyType, string> = {
     "Act as a professional Stock Content Manager. Use objective, technical terms. Do not use subjective language.",
 };
 
-function buildTagPrompt(market: string, strategy: StrategyType = "standard") {
+function buildTagPrompt(market: string, strategy: StrategyType = "standard", maxTags: number = 25) {
   const persona = STRATEGY_PERSONAS[strategy] || "";
   const personaLine = persona ? `\n    PERSONA: ${persona}\n` : "";
+  const tagLimit = Math.max(5, Math.min(50, maxTags));
   // OPTIMIZATION: Minified + Specific Tag Count
   return `${personaLine}
     Generate high-ranking SEO tags for this ${market} product image.
@@ -62,7 +63,7 @@ function buildTagPrompt(market: string, strategy: StrategyType = "standard") {
     CRITICAL OUTPUT RULES:
     1. Return strictly valid JSON.
     2. MINIFY your JSON (no line breaks, no indentation, no whitespace).
-    3. Return exactly 15-20 relevant tags.
+    3. Return exactly ${tagLimit} relevant tags. Never exceed ${tagLimit} tags.
     4. Structure: { "title": "...", "description": "...", "tags": ["tag1", "tag2"], "confidence": 0.9 }
   `.trim();
 }
@@ -123,7 +124,8 @@ export class OpenAIVisionProvider implements IVisionProvider {
   async generateTags(
     images: TagImageInput[],
     marketplace: MarketplaceType,
-    strategy: StrategyType = "standard"
+    strategy: StrategyType = "standard",
+    maxTags: number = 25
   ): Promise<ImageTagResult[]> {
     const image = images[0];
 
@@ -133,7 +135,7 @@ export class OpenAIVisionProvider implements IVisionProvider {
       return [];
     }
 
-    const prompt = buildTagPrompt(marketplace, strategy);
+    const prompt = buildTagPrompt(marketplace, strategy, maxTags);
 
     const response = (await this.client.chat.completions.create({
       model: this.model,

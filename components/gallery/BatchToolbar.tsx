@@ -1,23 +1,91 @@
 "use client";
 
+import { useState, useEffect, useRef } from "react";
+import { useSession } from "next-auth/react";
+import { FolderOpen, ChevronDown, Archive, ArchiveRestore } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { StrategySelector } from "@/components/dashboard";
 import { ExportToolbar } from "@/components/export";
 import { useBatchStore } from "@/store/useBatchStore";
 
-export interface BatchToolbarProps {
-  className?: string;
+interface Project {
+  id: string;
+  name: string;
+  batchCount: number;
 }
 
-export function BatchToolbar({ className }: BatchToolbarProps) {
-  const { groups } = useBatchStore();
+export interface BatchToolbarProps {
+  className?: string;
+  selectedProjectId?: string | null;
+}
 
-  // Only show toolbar if there are groups with images
+export function BatchToolbar({ className, selectedProjectId }: BatchToolbarProps) {
+  const { status } = useSession();
+  const { groups } = useBatchStore();
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [isProjectMenuOpen, setIsProjectMenuOpen] = useState(false);
+  const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
+  const [isArchived, setIsArchived] = useState(false);
+  const projectMenuRef = useRef<HTMLDivElement>(null);
+
+  const isAuthenticated = status === "authenticated";
   const hasContent = groups.some((g) => g.id !== "unclustered" && g.images.length > 0);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchProjects();
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (projectMenuRef.current && !projectMenuRef.current.contains(event.target as Node)) {
+        setIsProjectMenuOpen(false);
+      }
+    };
+
+    if (isProjectMenuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isProjectMenuOpen]);
+
+  const fetchProjects = async () => {
+    try {
+      const res = await fetch("/api/projects");
+      const data = await res.json();
+      if (data.success) {
+        setProjects(data.data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch projects:", err);
+    }
+  };
+
+  const handleMoveToProject = async (projectId: string | null) => {
+    setCurrentProjectId(projectId);
+    setIsProjectMenuOpen(false);
+
+    const projectName = projectId
+      ? projects.find((p) => p.id === projectId)?.name || "project"
+      : "No Project";
+
+    toast.success(`Batch assigned to "${projectName}"`);
+    // In a full implementation, this would update the batch's projectId in the database
+  };
+
+  const handleToggleArchive = () => {
+    setIsArchived(!isArchived);
+    toast.success(isArchived ? "Batch restored from archive" : "Batch archived");
+    // In a full implementation, this would update the batch's isArchived in the database
+  };
 
   if (!hasContent) {
     return null;
   }
+
+  const currentProject = projects.find((p) => p.id === currentProjectId);
 
   return (
     <div
@@ -26,10 +94,99 @@ export function BatchToolbar({ className }: BatchToolbarProps) {
         className
       )}
     >
-      {/* Left: Strategy Selector */}
-      <div className="flex items-center gap-3">
-        <span className="text-sm font-medium text-slate-500">Strategy:</span>
-        <StrategySelector />
+      {/* Left: Strategy Selector + Project Assignment */}
+      <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-medium text-slate-500">Strategy:</span>
+          <StrategySelector />
+        </div>
+
+        {/* Project Selector - Only for authenticated users */}
+        {isAuthenticated && (
+          <>
+            <div className="w-px h-6 bg-slate-200" />
+            <div className="relative" ref={projectMenuRef}>
+              <button
+                onClick={() => setIsProjectMenuOpen(!isProjectMenuOpen)}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-300 bg-white",
+                  "text-sm font-medium text-slate-700",
+                  "hover:border-slate-400 hover:bg-slate-50",
+                  "transition-all duration-150"
+                )}
+              >
+                <FolderOpen className="h-4 w-4 text-slate-400" />
+                <span className="max-w-[120px] truncate">
+                  {currentProject?.name || "No Project"}
+                </span>
+                <ChevronDown
+                  className={cn(
+                    "h-4 w-4 text-slate-400 transition-transform",
+                    isProjectMenuOpen && "rotate-180"
+                  )}
+                />
+              </button>
+
+              {isProjectMenuOpen && (
+                <div className="absolute top-full left-0 mt-1 w-56 bg-white rounded-xl shadow-lg border border-slate-200 py-1 z-50">
+                  <button
+                    onClick={() => handleMoveToProject(null)}
+                    className={cn(
+                      "w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm",
+                      "hover:bg-slate-50 transition-colors",
+                      !currentProjectId && "bg-blue-50 text-blue-700"
+                    )}
+                  >
+                    <FolderOpen className="h-4 w-4 text-slate-400" />
+                    <span>No Project</span>
+                  </button>
+
+                  {projects.length > 0 && <div className="border-t border-slate-100 my-1" />}
+
+                  {projects.map((project) => (
+                    <button
+                      key={project.id}
+                      onClick={() => handleMoveToProject(project.id)}
+                      className={cn(
+                        "w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm",
+                        "hover:bg-slate-50 transition-colors",
+                        currentProjectId === project.id && "bg-blue-50 text-blue-700"
+                      )}
+                    >
+                      <FolderOpen
+                        className={cn(
+                          "h-4 w-4",
+                          currentProjectId === project.id ? "text-blue-500" : "text-slate-400"
+                        )}
+                      />
+                      <span className="flex-1 truncate">{project.name}</span>
+                      <span className="text-xs text-slate-400">{project.batchCount}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Archive Button */}
+            <button
+              onClick={handleToggleArchive}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-colors",
+                isArchived
+                  ? "border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100"
+                  : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-400"
+              )}
+              title={isArchived ? "Restore from archive" : "Archive batch"}
+            >
+              {isArchived ? (
+                <ArchiveRestore className="h-4 w-4" />
+              ) : (
+                <Archive className="h-4 w-4" />
+              )}
+              <span className="text-sm font-medium">{isArchived ? "Restore" : "Archive"}</span>
+            </button>
+          </>
+        )}
       </div>
 
       {/* Right: Export Tools */}

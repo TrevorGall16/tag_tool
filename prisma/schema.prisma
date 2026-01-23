@@ -84,11 +84,27 @@ model User {
   sessions Session[]
 
   // Relations (App)
+  projects      Project[]
   batches       Batch[]
   creditsLedger CreditsLedger[]
 
   @@index([email])
   @@index([stripeCustomerId])
+}
+
+model Project {
+  id        String   @id @default(cuid())
+  name      String   @db.VarChar(255)
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  batches       Batch[]
+  creditsLedger CreditsLedger[]
+
+  @@index([userId])
 }
 
 // ============================================
@@ -137,19 +153,24 @@ model VerificationToken {
 model Batch {
   id          String      @id @default(cuid())
   userId      String?
+  projectId   String?
   sessionId   String      @db.VarChar(100)
   marketplace Marketplace @default(ETSY)
   status      BatchStatus @default(PENDING)
+  isArchived  Boolean     @default(false)
   createdAt   DateTime    @default(now())
   expiresAt   DateTime
 
   // Relations
-  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
-  groups Group[]
+  user    User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  groups  Group[]
 
   @@index([userId])
+  @@index([projectId])
   @@index([sessionId])
   @@index([expiresAt])
+  @@index([isArchived])
 }
 
 model Group {
@@ -199,6 +220,7 @@ model ImageItem {
 model CreditsLedger {
   id              String       @id @default(cuid())
   userId          String
+  projectId       String?
   amount          Int
   reason          LedgerReason
   stripeSessionId String?      @db.VarChar(255)
@@ -206,8 +228,10 @@ model CreditsLedger {
   createdAt       DateTime     @default(now())
 
   // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
   @@index([userId])
+  @@index([projectId])
   @@index([createdAt])
 }

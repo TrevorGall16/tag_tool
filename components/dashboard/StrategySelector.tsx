@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { ShoppingBag, Camera, Sparkles, ChevronDown } from "lucide-react";
+import { ShoppingBag, Camera, Sparkles, ChevronDown, Tag } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useBatchStore, type StrategyType } from "@/store/useBatchStore";
@@ -45,7 +45,7 @@ export interface StrategySelectorProps {
 }
 
 export function StrategySelector({ className }: StrategySelectorProps) {
-  const { strategy, setStrategy } = useBatchStore();
+  const { strategy, setStrategy, maxTags, setMaxTags } = useBatchStore();
   const [isOpen, setIsOpen] = useState(false);
   const [hoveredOption, setHoveredOption] = useState<StrategyType | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -81,89 +81,109 @@ export function StrategySelector({ className }: StrategySelectorProps) {
   }, [isOpen]);
 
   return (
-    <div className={cn("relative", className)} ref={dropdownRef}>
-      {/* Dropdown Trigger */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className={cn(
-          "flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-300 bg-white",
-          "text-sm font-medium text-slate-700",
-          "hover:border-slate-400 hover:bg-slate-50",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500",
-          "transition-all duration-150"
-        )}
-      >
-        <span className="text-slate-500">{selectedOption.icon}</span>
-        <span>{selectedOption.label}</span>
-        <ChevronDown
-          className={cn("h-4 w-4 text-slate-400 transition-transform ml-1", isOpen && "rotate-180")}
-        />
-      </button>
+    <div className={cn("flex items-center gap-3", className)}>
+      {/* Strategy Dropdown */}
+      <div className="relative" ref={dropdownRef}>
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className={cn(
+            "flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-300 bg-white",
+            "text-sm font-medium text-slate-700",
+            "hover:border-slate-400 hover:bg-slate-50",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500",
+            "transition-all duration-150"
+          )}
+        >
+          <span className="text-slate-500">{selectedOption.icon}</span>
+          <span>{selectedOption.label}</span>
+          <ChevronDown
+            className={cn(
+              "h-4 w-4 text-slate-400 transition-transform ml-1",
+              isOpen && "rotate-180"
+            )}
+          />
+        </button>
 
-      {/* Dropdown Menu */}
-      {isOpen && (
-        <div className="absolute top-full left-0 mt-1 w-64 bg-white rounded-xl shadow-lg border border-slate-200 py-1 z-50">
-          {strategies.map((option) => (
-            <div key={option.value} className="relative">
-              <button
-                onClick={() => handleStrategyChange(option.value)}
-                onMouseEnter={() => setHoveredOption(option.value)}
-                onMouseLeave={() => setHoveredOption(null)}
-                className={cn(
-                  "w-full flex items-start gap-3 px-4 py-3 text-left",
-                  "hover:bg-slate-50 transition-colors",
-                  strategy === option.value && "bg-blue-50"
-                )}
-              >
-                <div
+        {/* Dropdown Menu */}
+        {isOpen && (
+          <div className="absolute top-full left-0 mt-1 w-64 bg-white rounded-xl shadow-lg border border-slate-200 py-1 z-50">
+            {strategies.map((option) => (
+              <div key={option.value} className="relative">
+                <button
+                  onClick={() => handleStrategyChange(option.value)}
+                  onMouseEnter={() => setHoveredOption(option.value)}
+                  onMouseLeave={() => setHoveredOption(null)}
                   className={cn(
-                    "mt-0.5",
-                    strategy === option.value ? "text-blue-600" : "text-slate-500"
+                    "w-full flex items-start gap-3 px-4 py-3 text-left",
+                    "hover:bg-slate-50 transition-colors",
+                    strategy === option.value && "bg-blue-50"
                   )}
                 >
-                  {option.icon}
-                </div>
-                <div className="flex-1 min-w-0">
                   <div
                     className={cn(
-                      "font-medium",
-                      strategy === option.value ? "text-blue-600" : "text-slate-900"
+                      "mt-0.5",
+                      strategy === option.value ? "text-blue-600" : "text-slate-500"
                     )}
                   >
-                    {option.label}
+                    {option.icon}
                   </div>
-                  <div className="text-xs text-slate-500 mt-0.5">{option.description}</div>
-                </div>
-                {strategy === option.value && (
-                  <div className="text-blue-600 mt-0.5">
-                    <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-                      <path
-                        fillRule="evenodd"
-                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
+                  <div className="flex-1 min-w-0">
+                    <div
+                      className={cn(
+                        "font-medium",
+                        strategy === option.value ? "text-blue-600" : "text-slate-900"
+                      )}
+                    >
+                      {option.label}
+                    </div>
+                    <div className="text-xs text-slate-500 mt-0.5">{option.description}</div>
+                  </div>
+                  {strategy === option.value && (
+                    <div className="text-blue-600 mt-0.5">
+                      <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path
+                          fillRule="evenodd"
+                          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    </div>
+                  )}
+                </button>
+
+                {/* Tooltip on hover */}
+                {hoveredOption === option.value && (
+                  <div
+                    className={cn(
+                      "absolute left-full top-1/2 -translate-y-1/2 ml-2",
+                      "w-48 px-3 py-2 bg-slate-900 text-white text-xs rounded-lg",
+                      "shadow-lg z-50 pointer-events-none"
+                    )}
+                  >
+                    {option.tooltip}
+                    <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-slate-900" />
                   </div>
                 )}
-              </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
-              {/* Tooltip on hover */}
-              {hoveredOption === option.value && (
-                <div
-                  className={cn(
-                    "absolute left-full top-1/2 -translate-y-1/2 ml-2",
-                    "w-48 px-3 py-2 bg-slate-900 text-white text-xs rounded-lg",
-                    "shadow-lg z-50 pointer-events-none"
-                  )}
-                >
-                  {option.tooltip}
-                  <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-slate-900" />
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+      {/* Max Tags Control */}
+      <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-300 bg-white">
+        <Tag className="h-4 w-4 text-slate-400" />
+        <span className="text-sm text-slate-500">Tags:</span>
+        <input
+          type="range"
+          min={5}
+          max={50}
+          value={maxTags}
+          onChange={(e) => setMaxTags(Number(e.target.value))}
+          className="w-20 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+        />
+        <span className="text-sm font-medium text-slate-700 w-6 text-right">{maxTags}</span>
+      </div>
     </div>
   );
 }

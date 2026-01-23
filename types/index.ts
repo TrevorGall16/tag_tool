@@ -120,6 +120,7 @@ export interface VisionTagsRequest {
   images: TagImageInput[];
   marketplace: "ETSY" | "ADOBE_STOCK";
   strategy?: "standard" | "etsy" | "stock";
+  maxTags?: number;
 }
 
 export interface TagImageInput {
