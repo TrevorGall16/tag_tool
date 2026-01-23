@@ -10,7 +10,8 @@
       "Bash(pnpm build:*)",
       "Bash(pnpm format:*)",
       "Bash(pnpm prettier:*)",
-      "Bash(pnpm next build:*)"
+      "Bash(pnpm next build:*)",
+      "Bash(npx tsc --noEmit)"
     ]
   }
 }

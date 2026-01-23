@@ -158,7 +158,7 @@ export function Dropzone({ maxFiles = 50, maxSizeMB = 25, disabled, className }:
   const isDisabled = disabled || processingState.isProcessing;
 
   return (
-    <div className={className}>
+    <div className={className} data-dropzone>
       <div
         role="region"
         aria-label="Image upload dropzone"

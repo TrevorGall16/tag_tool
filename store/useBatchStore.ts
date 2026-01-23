@@ -68,6 +68,7 @@ interface BatchState {
   removeGroup: (groupId: string) => void;
   setCurrentGroupIndex: (index: number) => void;
   addImageToGroup: (groupId: string, image: LocalImageItem) => void;
+  removeImageFromGroup: (groupId: string, imageId: string) => void;
   moveImageToGroup: (imageId: string, fromGroupId: string, toGroupId: string) => void;
   updateImageTags: (groupId: string, imageId: string, tags: string[], title?: string) => void;
   updateImageStatus: (
@@ -203,6 +204,17 @@ export const useBatchStore = create<BatchState>()(
           set((state) => ({
             groups: state.groups.map((group) =>
               group.id === groupId ? { ...group, images: [...group.images, image] } : group
+            ),
+          }));
+        },
+
+        removeImageFromGroup: (groupId, imageId) => {
+          console.log(`[Store] Removing image ${imageId} from group ${groupId}`);
+          set((state) => ({
+            groups: state.groups.map((group) =>
+              group.id === groupId
+                ? { ...group, images: group.images.filter((img) => img.id !== imageId) }
+                : group
             ),
           }));
         },

@@ -1,7 +1,7 @@
 "use client";
 
 import { useDraggable } from "@dnd-kit/core";
-import { GripVertical } from "lucide-react";
+import { GripVertical, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { LocalImageItem } from "@/store/useBatchStore";
 
@@ -9,9 +9,15 @@ export interface DraggableImageProps {
   image: LocalImageItem;
   groupId: string;
   onImageClick?: (image: LocalImageItem) => void;
+  onDeleteImage?: (imageId: string) => void;
 }
 
-export function DraggableImage({ image, groupId, onImageClick }: DraggableImageProps) {
+export function DraggableImage({
+  image,
+  groupId,
+  onImageClick,
+  onDeleteImage,
+}: DraggableImageProps) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: image.id,
     data: { groupId, image },
@@ -21,6 +27,13 @@ export function DraggableImage({ image, groupId, onImageClick }: DraggableImageP
     // Prevent click from bubbling if we're dragging
     if (isDragging) return;
     onImageClick?.(image);
+  };
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onDeleteImage) {
+      onDeleteImage(image.id);
+    }
   };
 
   return (
@@ -48,6 +61,24 @@ export function DraggableImage({ image, groupId, onImageClick }: DraggableImageP
       >
         <GripVertical className="w-4 h-4" />
       </div>
+
+      {/* Delete Button */}
+      {onDeleteImage && (
+        <button
+          type="button"
+          onClick={handleDelete}
+          className={cn(
+            "absolute top-1 right-1 z-10 p-1 rounded",
+            "bg-red-500/80 text-white",
+            "opacity-0 group-hover:opacity-100 transition-opacity",
+            "hover:bg-red-600"
+          )}
+          title="Delete image"
+          aria-label={`Delete ${image.originalFilename}`}
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
+      )}
 
       {/* Clickable Image Area */}
       <button

@@ -105,6 +105,46 @@ export async function nukeAllData(): Promise<void> {
 }
 
 /**
+ * Delete a single image and its blob from IndexedDB
+ */
+export async function deleteImageData(imageId: string): Promise<void> {
+  console.log(`[DB] Deleting image and blob for: ${imageId}`);
+  const db = await getDB();
+  const tx = db.transaction(["images", "blobs"], "readwrite");
+  await tx.objectStore("images").delete(imageId);
+  await tx.objectStore("blobs").delete(imageId);
+  await tx.done;
+  console.log(`[DB] Deleted image and blob for: ${imageId}`);
+}
+
+/**
+ * Delete a group and all its images/blobs from IndexedDB
+ */
+export async function deleteGroupData(groupId: string): Promise<void> {
+  console.log(`[DB] Deleting group and all images for: ${groupId}`);
+  const db = await getDB();
+  const tx = db.transaction(["groups", "images", "blobs"], "readwrite");
+
+  // Get all images in this group
+  const images = await tx.objectStore("images").index("byGroup").getAll(groupId);
+  const imageIds = images.map((img) => img.id);
+
+  // Delete all blobs
+  const blobStore = tx.objectStore("blobs");
+  await Promise.all(imageIds.map((id) => blobStore.delete(id)));
+
+  // Delete all images
+  const imageStore = tx.objectStore("images");
+  await Promise.all(images.map((img) => imageStore.delete(img.id)));
+
+  // Delete the group
+  await tx.objectStore("groups").delete(groupId);
+
+  await tx.done;
+  console.log(`[DB] Deleted group ${groupId} with ${imageIds.length} images`);
+}
+
+/**
  * Debug: Get counts of all items in database
  */
 export async function getDBStats(): Promise<{

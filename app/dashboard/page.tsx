@@ -1,27 +1,59 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { RotateCcw } from "lucide-react";
 import { useBatchStore } from "@/store/useBatchStore";
-import { usePersistence } from "@/hooks/usePersistence";
+import { usePersistence, markExplicitClear } from "@/hooks/usePersistence";
+import { nukeAllData } from "@/lib/persistence";
 import { Dropzone } from "@/components/uploader";
 import { ImageGallery, GroupList, GroupSkeleton } from "@/components/gallery";
 import { ExportToolbar } from "@/components/export";
-import { MarketplaceInfo } from "@/components/ui";
+import { MarketplaceInfo, Button } from "@/components/ui";
 
 export default function DashboardPage() {
-  const { sessionId, initSession, marketplace, setMarketplace, isClustering } = useBatchStore();
+  const { sessionId, initSession, marketplace, setMarketplace, isClustering, clearBatch, groups } =
+    useBatchStore();
   const {
     isRestoring,
     error: persistenceError,
     restoredImageCount,
     triggerSync,
   } = usePersistence();
+  const [isResetting, setIsResetting] = useState(false);
 
   useEffect(() => {
     if (!sessionId) {
       initSession();
     }
   }, [sessionId, initSession]);
+
+  const handleNewBatch = async () => {
+    const totalImages = groups.reduce((acc, g) => acc + g.images.length, 0);
+    if (totalImages > 0) {
+      if (!confirm("This will delete all images and start fresh. Are you sure?")) {
+        return;
+      }
+    }
+
+    setIsResetting(true);
+    try {
+      // Mark explicit clear to allow zero-image save
+      markExplicitClear();
+      // Clear IndexedDB
+      await nukeAllData();
+      // Clear Zustand store
+      clearBatch();
+      // Re-initialize session
+      initSession();
+    } catch (err) {
+      console.error("[Dashboard] Reset failed:", err);
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
+  // Check if there are any images in the batch
+  const hasImages = groups.some((g) => g.images.length > 0);
 
   // Show loading state while restoring from IndexedDB
   if (isRestoring) {

@@ -1,12 +1,23 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { Sparkles, Loader2, Check, Edit2, Square, CheckSquare } from "lucide-react";
+import {
+  Sparkles,
+  Loader2,
+  Check,
+  Edit2,
+  Square,
+  CheckSquare,
+  Trash2,
+  ImagePlus,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useBatchStore, LocalGroup, LocalImageItem } from "@/store/useBatchStore";
 import { TagEditor } from "@/components/editor";
 import { BatchDndContext, DraggableImage, DroppableGroup } from "@/components/dnd";
 import { ImageLightbox } from "./ImageLightbox";
+import { deleteImageData, deleteGroupData } from "@/lib/persistence";
+import { markExplicitClear } from "@/hooks/usePersistence";
 import type { VisionTagsResponse } from "@/types";
 
 export interface GroupListProps {
@@ -22,7 +33,8 @@ interface LightboxState {
 }
 
 export function GroupList({ className, onLightboxSave }: GroupListProps) {
-  const { groups, selectedGroupIds, toggleGroupSelection } = useBatchStore();
+  const { groups, selectedGroupIds, toggleGroupSelection, removeImageFromGroup, removeGroup } =
+    useBatchStore();
   const [selectedGroup, setSelectedGroup] = useState<LocalGroup | null>(null);
   const [lightboxState, setLightboxState] = useState<LightboxState>({
     image: null,
@@ -39,6 +51,42 @@ export function GroupList({ className, onLightboxSave }: GroupListProps) {
       setLightboxState({ image, groupId, imageIndex });
     },
     [groups]
+  );
+
+  const handleDeleteImage = useCallback(
+    async (groupId: string, imageId: string) => {
+      // Mark explicit clear to allow sync with reduced image count
+      markExplicitClear();
+      // Remove from store
+      removeImageFromGroup(groupId, imageId);
+      // Delete from IndexedDB
+      try {
+        await deleteImageData(imageId);
+      } catch (err) {
+        console.error("[GroupList] Failed to delete image from IndexedDB:", err);
+      }
+      // Trigger sync
+      onLightboxSave?.();
+    },
+    [removeImageFromGroup, onLightboxSave]
+  );
+
+  const handleDeleteGroup = useCallback(
+    async (groupId: string) => {
+      // Mark explicit clear to allow sync with reduced image count
+      markExplicitClear();
+      // Remove from store
+      removeGroup(groupId);
+      // Delete from IndexedDB
+      try {
+        await deleteGroupData(groupId);
+      } catch (err) {
+        console.error("[GroupList] Failed to delete group from IndexedDB:", err);
+      }
+      // Trigger sync
+      onLightboxSave?.();
+    },
+    [removeGroup, onLightboxSave]
   );
 
   const handleLightboxClose = useCallback(() => {
@@ -69,7 +117,34 @@ export function GroupList({ className, onLightboxSave }: GroupListProps) {
   const hasPrevious = lightboxState.imageIndex > 0;
   const hasNext = currentGroup ? lightboxState.imageIndex < currentGroup.images.length - 1 : false;
 
-  if (clusteredGroups.length === 0) return null;
+  // Empty state when no clustered groups exist
+  if (clusteredGroups.length === 0) {
+    return (
+      <div className={cn("mt-8", className)}>
+        <div className="border-2 border-dashed border-slate-200 rounded-xl p-12 text-center bg-slate-50/50">
+          <div className="mx-auto w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mb-4">
+            <ImagePlus className="w-8 h-8 text-slate-400" />
+          </div>
+          <h3 className="text-lg font-medium text-slate-700 mb-2">No images yet</h3>
+          <p className="text-sm text-slate-500 mb-4 max-w-sm mx-auto">
+            Upload images using the dropzone above to get started. Images will be automatically
+            clustered into groups for batch tagging.
+          </p>
+          <button
+            onClick={() => {
+              // Scroll to dropzone
+              const dropzone = document.querySelector("[data-dropzone]");
+              dropzone?.scrollIntoView({ behavior: "smooth", block: "center" });
+            }}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+          >
+            <ImagePlus className="w-4 h-4" />
+            Upload Images
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <BatchDndContext>
@@ -86,6 +161,8 @@ export function GroupList({ className, onLightboxSave }: GroupListProps) {
               group={group}
               onEdit={() => setSelectedGroup(group)}
               onImageClick={handleImageClick}
+              onDeleteImage={(imageId) => handleDeleteImage(group.id, imageId)}
+              onDeleteGroup={() => handleDeleteGroup(group.id)}
               isSelected={selectedGroupIds.has(group.id)}
               onToggleSelect={() => toggleGroupSelection(group.id)}
             />
@@ -122,11 +199,21 @@ interface GroupCardProps {
   group: LocalGroup;
   onEdit: () => void;
   onImageClick: (image: LocalImageItem, groupId: string) => void;
+  onDeleteImage: (imageId: string) => void;
+  onDeleteGroup: () => void;
   isSelected: boolean;
   onToggleSelect: () => void;
 }
 
-function GroupCard({ group, onEdit, onImageClick, isSelected, onToggleSelect }: GroupCardProps) {
+function GroupCard({
+  group,
+  onEdit,
+  onImageClick,
+  onDeleteImage,
+  onDeleteGroup,
+  isSelected,
+  onToggleSelect,
+}: GroupCardProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -242,6 +329,25 @@ function GroupCard({ group, onEdit, onImageClick, isSelected, onToggleSelect }: 
           <button
             onClick={(e) => {
               e.stopPropagation();
+              if (
+                confirm(
+                  `Delete "${group.sharedTitle || `Group ${group.groupNumber}`}" and all ${group.images.length} images?`
+                )
+              ) {
+                onDeleteGroup();
+              }
+            }}
+            className={cn(
+              "p-2 rounded-lg text-slate-400",
+              "hover:bg-red-50 hover:text-red-600 transition-colors"
+            )}
+            title="Delete group"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
               onEdit();
             }}
             className={cn(
@@ -310,6 +416,7 @@ function GroupCard({ group, onEdit, onImageClick, isSelected, onToggleSelect }: 
             image={image}
             groupId={group.id}
             onImageClick={(img) => onImageClick(img, group.id)}
+            onDeleteImage={onDeleteImage}
           />
         ))}
       </div>
