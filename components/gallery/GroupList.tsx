@@ -10,8 +10,10 @@ import {
   CheckSquare,
   Trash2,
   ImagePlus,
+  Copy,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import { cn, copyToClipboard } from "@/lib/utils";
 import { useBatchStore, LocalGroup, LocalImageItem } from "@/store/useBatchStore";
 import { TagEditor } from "@/components/editor";
 import { BatchDndContext, DraggableImage, DroppableGroup } from "@/components/dnd";
@@ -389,20 +391,37 @@ function GroupCard({
 
       {/* Tags Preview */}
       {isTagged && group.sharedTags.length > 0 && (
-        <div className="mb-4 flex flex-wrap gap-1">
-          {group.sharedTags.slice(0, 8).map((tag, i) => (
-            <span
-              key={i}
-              className="inline-block px-2 py-0.5 bg-slate-100 text-slate-700 text-xs rounded-full"
-            >
-              {tag}
-            </span>
-          ))}
-          {group.sharedTags.length > 8 && (
-            <span className="inline-block px-2 py-0.5 text-slate-500 text-xs">
-              +{group.sharedTags.length - 8} more
-            </span>
-          )}
+        <div className="mb-4 flex items-start gap-2">
+          <div className="flex flex-wrap gap-1 flex-1">
+            {group.sharedTags.slice(0, 8).map((tag, i) => (
+              <span
+                key={i}
+                className="inline-block px-2 py-0.5 bg-slate-100 text-slate-700 text-xs rounded-full"
+              >
+                {tag}
+              </span>
+            ))}
+            {group.sharedTags.length > 8 && (
+              <span className="inline-block px-2 py-0.5 text-slate-500 text-xs">
+                +{group.sharedTags.length - 8} more
+              </span>
+            )}
+          </div>
+          <button
+            onClick={async (e) => {
+              e.stopPropagation();
+              const success = await copyToClipboard(group.sharedTags.join(", "));
+              if (success) {
+                toast.success(`Copied ${group.sharedTags.length} tags`);
+              } else {
+                toast.error("Failed to copy tags");
+              }
+            }}
+            className="p-1.5 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors shrink-0"
+            title="Copy tags to clipboard"
+          >
+            <Copy className="h-4 w-4" />
+          </button>
         </div>
       )}
 

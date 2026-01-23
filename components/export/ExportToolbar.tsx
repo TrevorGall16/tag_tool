@@ -1,9 +1,24 @@
 "use client";
 
 import { useState } from "react";
-import { Download, CheckCircle, AlertCircle, Settings2, Eye } from "lucide-react";
+import {
+  Download,
+  CheckCircle,
+  AlertCircle,
+  Settings2,
+  Eye,
+  Copy,
+  FileSpreadsheet,
+} from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui";
-import { cn } from "@/lib/utils";
+import {
+  cn,
+  generateAdobeStockCSV,
+  collectAllTags,
+  copyToClipboard,
+  downloadString,
+} from "@/lib/utils";
 import { useBatchStore } from "@/store/useBatchStore";
 import { ExportEngine } from "@/lib/export";
 import { ExportSettings } from "./ExportSettings";
@@ -121,8 +136,52 @@ export function ExportToolbar({ className }: ExportToolbarProps) {
     setShowPreview(true);
   };
 
+  const handleCopyAllTags = async () => {
+    const allTags = collectAllTags(groupsToExport);
+    if (allTags.length === 0) {
+      toast.error("No tags to copy");
+      return;
+    }
+    const success = await copyToClipboard(allTags.join(", "));
+    if (success) {
+      toast.success(`Copied ${allTags.length} tags to clipboard`);
+    } else {
+      toast.error("Failed to copy tags");
+    }
+  };
+
+  const handleDownloadAdobeCSV = () => {
+    if (groupsToExport.length === 0) {
+      toast.error("No groups to export");
+      return;
+    }
+    const csv = generateAdobeStockCSV(groupsToExport);
+    downloadString(csv, "tagarchitect-export.csv", "text/csv;charset=utf-8");
+    toast.success("Downloaded Adobe Stock CSV");
+  };
+
   return (
     <div className={cn("flex items-center gap-2", className)}>
+      <Button
+        onClick={handleCopyAllTags}
+        variant="outline"
+        size="md"
+        title="Copy all tags to clipboard"
+        disabled={exportableGroups.length === 0}
+      >
+        <Copy className="h-4 w-4" />
+      </Button>
+
+      <Button
+        onClick={handleDownloadAdobeCSV}
+        variant="outline"
+        size="md"
+        title="Download Adobe Stock CSV"
+        disabled={exportableGroups.length === 0}
+      >
+        <FileSpreadsheet className="h-4 w-4" />
+      </Button>
+
       <Button
         onClick={handlePreview}
         variant="outline"
