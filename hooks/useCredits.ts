@@ -76,10 +76,11 @@ export function useCredits(options: UseCreditsOptions = {}) {
 
   // Sync with session on initial load and session changes
   useEffect(() => {
-    if (session?.user?.creditsBalance !== undefined) {
+    const sessionBalance = session?.user?.creditsBalance;
+    if (sessionBalance !== undefined) {
       setState((prev) => ({
         ...prev,
-        balance: session.user.creditsBalance,
+        balance: sessionBalance,
       }));
     }
   }, [session?.user?.creditsBalance]);

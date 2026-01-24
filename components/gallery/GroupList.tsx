@@ -228,6 +228,12 @@ function GroupCard({
     e.stopPropagation(); // Prevent card click
     if (group.images.length === 0) return;
 
+    // Confirm regeneration to prevent accidental credit usage
+    if (isTagged) {
+      const confirmed = window.confirm("Regenerate tags? This will use 1 credit.");
+      if (!confirmed) return;
+    }
+
     console.log(
       `[GroupCard] Generate tags clicked for group: ${group.id} (${group.sharedTitle || `Group ${group.groupNumber}`})`
     );

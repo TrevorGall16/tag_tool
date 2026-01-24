@@ -86,7 +86,7 @@ export async function POST(
               userId: session.user.id,
               amount: -creditsToDeduct,
               reason: "USAGE",
-              description: `AI Analysis: ${strategyLabel} Mode`,
+              description: `Tag Generation (${strategyLabel}) - ${creditsToDeduct} image${creditsToDeduct > 1 ? "s" : ""}`,
             },
           });
         });

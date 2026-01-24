@@ -31,9 +31,10 @@ import type {
 
 export interface ExportToolbarProps {
   className?: string;
+  projectName?: string;
 }
 
-export function ExportToolbar({ className }: ExportToolbarProps) {
+export function ExportToolbar({ className, projectName }: ExportToolbarProps) {
   const {
     groups,
     marketplace,
@@ -120,9 +121,9 @@ export function ExportToolbar({ className }: ExportToolbarProps) {
       return "No images to export";
     }
     if (selectedGroupIds.size > 0) {
-      return `Download Selected (${totalExportableImages})`;
+      return `Download ZIP (${totalExportableImages})`;
     }
-    return `Download All (${totalExportableImages})`;
+    return `Download ZIP (${totalExportableImages})`;
   };
 
   const handleSettingsChange = (newSettings: ExportSettingsType) => {
@@ -157,8 +158,21 @@ export function ExportToolbar({ className }: ExportToolbarProps) {
       return;
     }
     const csv = generateAdobeStockCSV(groupsToExport);
-    const date = new Date().toISOString().split("T")[0];
-    const filename = `tagarchitect-${strategy}-${date}.csv`;
+
+    // Build filename: tagarchitect-{project}-{group}.csv
+    const slugify = (str: string) =>
+      str
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "");
+
+    const projectSlug = projectName ? slugify(projectName) : strategy;
+    const firstGroup = groupsToExport[0];
+    const groupSlug = firstGroup?.sharedTitle
+      ? slugify(firstGroup.sharedTitle)
+      : `group-${firstGroup?.groupNumber || 1}`;
+
+    const filename = `tagarchitect-${projectSlug}-${groupSlug}.csv`;
     downloadString(csv, filename, "text/csv;charset=utf-8");
     toast.success("Downloaded CSV");
   };
@@ -210,7 +224,7 @@ export function ExportToolbar({ className }: ExportToolbarProps) {
         isLoading={isExporting}
         variant="primary"
         size="md"
-        className="whitespace-nowrap shrink-0"
+        className="whitespace-nowrap shrink-0 max-w-fit px-2 h-9 text-[10px] uppercase tracking-tighter"
       >
         {!isExporting && <Download className="h-4 w-4 mr-2" />}
         {getButtonText()}

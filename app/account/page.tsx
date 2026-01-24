@@ -19,6 +19,7 @@ import {
   Shield,
   Mail,
   Trash2,
+  HelpCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -145,7 +146,14 @@ export default function AccountPage() {
               <ArrowLeft className="h-4 w-4" />
               Back to Dashboard
             </Link>
-            <h1 className="text-xl font-bold text-slate-900">Account Settings</h1>
+            <h1 className="text-xl font-bold text-slate-900">Account & History</h1>
+            <Link
+              href="/pricing"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors"
+            >
+              <Coins className="w-4 h-4" />
+              Buy Credits
+            </Link>
           </div>
         </div>
       </header>
@@ -388,7 +396,20 @@ export default function AccountPage() {
         </section>
 
         {/* Quick Links */}
-        <section className="grid md:grid-cols-2 gap-4 mb-8">
+        <section className="grid md:grid-cols-3 gap-4 mb-8">
+          <Link
+            href="/faq"
+            className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm border border-slate-200 hover:border-slate-300 hover:shadow-md transition-all"
+          >
+            <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
+              <HelpCircle className="w-5 h-5 text-amber-600" />
+            </div>
+            <div>
+              <h4 className="font-medium text-slate-900">FAQ</h4>
+              <p className="text-sm text-slate-500">Common questions answered</p>
+            </div>
+          </Link>
+
           <Link
             href="/legal/privacy"
             className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm border border-slate-200 hover:border-slate-300 hover:shadow-md transition-all"

@@ -6,7 +6,13 @@ import { useBatchStore } from "@/store/useBatchStore";
 import { usePersistence, markExplicitClear } from "@/hooks/usePersistence";
 import { nukeAllData } from "@/lib/persistence";
 import { Dropzone } from "@/components/uploader";
-import { ImageGallery, GroupList, GroupSkeleton, BatchToolbar } from "@/components/gallery";
+import {
+  ImageGallery,
+  GroupList,
+  GroupSkeleton,
+  BatchToolbar,
+  SelectionActionBar,
+} from "@/components/gallery";
 import { Header } from "@/components/layout";
 import { ProjectList, type Project } from "@/components/dashboard";
 import { ConfirmationModal } from "@/components/ui";
@@ -111,13 +117,16 @@ export default function DashboardPage() {
             sidebarOpen ? "w-64" : "w-0 overflow-hidden"
           )}
         >
-          <ProjectList
-            selectedProjectId={selectedProjectId}
-            onSelectProject={setSelectedProjectId}
-            showArchived={showArchived}
-            onToggleArchived={() => setShowArchived(!showArchived)}
-            className="h-[calc(100vh-73px)]"
-          />
+          <div className="sticky top-20 h-[calc(100vh-120px)] overflow-y-auto">
+            <ProjectList
+              selectedProjectId={selectedProjectId}
+              onSelectProject={setSelectedProjectId}
+              showArchived={showArchived}
+              onToggleArchived={() => setShowArchived(!showArchived)}
+              onProjectsChange={setProjects}
+              className="h-full"
+            />
+          </div>
         </aside>
 
         {/* Main Content */}
@@ -215,6 +224,19 @@ export default function DashboardPage() {
         cancelLabel="Keep Working"
         variant="danger"
         isLoading={isResetting}
+      />
+
+      {/* Selection Action Bar */}
+      <SelectionActionBar
+        projects={projects}
+        onMoveToFolder={(projectId) => {
+          console.log("Move to folder:", projectId);
+          // TODO: Implement move to folder API call
+        }}
+        onArchive={() => {
+          console.log("Archive selected groups");
+          // TODO: Implement archive API call
+        }}
       />
     </div>
   );

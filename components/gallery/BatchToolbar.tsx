@@ -276,7 +276,7 @@ export function BatchToolbar({ className, selectedProjectId }: BatchToolbarProps
       </div>
 
       {/* Right: Export Tools */}
-      <ExportToolbar />
+      <ExportToolbar projectName={currentProject?.name} />
     </div>
   );
 }

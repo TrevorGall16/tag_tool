@@ -41,6 +41,7 @@ export interface ProjectListProps {
   onSelectProject: (projectId: string | null) => void;
   showArchived: boolean;
   onToggleArchived: () => void;
+  onProjectsChange?: (projects: Project[]) => void;
   className?: string;
 }
 
@@ -49,6 +50,7 @@ export function ProjectList({
   onSelectProject,
   showArchived,
   onToggleArchived,
+  onProjectsChange,
   className,
 }: ProjectListProps) {
   const { status } = useSession();
@@ -81,6 +83,7 @@ export function ProjectList({
       const data = await res.json();
       if (data.success) {
         setProjects(data.data);
+        onProjectsChange?.(data.data);
       }
     } catch (err) {
       console.error("Failed to fetch projects:", err);
@@ -101,7 +104,9 @@ export function ProjectList({
       });
       const data = await res.json();
       if (data.success) {
-        setProjects([data.data, ...projects]);
+        const updatedProjects = [data.data, ...projects];
+        setProjects(updatedProjects);
+        onProjectsChange?.(updatedProjects);
         setNewProjectName("");
         setShowNewModal(false);
         toast.success(`Created project "${data.data.name}"`);
@@ -122,7 +127,9 @@ export function ProjectList({
       const res = await fetch(`/api/projects/${projectId}`, { method: "DELETE" });
       const data = await res.json();
       if (data.success) {
-        setProjects(projects.filter((p) => p.id !== projectId));
+        const updatedProjects = projects.filter((p) => p.id !== projectId);
+        setProjects(updatedProjects);
+        onProjectsChange?.(updatedProjects);
         if (selectedProjectId === projectId) {
           onSelectProject(null);
         }

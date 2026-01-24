@@ -69,12 +69,12 @@ export function Header({ onNewBatch, isResetting = false }: HeaderProps) {
               New Batch
             </button>
 
-            {/* Credits Badge - Live updating */}
+            {/* Credits Badge - Live updating, links to account history */}
             {isAuthenticated && (
               <button
-                onClick={() => router.push("/pricing")}
+                onClick={() => router.push(creditsBalance === 0 ? "/pricing" : "/account")}
                 className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 text-sm font-medium hover:bg-amber-100 hover:border-amber-300 transition-all duration-200"
-                title="Buy more credits"
+                title={creditsBalance === 0 ? "Buy credits" : "View credit history"}
               >
                 <Coins className="w-4 h-4" />
                 <span className="font-bold">{creditsBalance}</span>
