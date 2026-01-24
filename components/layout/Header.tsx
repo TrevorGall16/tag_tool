@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSession, signIn, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { RotateCcw, LogIn, LogOut, User, ChevronDown, Coins, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useCredits, setCreditsRefreshCallback } from "@/hooks/useCredits";
+import { useBatchStore } from "@/store/useBatchStore";
 
 export interface HeaderProps {
   onNewBatch: () => void;
@@ -16,6 +18,13 @@ export function Header({ onNewBatch, isResetting = false }: HeaderProps) {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const { balance: creditsBalance, refresh: refreshCredits } = useCredits();
+  const clearStore = useBatchStore((state) => state.clearStore);
+
+  // Register the refresh callback for global use (e.g., after payments)
+  useEffect(() => {
+    setCreditsRefreshCallback(refreshCredits);
+  }, [refreshCredits]);
 
   const isLoading = status === "loading";
   const isAuthenticated = status === "authenticated" && session?.user;
@@ -26,7 +35,12 @@ export function Header({ onNewBatch, isResetting = false }: HeaderProps) {
         <div className="flex items-center justify-between">
           {/* Left: Logo + Navigation */}
           <div className="flex items-center gap-6">
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">TagArchitect</h1>
+            <Link
+              href="/"
+              className="text-2xl font-bold text-slate-900 tracking-tight hover:text-slate-700 transition-colors"
+            >
+              TagArchitect
+            </Link>
             <nav className="hidden md:flex items-center gap-1">
               <Link
                 href="/dashboard"
@@ -55,15 +69,15 @@ export function Header({ onNewBatch, isResetting = false }: HeaderProps) {
               New Batch
             </button>
 
-            {/* Credits Badge */}
-            {isAuthenticated && session.user.creditsBalance !== undefined && (
+            {/* Credits Badge - Live updating */}
+            {isAuthenticated && (
               <button
                 onClick={() => router.push("/pricing")}
                 className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 text-sm font-medium hover:bg-amber-100 hover:border-amber-300 transition-all duration-200"
                 title="Buy more credits"
               >
                 <Coins className="w-4 h-4" />
-                <span className="font-bold">{session.user.creditsBalance}</span>
+                <span className="font-bold">{creditsBalance}</span>
               </button>
             )}
 
@@ -111,24 +125,22 @@ export function Header({ onNewBatch, isResetting = false }: HeaderProps) {
                         <p className="text-sm text-slate-500 truncate">{session.user.email}</p>
                       </div>
 
-                      {/* Credits - Clickable */}
-                      {session.user.creditsBalance !== undefined && (
-                        <button
-                          onClick={() => {
-                            setShowUserMenu(false);
-                            router.push("/pricing");
-                          }}
-                          className="w-full flex items-center justify-between px-4 py-3 border-b border-slate-100 hover:bg-slate-50 transition-colors group"
-                        >
-                          <div className="flex items-center gap-3">
-                            <Coins className="w-4 h-4 text-amber-500" />
-                            <span className="text-sm font-medium text-slate-700">Credits</span>
-                          </div>
-                          <span className="text-sm font-bold text-blue-600 group-hover:text-blue-700">
-                            {session.user.creditsBalance}
-                          </span>
-                        </button>
-                      )}
+                      {/* Credits - Clickable (Live updating) */}
+                      <button
+                        onClick={() => {
+                          setShowUserMenu(false);
+                          router.push("/pricing");
+                        }}
+                        className="w-full flex items-center justify-between px-4 py-3 border-b border-slate-100 hover:bg-slate-50 transition-colors group"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Coins className="w-4 h-4 text-amber-500" />
+                          <span className="text-sm font-medium text-slate-700">Credits</span>
+                        </div>
+                        <span className="text-sm font-bold text-blue-600 group-hover:text-blue-700">
+                          {creditsBalance}
+                        </span>
+                      </button>
 
                       {/* Menu Items */}
                       <div className="py-1">
@@ -145,7 +157,8 @@ export function Header({ onNewBatch, isResetting = false }: HeaderProps) {
                         <button
                           onClick={() => {
                             setShowUserMenu(false);
-                            signOut({ callbackUrl: "/dashboard" });
+                            clearStore(); // Clear all local data before signing out
+                            signOut({ callbackUrl: "/" });
                           }}
                           className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
                         >

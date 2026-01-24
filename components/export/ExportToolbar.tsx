@@ -164,7 +164,7 @@ export function ExportToolbar({ className }: ExportToolbarProps) {
   };
 
   return (
-    <div className={cn("flex items-center gap-2", className)}>
+    <div className={cn("flex items-center gap-2 shrink-0", className)}>
       <Button
         onClick={handleCopyAllTags}
         variant="outline"
@@ -210,6 +210,7 @@ export function ExportToolbar({ className }: ExportToolbarProps) {
         isLoading={isExporting}
         variant="primary"
         size="md"
+        className="whitespace-nowrap shrink-0"
       >
         {!isExporting && <Download className="h-4 w-4 mr-2" />}
         {getButtonText()}

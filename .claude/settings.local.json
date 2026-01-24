@@ -12,7 +12,8 @@
       "Bash(pnpm prettier:*)",
       "Bash(pnpm next build:*)",
       "Bash(npx tsc --noEmit)",
-      "Bash(pnpm type-check:*)"
+      "Bash(pnpm type-check:*)",
+      "Bash(xargs:*)"
     ]
   }
 }

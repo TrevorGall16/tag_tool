@@ -1,18 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import { useBatchStore } from "@/store/useBatchStore";
 import { usePersistence, markExplicitClear } from "@/hooks/usePersistence";
 import { nukeAllData } from "@/lib/persistence";
 import { Dropzone } from "@/components/uploader";
 import { ImageGallery, GroupList, GroupSkeleton, BatchToolbar } from "@/components/gallery";
 import { Header } from "@/components/layout";
-import { ProjectList } from "@/components/dashboard";
+import { ProjectList, type Project } from "@/components/dashboard";
 import { ConfirmationModal } from "@/components/ui";
 import { cn } from "@/lib/utils";
-import { PanelLeftClose, PanelLeft } from "lucide-react";
+import { PanelLeftClose, PanelLeft, FolderPlus } from "lucide-react";
 
 export default function DashboardPage() {
+  const { status } = useSession();
   const { sessionId, initSession, isClustering, clearBatch, groups } = useBatchStore();
   const {
     isRestoring,
@@ -25,12 +27,31 @@ export default function DashboardPage() {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [projects, setProjects] = useState<Project[]>([]);
+
+  const isAuthenticated = status === "authenticated";
 
   useEffect(() => {
     if (!sessionId) {
       initSession();
     }
   }, [sessionId, initSession]);
+
+  // Fetch projects for breadcrumb display
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetch("/api/projects")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success) {
+            setProjects(data.data);
+          }
+        })
+        .catch(console.error);
+    }
+  }, [isAuthenticated]);
+
+  const selectedProject = projects.find((p) => p.id === selectedProjectId);
 
   const handleNewBatchClick = () => {
     const totalImages = groups.reduce((acc, g) => acc + g.images.length, 0);
@@ -114,17 +135,24 @@ export default function DashboardPage() {
                 <PanelLeft className="h-5 w-5" />
               )}
             </button>
-            <div className="text-sm text-slate-500">
+            <nav className="text-sm text-slate-500">
               {showArchived ? (
                 <span className="font-medium text-amber-600">Archived Batches</span>
-              ) : selectedProjectId ? (
-                <span>
-                  Projects / <span className="font-medium text-slate-700">Selected Project</span>
+              ) : selectedProjectId && selectedProject ? (
+                <span className="flex items-center gap-1">
+                  <button
+                    onClick={() => setSelectedProjectId(null)}
+                    className="hover:text-blue-600 hover:underline transition-colors"
+                  >
+                    Projects
+                  </button>
+                  <span>/</span>
+                  <span className="font-medium text-slate-700">{selectedProject.name}</span>
                 </span>
               ) : (
                 <span className="font-medium text-slate-700">All Batches</span>
               )}
-            </div>
+            </nav>
           </div>
 
           <div className="max-w-6xl mx-auto px-8 py-6">
@@ -135,6 +163,27 @@ export default function DashboardPage() {
               </h2>
               <p className="text-lg text-slate-600">Upload, Cluster, and Tag</p>
             </div>
+
+            {/* Get Started Empty State */}
+            {isAuthenticated && projects.length === 0 && !hasImages && (
+              <div className="mb-8 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-2xl">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
+                    <FolderPlus className="h-6 w-6 text-blue-600" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-slate-900 mb-1">
+                      Get Started: Create your first Folder
+                    </h3>
+                    <p className="text-sm text-slate-600">
+                      Organize your batches into projects for easy management. Click the{" "}
+                      <FolderPlus className="inline h-4 w-4 text-slate-500" /> icon in the sidebar
+                      to create your first project.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Dropzone */}
             <Dropzone />

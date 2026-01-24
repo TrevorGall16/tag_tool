@@ -54,6 +54,11 @@ export function StrategySelector({ className }: StrategySelectorProps) {
     strategies.find((s) => s.value === strategy) || (strategies[0] as StrategyOption);
 
   const handleStrategyChange = (newStrategy: StrategyType) => {
+    // Auto-set maxTags to 13 when switching to Etsy strategy
+    if (newStrategy === "etsy" && maxTags > 13) {
+      setMaxTags(13);
+    }
+
     if (newStrategy !== strategy) {
       setStrategy(newStrategy);
       const selectedOption = strategies.find((s) => s.value === newStrategy);
@@ -171,18 +176,25 @@ export function StrategySelector({ className }: StrategySelectorProps) {
       </div>
 
       {/* Max Tags Control */}
-      <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-300 bg-white">
-        <Tag className="h-4 w-4 text-slate-400" />
-        <span className="text-sm text-slate-500">Tags:</span>
-        <input
-          type="range"
-          min={5}
-          max={50}
-          value={maxTags}
-          onChange={(e) => setMaxTags(Number(e.target.value))}
-          className="w-20 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-        />
-        <span className="text-sm font-medium text-slate-700 w-6 text-right">{maxTags}</span>
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-300 bg-white">
+          <Tag className="h-4 w-4 text-slate-400" />
+          <span className="text-sm text-slate-500">Tags:</span>
+          <input
+            type="range"
+            min={5}
+            max={50}
+            value={maxTags}
+            onChange={(e) => setMaxTags(Number(e.target.value))}
+            className="w-20 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+          />
+          <span className="text-sm font-medium text-slate-700 w-6 text-right">{maxTags}</span>
+        </div>
+        {strategy === "etsy" && maxTags > 13 && (
+          <span className="text-xs text-amber-600 px-1">
+            Etsy limit is 13. Extra tags may be ignored by their system.
+          </span>
+        )}
       </div>
     </div>
   );

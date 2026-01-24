@@ -28,6 +28,8 @@ interface LedgerEntry {
   reason: "PURCHASE" | "SUBSCRIPTION" | "USAGE" | "REFUND" | "BONUS" | "ADMIN_ADJUST";
   description: string | null;
   createdAt: string;
+  projectId: string | null;
+  projectName: string | null;
 }
 
 interface Payment {
@@ -219,6 +221,9 @@ export default function AccountPage() {
                     <th className="text-left py-3 px-4 text-sm font-medium text-slate-500">Date</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-slate-500">Type</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-slate-500">
+                      Project
+                    </th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-slate-500">
                       Description
                     </th>
                     <th className="text-right py-3 px-4 text-sm font-medium text-slate-500">
@@ -252,6 +257,13 @@ export default function AccountPage() {
                             <Icon className="w-3.5 h-3.5" />
                             {config.label}
                           </span>
+                        </td>
+                        <td className="py-3 px-4 text-sm">
+                          {entry.projectName ? (
+                            <span className="text-slate-700 font-medium">{entry.projectName}</span>
+                          ) : (
+                            <span className="text-slate-400">General</span>
+                          )}
                         </td>
                         <td className="py-3 px-4 text-sm text-slate-600">
                           {entry.description || "-"}

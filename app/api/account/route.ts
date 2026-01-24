@@ -12,13 +12,18 @@ export async function GET() {
       return NextResponse.json({ error: "Authentication required" }, { status: 401 });
     }
 
-    // Fetch user with credits ledger
+    // Fetch user with credits ledger including project names
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
       include: {
         creditsLedger: {
           orderBy: { createdAt: "desc" },
           take: 50,
+          include: {
+            project: {
+              select: { id: true, name: true },
+            },
+          },
         },
       },
     });
@@ -122,6 +127,8 @@ export async function GET() {
         reason: entry.reason,
         description: entry.description,
         createdAt: entry.createdAt,
+        projectId: entry.projectId,
+        projectName: entry.project?.name ?? null,
       })),
       payments,
     });

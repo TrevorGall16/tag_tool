@@ -1,10 +1,33 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { FolderOpen, FolderPlus, Trash2, ChevronRight, Loader2, Archive } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { SidebarSearch } from "./SidebarSearch";
+
+// Helper component to highlight matching text
+function HighlightedText({ text, highlight }: { text: string; highlight: string }) {
+  if (!highlight.trim()) return <>{text}</>;
+
+  const regex = new RegExp(`(${highlight.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi");
+  const parts = text.split(regex);
+
+  return (
+    <>
+      {parts.map((part, i) =>
+        regex.test(part) ? (
+          <mark key={i} className="bg-amber-200 text-inherit rounded px-0.5">
+            {part}
+          </mark>
+        ) : (
+          part
+        )
+      )}
+    </>
+  );
+}
 
 export interface Project {
   id: string;
@@ -34,8 +57,16 @@ export function ProjectList({
   const [showNewModal, setShowNewModal] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
   const [isCreating, setIsCreating] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const isAuthenticated = status === "authenticated";
+
+  // Filter projects based on search query
+  const filteredProjects = useMemo(() => {
+    if (!searchQuery.trim()) return projects;
+    const query = searchQuery.toLowerCase();
+    return projects.filter((project) => project.name.toLowerCase().includes(query));
+  }, [projects, searchQuery]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -129,10 +160,24 @@ export function ProjectList({
           </button>
         </div>
 
+        {/* Search Bar */}
+        <SidebarSearch
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder="Search projects..."
+          className="mb-3"
+        />
+
         {/* Quick Filters */}
         <div className="flex gap-2">
           <button
-            onClick={() => onSelectProject(null)}
+            onClick={() => {
+              onSelectProject(null);
+              // Also turn off archived view when clicking "All Batches"
+              if (showArchived) {
+                onToggleArchived();
+              }
+            }}
             className={cn(
               "flex-1 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors",
               selectedProjectId === null && !showArchived
@@ -174,9 +219,20 @@ export function ProjectList({
               Create your first project
             </button>
           </div>
+        ) : filteredProjects.length === 0 ? (
+          <div className="text-center py-8">
+            <FolderOpen className="h-8 w-8 text-slate-300 mx-auto mb-2" />
+            <p className="text-sm text-slate-500">No projects match "{searchQuery}"</p>
+            <button
+              onClick={() => setSearchQuery("")}
+              className="mt-2 text-sm text-blue-600 hover:text-blue-700 font-medium"
+            >
+              Clear search
+            </button>
+          </div>
         ) : (
           <div className="space-y-1">
-            {projects.map((project) => (
+            {filteredProjects.map((project) => (
               <div
                 key={project.id}
                 className={cn(
@@ -193,7 +249,9 @@ export function ProjectList({
                     selectedProjectId === project.id ? "text-blue-500" : "text-slate-400"
                   )}
                 />
-                <span className="flex-1 text-sm font-medium truncate">{project.name}</span>
+                <span className="flex-1 text-sm font-medium truncate">
+                  <HighlightedText text={project.name} highlight={searchQuery} />
+                </span>
                 <span className="text-xs text-slate-400">{project.batchCount}</span>
                 <button
                   onClick={(e) => {

@@ -2,7 +2,14 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
-import { FolderOpen, ChevronDown, Archive, ArchiveRestore } from "lucide-react";
+import {
+  FolderInput,
+  FolderOpen,
+  FolderPlus,
+  ChevronDown,
+  Archive,
+  ArchiveRestore,
+} from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { StrategySelector } from "@/components/dashboard";
@@ -27,7 +34,11 @@ export function BatchToolbar({ className, selectedProjectId }: BatchToolbarProps
   const [isProjectMenuOpen, setIsProjectMenuOpen] = useState(false);
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
   const [isArchived, setIsArchived] = useState(false);
+  const [showNewProjectInput, setShowNewProjectInput] = useState(false);
+  const [newProjectName, setNewProjectName] = useState("");
+  const [isCreatingProject, setIsCreatingProject] = useState(false);
   const projectMenuRef = useRef<HTMLDivElement>(null);
+  const newProjectInputRef = useRef<HTMLInputElement>(null);
 
   const isAuthenticated = status === "authenticated";
   const hasContent = groups.some((g) => g.id !== "unclustered" && g.images.length > 0);
@@ -81,6 +92,42 @@ export function BatchToolbar({ className, selectedProjectId }: BatchToolbarProps
     // In a full implementation, this would update the batch's isArchived in the database
   };
 
+  const handleCreateProject = async () => {
+    if (!newProjectName.trim()) return;
+
+    setIsCreatingProject(true);
+    try {
+      const res = await fetch("/api/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newProjectName.trim() }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        // Add new project to list and select it
+        setProjects((prev) => [data.data, ...prev]);
+        setCurrentProjectId(data.data.id);
+        toast.success(`Created and moved to "${data.data.name}"`);
+        setNewProjectName("");
+        setShowNewProjectInput(false);
+        setIsProjectMenuOpen(false);
+      } else {
+        toast.error(data.error || "Failed to create project");
+      }
+    } catch (err) {
+      toast.error("Failed to create project");
+    } finally {
+      setIsCreatingProject(false);
+    }
+  };
+
+  // Focus input when showing new project input
+  useEffect(() => {
+    if (showNewProjectInput && newProjectInputRef.current) {
+      newProjectInputRef.current.focus();
+    }
+  }, [showNewProjectInput]);
+
   if (!hasContent) {
     return null;
   }
@@ -115,9 +162,9 @@ export function BatchToolbar({ className, selectedProjectId }: BatchToolbarProps
                   "transition-all duration-150"
                 )}
               >
-                <FolderOpen className="h-4 w-4 text-slate-400" />
+                <FolderInput className="h-4 w-4 text-slate-400" />
                 <span className="max-w-[120px] truncate">
-                  {currentProject?.name || "No Project"}
+                  {currentProject?.name || "Move to Folder"}
                 </span>
                 <ChevronDown
                   className={cn(
@@ -128,7 +175,46 @@ export function BatchToolbar({ className, selectedProjectId }: BatchToolbarProps
               </button>
 
               {isProjectMenuOpen && (
-                <div className="absolute top-full left-0 mt-1 w-56 bg-white rounded-xl shadow-lg border border-slate-200 py-1 z-50">
+                <div className="absolute top-full left-0 mt-1 w-64 bg-white rounded-xl shadow-lg border border-slate-200 py-1 z-50">
+                  {/* Create New Project */}
+                  {showNewProjectInput ? (
+                    <div className="px-3 py-2 border-b border-slate-100">
+                      <div className="flex items-center gap-2">
+                        <input
+                          ref={newProjectInputRef}
+                          type="text"
+                          value={newProjectName}
+                          onChange={(e) => setNewProjectName(e.target.value)}
+                          placeholder="Folder name..."
+                          className="flex-1 px-2 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") handleCreateProject();
+                            if (e.key === "Escape") {
+                              setShowNewProjectInput(false);
+                              setNewProjectName("");
+                            }
+                          }}
+                          disabled={isCreatingProject}
+                        />
+                        <button
+                          onClick={handleCreateProject}
+                          disabled={!newProjectName.trim() || isCreatingProject}
+                          className="px-2 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {isCreatingProject ? "..." : "Add"}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setShowNewProjectInput(true)}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm text-blue-600 hover:bg-blue-50 transition-colors border-b border-slate-100"
+                    >
+                      <FolderPlus className="h-4 w-4" />
+                      <span className="font-medium">Create New Folder</span>
+                    </button>
+                  )}
+
                   <button
                     onClick={() => handleMoveToProject(null)}
                     className={cn(
@@ -138,7 +224,7 @@ export function BatchToolbar({ className, selectedProjectId }: BatchToolbarProps
                     )}
                   >
                     <FolderOpen className="h-4 w-4 text-slate-400" />
-                    <span>No Project</span>
+                    <span>No Folder</span>
                   </button>
 
                   {projects.length > 0 && <div className="border-t border-slate-100 my-1" />}

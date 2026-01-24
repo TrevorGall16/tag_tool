@@ -100,6 +100,7 @@ interface BatchState {
   ) => void;
   setError: (error: string | null) => void;
   clearBatch: () => void;
+  clearStore: () => void;
   ensureUnclusteredGroup: () => string;
   updateExportSettings: (settings: ExportSettings) => void;
   resetExportSettings: () => void;
@@ -397,6 +398,33 @@ export const useBatchStore = create<BatchState>()(
             isTagging: false,
             error: null,
           });
+        },
+
+        clearStore: () => {
+          // Clear all state including persisted localStorage
+          set({
+            sessionId: null,
+            marketplace: "ETSY",
+            strategy: "etsy",
+            maxTags: 25,
+            groups: [],
+            currentGroupIndex: 0,
+            selectedGroupIds: new Set(),
+            isProcessing: false,
+            isUploading: false,
+            isClustering: false,
+            isTagging: false,
+            error: null,
+            exportSettings: DEFAULT_EXPORT_SETTINGS,
+          });
+
+          // Clear localStorage completely
+          if (typeof window !== "undefined") {
+            localStorage.removeItem("tagarchitect-batch-storage");
+            // Also clear the session cookie
+            document.cookie =
+              "tagarchitect_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+          }
         },
 
         ensureUnclusteredGroup: () => {
