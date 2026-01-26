@@ -76,6 +76,7 @@ export interface ExportOptions {
   includeUnverified?: boolean;
   settings?: ExportSettings;
   selectedGroupIds?: Set<string>;
+  folderName?: string; // Name of folder for ZIP filename
 }
 
 export interface ExportProgress {

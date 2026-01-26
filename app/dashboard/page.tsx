@@ -1,39 +1,54 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useBatchStore } from "@/store/useBatchStore";
 import { usePersistence, markExplicitClear } from "@/hooks/usePersistence";
 import { nukeAllData } from "@/lib/persistence";
 import { Dropzone } from "@/components/uploader";
-import {
-  ImageGallery,
-  GroupList,
-  GroupSkeleton,
-  BatchToolbar,
-  SelectionActionBar,
-} from "@/components/gallery";
+import { ImageGallery, GroupList, GroupSkeleton, BatchToolbar } from "@/components/gallery";
 import { Header } from "@/components/layout";
-import { ProjectList, type Project } from "@/components/dashboard";
 import { ConfirmationModal } from "@/components/ui";
 import { cn } from "@/lib/utils";
-import { PanelLeftClose, PanelLeft, FolderPlus } from "lucide-react";
+import {
+  FolderPlus,
+  Folder,
+  FolderOpen,
+  ChevronLeft,
+  Trash2,
+  Images,
+  Pencil,
+  Check,
+  X,
+} from "lucide-react";
+import { toast } from "sonner";
+
+interface Folder {
+  id: string;
+  name: string;
+  groupCount: number;
+}
 
 export default function DashboardPage() {
   const { status } = useSession();
-  const { sessionId, initSession, isClustering, clearBatch, groups } = useBatchStore();
+  const { sessionId, initSession, isClustering, clearBatch, groups, moveGroupToFolder } =
+    useBatchStore();
   const {
     isRestoring,
     error: persistenceError,
     restoredImageCount,
     triggerSync,
   } = usePersistence();
+
   const [isResetting, setIsResetting] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
-  const [showArchived, setShowArchived] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [folders, setFolders] = useState<Folder[]>([]);
+  const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
+  const [isCreatingFolder, setIsCreatingFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [showNewFolderInput, setShowNewFolderInput] = useState(false);
+  const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null);
+  const [renamingValue, setRenamingValue] = useState("");
 
   const isAuthenticated = status === "authenticated";
 
@@ -43,21 +58,122 @@ export default function DashboardPage() {
     }
   }, [sessionId, initSession]);
 
-  // Fetch projects for breadcrumb display
+  // Fetch folders
   useEffect(() => {
     if (isAuthenticated) {
-      fetch("/api/projects")
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.success) {
-            setProjects(data.data);
-          }
-        })
-        .catch(console.error);
+      fetchFolders();
     }
   }, [isAuthenticated]);
 
-  const selectedProject = projects.find((p) => p.id === selectedProjectId);
+  const fetchFolders = async () => {
+    try {
+      const res = await fetch("/api/projects");
+      const data = await res.json();
+      if (data.success) {
+        setFolders(
+          data.data.map((p: { id: string; name: string; batchCount: number }) => ({
+            id: p.id,
+            name: p.name,
+            groupCount: p.batchCount,
+          }))
+        );
+      }
+    } catch (err) {
+      console.error("Failed to fetch folders:", err);
+    }
+  };
+
+  const handleCreateFolder = async () => {
+    if (!newFolderName.trim()) return;
+
+    setIsCreatingFolder(true);
+    try {
+      const res = await fetch("/api/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newFolderName.trim() }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setFolders((prev) => [{ id: data.data.id, name: data.data.name, groupCount: 0 }, ...prev]);
+        toast.success(`Created folder "${data.data.name}"`);
+        setNewFolderName("");
+        setShowNewFolderInput(false);
+      } else {
+        toast.error(data.error || "Failed to create folder");
+      }
+    } catch (err) {
+      toast.error("Failed to create folder");
+    } finally {
+      setIsCreatingFolder(false);
+    }
+  };
+
+  const handleDeleteFolder = async (folderId: string, folderName: string) => {
+    if (!confirm(`Delete folder "${folderName}"? Groups inside will be moved to Uncategorized.`)) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/projects/${folderId}`, { method: "DELETE" });
+      const data = await res.json();
+      if (data.success) {
+        setFolders((prev) => prev.filter((f) => f.id !== folderId));
+        // Move any groups in this folder back to uncategorized
+        groups.forEach((g) => {
+          if (g.folderId === folderId) {
+            moveGroupToFolder(g.id, null);
+          }
+        });
+        toast.success(`Deleted folder "${folderName}"`);
+      }
+    } catch (err) {
+      toast.error("Failed to delete folder");
+    }
+  };
+
+  const handleRenameFolder = async (folderId: string) => {
+    if (!renamingValue.trim()) {
+      setRenamingFolderId(null);
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/projects/${folderId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: renamingValue.trim() }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setFolders((prev) =>
+          prev.map((f) => (f.id === folderId ? { ...f, name: renamingValue.trim() } : f))
+        );
+        toast.success("Folder renamed");
+      } else {
+        toast.error(data.error || "Failed to rename folder");
+      }
+    } catch (err) {
+      toast.error("Failed to rename folder");
+    } finally {
+      setRenamingFolderId(null);
+      setRenamingValue("");
+    }
+  };
+
+  const startRenaming = (folder: Folder) => {
+    setRenamingFolderId(folder.id);
+    setRenamingValue(folder.name);
+  };
+
+  const handleMoveGroupToFolder = useCallback(
+    async (groupId: string, folderId: string | null) => {
+      moveGroupToFolder(groupId, folderId);
+      toast.success(folderId ? "Moved to folder" : "Moved to Uncategorized");
+      // TODO: API call to persist in database
+    },
+    [moveGroupToFolder]
+  );
 
   const handleNewBatchClick = () => {
     const totalImages = groups.reduce((acc, g) => acc + g.images.length, 0);
@@ -85,6 +201,19 @@ export default function DashboardPage() {
 
   const hasImages = groups.some((g) => g.images.length > 0);
 
+  // Calculate uncategorized groups
+  const uncategorizedGroups = groups.filter(
+    (g) => g.id !== "unclustered" && !g.folderId && g.images.length > 0
+  );
+
+  // Get active folder details
+  const activeFolder = folders.find((f) => f.id === activeFolderId);
+
+  // Filter groups for current view
+  const visibleGroups = activeFolderId
+    ? groups.filter((g) => g.folderId === activeFolderId)
+    : groups;
+
   if (isRestoring) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -109,63 +238,37 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100">
       <Header onNewBatch={handleNewBatchClick} isResetting={isResetting} />
 
-      <div className="flex">
-        {/* Sidebar */}
-        <aside
-          className={cn(
-            "bg-white border-r border-slate-200 transition-all duration-300 shrink-0",
-            sidebarOpen ? "w-64" : "w-0 overflow-hidden"
-          )}
-        >
-          <div className="sticky top-20 h-[calc(100vh-120px)] overflow-y-auto">
-            <ProjectList
-              selectedProjectId={selectedProjectId}
-              onSelectProject={setSelectedProjectId}
-              showArchived={showArchived}
-              onToggleArchived={() => setShowArchived(!showArchived)}
-              onProjectsChange={setProjects}
-              className="h-full"
-            />
-          </div>
-        </aside>
-
-        {/* Main Content */}
-        <main className="flex-1 min-w-0">
-          {/* Sidebar Toggle + Breadcrumb */}
-          <div className="px-8 pt-6 pb-2 flex items-center gap-3">
+      <main className="max-w-6xl mx-auto px-6 py-8">
+        {/* Breadcrumb Navigation */}
+        {activeFolderId && (
+          <div className="mb-6">
             <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-2 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-              title={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
+              onClick={() => setActiveFolderId(null)}
+              className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-blue-600 transition-colors"
             >
-              {sidebarOpen ? (
-                <PanelLeftClose className="h-5 w-5" />
-              ) : (
-                <PanelLeft className="h-5 w-5" />
-              )}
+              <ChevronLeft className="h-4 w-4" />
+              Back to Folders
             </button>
-            <nav className="text-sm text-slate-500">
-              {showArchived ? (
-                <span className="font-medium text-amber-600">Archived Batches</span>
-              ) : selectedProjectId && selectedProject ? (
-                <span className="flex items-center gap-1">
-                  <button
-                    onClick={() => setSelectedProjectId(null)}
-                    className="hover:text-blue-600 hover:underline transition-colors"
-                  >
-                    Projects
-                  </button>
-                  <span>/</span>
-                  <span className="font-medium text-slate-700">{selectedProject.name}</span>
-                </span>
-              ) : (
-                <span className="font-medium text-slate-700">All Batches</span>
-              )}
-            </nav>
+            <h1 className="text-2xl font-bold text-slate-900 mt-2 flex items-center gap-3">
+              {activeFolderId === "__uncategorized__" ? (
+                <>
+                  <Images className="h-6 w-6 text-slate-500" />
+                  Uncategorized
+                </>
+              ) : activeFolder ? (
+                <>
+                  <FolderOpen className="h-6 w-6 text-blue-600" />
+                  {activeFolder.name}
+                </>
+              ) : null}
+            </h1>
           </div>
+        )}
 
-          <div className="max-w-6xl mx-auto px-8 py-6">
-            {/* Title Section */}
+        {/* Folder Grid View (when no folder is selected) */}
+        {!activeFolderId && (
+          <>
+            {/* Title */}
             <div className="text-center mb-10">
               <h2 className="text-4xl font-bold text-slate-900 mb-3 tracking-tight">
                 Tag Architect
@@ -173,45 +276,287 @@ export default function DashboardPage() {
               <p className="text-lg text-slate-600">Upload, Cluster, and Tag</p>
             </div>
 
-            {/* Get Started Empty State */}
-            {isAuthenticated && projects.length === 0 && !hasImages && (
-              <div className="mb-8 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-2xl">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
-                    <FolderPlus className="h-6 w-6 text-blue-600" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-slate-900 mb-1">
-                      Get Started: Create your first Folder
-                    </h3>
-                    <p className="text-sm text-slate-600">
-                      Organize your batches into projects for easy management. Click the{" "}
-                      <FolderPlus className="inline h-4 w-4 text-slate-500" /> icon in the sidebar
-                      to create your first project.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
             {/* Dropzone */}
             <Dropzone />
 
             {/* Image Gallery */}
             <ImageGallery className="mt-12" />
 
-            {/* Batch Toolbar - Strategy & Export */}
-            <BatchToolbar className="mt-8" selectedProjectId={selectedProjectId} />
+            {/* Folders Section */}
+            {isAuthenticated && (
+              <section className="mt-12">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-xl font-semibold text-slate-900">Your Folders</h3>
+                  {!showNewFolderInput && (
+                    <button
+                      onClick={() => setShowNewFolderInput(true)}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+                    >
+                      <FolderPlus className="h-4 w-4" />
+                      Create Folder
+                    </button>
+                  )}
+                </div>
 
-            {/* Clustered Groups */}
+                {/* New Folder Input */}
+                {showNewFolderInput && (
+                  <div className="mb-6 p-4 bg-white rounded-xl border border-slate-200 shadow-sm">
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="text"
+                        value={newFolderName}
+                        onChange={(e) => setNewFolderName(e.target.value)}
+                        placeholder="Folder name..."
+                        className="flex-1 px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleCreateFolder();
+                          if (e.key === "Escape") {
+                            setShowNewFolderInput(false);
+                            setNewFolderName("");
+                          }
+                        }}
+                        autoFocus
+                        disabled={isCreatingFolder}
+                      />
+                      <button
+                        onClick={handleCreateFolder}
+                        disabled={!newFolderName.trim() || isCreatingFolder}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {isCreatingFolder ? "Creating..." : "Create"}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowNewFolderInput(false);
+                          setNewFolderName("");
+                        }}
+                        className="px-4 py-2 text-slate-600 hover:text-slate-900 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Folder Grid */}
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {/* Uncategorized Card */}
+                  {uncategorizedGroups.length > 0 && (
+                    <div
+                      onClick={() => setActiveFolderId("__uncategorized__")}
+                      className={cn(
+                        "p-5 bg-white rounded-xl border-2 border-dashed border-slate-300",
+                        "cursor-pointer hover:border-slate-400 hover:shadow-md transition-all",
+                        "flex flex-col items-center justify-center text-center min-h-[160px]"
+                      )}
+                    >
+                      <Images className="h-10 w-10 text-slate-400 mb-2" />
+                      <h4 className="font-medium text-slate-700">Uncategorized</h4>
+                      {(() => {
+                        const totalImages = uncategorizedGroups.reduce(
+                          (sum, g) => sum + g.images.length,
+                          0
+                        );
+                        const taggedGroups = uncategorizedGroups.filter(
+                          (g) => g.images[0]?.aiTags && g.images[0].aiTags.length > 0
+                        ).length;
+                        const taggedPercent = Math.round(
+                          (taggedGroups / uncategorizedGroups.length) * 100
+                        );
+                        return (
+                          <div className="text-xs text-slate-500 mt-2 space-y-0.5">
+                            <p>
+                              {totalImages} image{totalImages !== 1 ? "s" : ""} •{" "}
+                              {uncategorizedGroups.length} group
+                              {uncategorizedGroups.length !== 1 ? "s" : ""}
+                            </p>
+                            <p
+                              className={cn(
+                                taggedPercent === 100 ? "text-green-600" : "text-amber-600"
+                              )}
+                            >
+                              {taggedPercent}% tagged
+                            </p>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+
+                  {/* Folder Cards */}
+                  {folders.map((folder) => {
+                    const folderGroups = groups.filter(
+                      (g) => g.folderId === folder.id && g.images.length > 0
+                    );
+                    const folderGroupCount = folderGroups.length;
+                    const totalImages = folderGroups.reduce((sum, g) => sum + g.images.length, 0);
+                    const taggedGroups = folderGroups.filter(
+                      (g) => g.images[0]?.aiTags && g.images[0].aiTags.length > 0
+                    ).length;
+                    const taggedPercent =
+                      folderGroupCount > 0
+                        ? Math.round((taggedGroups / folderGroupCount) * 100)
+                        : 0;
+                    const isRenaming = renamingFolderId === folder.id;
+
+                    return (
+                      <div
+                        key={folder.id}
+                        className={cn(
+                          "group relative p-5 bg-white rounded-xl border border-slate-200",
+                          "cursor-pointer hover:border-blue-300 hover:shadow-lg transition-all",
+                          "flex flex-col min-h-[160px]"
+                        )}
+                      >
+                        <div
+                          onClick={() => !isRenaming && setActiveFolderId(folder.id)}
+                          className="flex-1 flex flex-col items-center justify-center text-center"
+                        >
+                          <Folder className="h-10 w-10 text-blue-500 mb-2" />
+
+                          {/* Folder name or rename input */}
+                          {isRenaming ? (
+                            <div
+                              className="flex items-center gap-1 mt-1"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <input
+                                type="text"
+                                value={renamingValue}
+                                onChange={(e) => setRenamingValue(e.target.value)}
+                                className="w-24 px-2 py-1 text-sm border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                autoFocus
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") handleRenameFolder(folder.id);
+                                  if (e.key === "Escape") {
+                                    setRenamingFolderId(null);
+                                    setRenamingValue("");
+                                  }
+                                }}
+                              />
+                              <button
+                                onClick={() => handleRenameFolder(folder.id)}
+                                className="p-1 text-green-600 hover:bg-green-50 rounded"
+                              >
+                                <Check className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setRenamingFolderId(null);
+                                  setRenamingValue("");
+                                }}
+                                className="p-1 text-slate-400 hover:bg-slate-100 rounded"
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            </div>
+                          ) : (
+                            <h4 className="font-medium text-slate-900">{folder.name}</h4>
+                          )}
+
+                          {/* Stats */}
+                          <div className="text-xs text-slate-500 mt-2 space-y-0.5">
+                            <p>
+                              {totalImages} image{totalImages !== 1 ? "s" : ""} • {folderGroupCount}{" "}
+                              group{folderGroupCount !== 1 ? "s" : ""}
+                            </p>
+                            {folderGroupCount > 0 && (
+                              <p
+                                className={cn(
+                                  taggedPercent === 100 ? "text-green-600" : "text-amber-600"
+                                )}
+                              >
+                                {taggedPercent}% tagged
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Action buttons */}
+                        <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              startRenaming(folder);
+                            }}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                            title="Rename folder"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteFolder(folder.id, folder.name);
+                            }}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                            title="Delete folder"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {/* Empty state for folders */}
+                  {folders.length === 0 && uncategorizedGroups.length === 0 && (
+                    <div className="col-span-full p-8 text-center text-slate-500">
+                      <Folder className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                      <p>No folders yet. Create one to organize your image groups.</p>
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {/* Batch Toolbar */}
+            <BatchToolbar className="mt-8" folderName={undefined} />
+
+            {/* All Groups (outside folders view) */}
             {isClustering ? (
               <GroupSkeleton className="mt-6" count={3} />
             ) : (
-              <GroupList className="mt-6" onLightboxSave={triggerSync} />
+              <GroupList
+                className="mt-6"
+                onLightboxSave={triggerSync}
+                folders={folders}
+                onMoveToFolder={handleMoveGroupToFolder}
+              />
             )}
-          </div>
-        </main>
-      </div>
+          </>
+        )}
+
+        {/* Inside Folder View */}
+        {activeFolderId && (
+          <>
+            {/* Dropzone inside folder */}
+            <Dropzone />
+
+            {/* Image Gallery */}
+            <ImageGallery className="mt-12" />
+
+            {/* Batch Toolbar */}
+            <BatchToolbar
+              className="mt-8"
+              folderName={activeFolderId === "__uncategorized__" ? undefined : activeFolder?.name}
+            />
+
+            {/* Groups in this folder */}
+            {isClustering ? (
+              <GroupSkeleton className="mt-6" count={3} />
+            ) : (
+              <GroupList
+                className="mt-6"
+                onLightboxSave={triggerSync}
+                folders={folders}
+                onMoveToFolder={handleMoveGroupToFolder}
+                filterFolderId={activeFolderId === "__uncategorized__" ? null : activeFolderId}
+              />
+            )}
+          </>
+        )}
+      </main>
 
       {/* Reset Confirmation Modal */}
       <ConfirmationModal
@@ -224,19 +569,6 @@ export default function DashboardPage() {
         cancelLabel="Keep Working"
         variant="danger"
         isLoading={isResetting}
-      />
-
-      {/* Selection Action Bar */}
-      <SelectionActionBar
-        projects={projects}
-        onMoveToFolder={(projectId) => {
-          console.log("Move to folder:", projectId);
-          // TODO: Implement move to folder API call
-        }}
-        onArchive={() => {
-          console.log("Archive selected groups");
-          // TODO: Implement archive API call
-        }}
       />
     </div>
   );

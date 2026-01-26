@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import {
   Sparkles,
   Loader2,
@@ -11,6 +11,10 @@ import {
   Trash2,
   ImagePlus,
   Copy,
+  ChevronDown,
+  ChevronRight,
+  FolderInput,
+  Folder,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn, copyToClipboard } from "@/lib/utils";
@@ -22,10 +26,17 @@ import { deleteImageData, deleteGroupData } from "@/lib/persistence";
 import { markExplicitClear } from "@/hooks/usePersistence";
 import type { VisionTagsResponse } from "@/types";
 
+interface FolderOption {
+  id: string;
+  name: string;
+}
+
 export interface GroupListProps {
   className?: string;
-  /** Optional callback to trigger immediate persistence after Lightbox save */
   onLightboxSave?: () => void;
+  folders?: FolderOption[];
+  onMoveToFolder?: (groupId: string, folderId: string | null) => void;
+  filterFolderId?: string | null; // undefined = show all, null = uncategorized only, string = specific folder
 }
 
 interface LightboxState {
@@ -34,7 +45,13 @@ interface LightboxState {
   imageIndex: number;
 }
 
-export function GroupList({ className, onLightboxSave }: GroupListProps) {
+export function GroupList({
+  className,
+  onLightboxSave,
+  folders = [],
+  onMoveToFolder,
+  filterFolderId,
+}: GroupListProps) {
   const { groups, selectedGroupIds, toggleGroupSelection, removeImageFromGroup, removeGroup } =
     useBatchStore();
   const [selectedGroup, setSelectedGroup] = useState<LocalGroup | null>(null);
@@ -44,7 +61,18 @@ export function GroupList({ className, onLightboxSave }: GroupListProps) {
     imageIndex: -1,
   });
 
-  const clusteredGroups = groups.filter((g) => g.id !== "unclustered");
+  // Filter groups based on filterFolderId
+  let clusteredGroups = groups.filter((g) => g.id !== "unclustered" && g.images.length > 0);
+
+  if (filterFolderId !== undefined) {
+    if (filterFolderId === null) {
+      // Show only uncategorized (no folderId)
+      clusteredGroups = clusteredGroups.filter((g) => !g.folderId);
+    } else {
+      // Show only groups in specific folder
+      clusteredGroups = clusteredGroups.filter((g) => g.folderId === filterFolderId);
+    }
+  }
 
   const handleImageClick = useCallback(
     (image: LocalImageItem, groupId: string) => {
@@ -57,17 +85,13 @@ export function GroupList({ className, onLightboxSave }: GroupListProps) {
 
   const handleDeleteImage = useCallback(
     async (groupId: string, imageId: string) => {
-      // Mark explicit clear to allow sync with reduced image count
       markExplicitClear();
-      // Remove from store
       removeImageFromGroup(groupId, imageId);
-      // Delete from IndexedDB
       try {
         await deleteImageData(imageId);
       } catch (err) {
         console.error("[GroupList] Failed to delete image from IndexedDB:", err);
       }
-      // Trigger sync
       onLightboxSave?.();
     },
     [removeImageFromGroup, onLightboxSave]
@@ -75,17 +99,13 @@ export function GroupList({ className, onLightboxSave }: GroupListProps) {
 
   const handleDeleteGroup = useCallback(
     async (groupId: string) => {
-      // Mark explicit clear to allow sync with reduced image count
       markExplicitClear();
-      // Remove from store
       removeGroup(groupId);
-      // Delete from IndexedDB
       try {
         await deleteGroupData(groupId);
       } catch (err) {
         console.error("[GroupList] Failed to delete group from IndexedDB:", err);
       }
-      // Trigger sync
       onLightboxSave?.();
     },
     [removeGroup, onLightboxSave]
@@ -119,7 +139,6 @@ export function GroupList({ className, onLightboxSave }: GroupListProps) {
   const hasPrevious = lightboxState.imageIndex > 0;
   const hasNext = currentGroup ? lightboxState.imageIndex < currentGroup.images.length - 1 : false;
 
-  // Empty state when no clustered groups exist
   if (clusteredGroups.length === 0) {
     return (
       <div className={cn("mt-8", className)}>
@@ -127,22 +146,11 @@ export function GroupList({ className, onLightboxSave }: GroupListProps) {
           <div className="mx-auto w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mb-4">
             <ImagePlus className="w-8 h-8 text-slate-400" />
           </div>
-          <h3 className="text-lg font-medium text-slate-700 mb-2">No images yet</h3>
+          <h3 className="text-lg font-medium text-slate-700 mb-2">No image groups here</h3>
           <p className="text-sm text-slate-500 mb-4 max-w-sm mx-auto">
-            Upload images using the dropzone above to get started. Images will be automatically
-            clustered into groups for batch tagging.
+            Upload images using the dropzone above. Images will be automatically clustered into
+            groups for batch tagging.
           </p>
-          <button
-            onClick={() => {
-              // Scroll to dropzone
-              const dropzone = document.querySelector("[data-dropzone]");
-              dropzone?.scrollIntoView({ behavior: "smooth", block: "center" });
-            }}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
-          >
-            <ImagePlus className="w-4 h-4" />
-            Upload Images
-          </button>
         </div>
       </div>
     );
@@ -150,16 +158,16 @@ export function GroupList({ className, onLightboxSave }: GroupListProps) {
 
   return (
     <BatchDndContext>
-      <div className={cn("space-y-6", className)}>
-        <h2 className="text-xl font-semibold text-slate-900">
-          Clustered Groups ({clusteredGroups.length})
-        </h2>
-        <p className="text-sm text-slate-500 -mt-4">
-          Drag images between groups to reorganize. Click an image to view and edit.
-        </p>
+      <div className={cn("space-y-4", className)}>
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold text-slate-900">
+            Image Groups ({clusteredGroups.length})
+          </h2>
+        </div>
+
         {clusteredGroups.map((group) => (
           <DroppableGroup key={group.id} groupId={group.id}>
-            <GroupCard
+            <CollapsibleGroupCard
               group={group}
               onEdit={() => setSelectedGroup(group)}
               onImageClick={handleImageClick}
@@ -167,11 +175,12 @@ export function GroupList({ className, onLightboxSave }: GroupListProps) {
               onDeleteGroup={() => handleDeleteGroup(group.id)}
               isSelected={selectedGroupIds.has(group.id)}
               onToggleSelect={() => toggleGroupSelection(group.id)}
+              folders={folders}
+              onMoveToFolder={onMoveToFolder}
             />
           </DroppableGroup>
         ))}
 
-        {/* Tag Editor Modal */}
         {selectedGroup && (
           <TagEditor
             group={selectedGroup}
@@ -180,7 +189,6 @@ export function GroupList({ className, onLightboxSave }: GroupListProps) {
           />
         )}
 
-        {/* Image Lightbox */}
         <ImageLightbox
           image={lightboxState.image}
           groupId={lightboxState.groupId}
@@ -197,7 +205,7 @@ export function GroupList({ className, onLightboxSave }: GroupListProps) {
   );
 }
 
-interface GroupCardProps {
+interface CollapsibleGroupCardProps {
   group: LocalGroup;
   onEdit: () => void;
   onImageClick: (image: LocalImageItem, groupId: string) => void;
@@ -205,9 +213,11 @@ interface GroupCardProps {
   onDeleteGroup: () => void;
   isSelected: boolean;
   onToggleSelect: () => void;
+  folders: FolderOption[];
+  onMoveToFolder?: (groupId: string, folderId: string | null) => void;
 }
 
-function GroupCard({
+function CollapsibleGroupCard({
   group,
   onEdit,
   onImageClick,
@@ -215,39 +225,53 @@ function GroupCard({
   onDeleteGroup,
   isSelected,
   onToggleSelect,
-}: GroupCardProps) {
+  folders,
+  onMoveToFolder,
+}: CollapsibleGroupCardProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showFolderMenu, setShowFolderMenu] = useState(false);
+  const folderMenuRef = useRef<HTMLDivElement>(null);
 
-  const { marketplace, strategy, maxTags, updateGroupTags } = useBatchStore();
+  const { marketplace, strategy, maxTags, updateGroupTags, toggleGroupCollapse } = useBatchStore();
 
-  const isTagged = group.images[0]?.aiTags && group.images[0].aiTags.length > 0;
+  const isCollapsed = group.isCollapsed ?? false;
+  // Check for any tags: AI-generated, shared (manual), or user-edited
+  const isTagged =
+    group.sharedTags.length > 0 ||
+    (group.images[0]?.aiTags && group.images[0].aiTags.length > 0) ||
+    (group.images[0]?.userTags && group.images[0].userTags.length > 0);
+
+  // Close folder menu on outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (folderMenuRef.current && !folderMenuRef.current.contains(event.target as Node)) {
+        setShowFolderMenu(false);
+      }
+    };
+    if (showFolderMenu) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showFolderMenu]);
 
   const handleGenerateTags = async (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent card click
+    e.stopPropagation();
     if (group.images.length === 0) return;
 
-    // Confirm regeneration to prevent accidental credit usage
     if (isTagged) {
       const confirmed = window.confirm("Regenerate tags? This will use 1 credit.");
       if (!confirmed) return;
     }
-
-    console.log(
-      `[GroupCard] Generate tags clicked for group: ${group.id} (${group.sharedTitle || `Group ${group.groupNumber}`})`
-    );
 
     setIsLoading(true);
     setError(null);
     setShowSuccess(false);
 
     try {
-      // Send only the first image as representative
       const representativeImage = group.images[0];
       if (!representativeImage) return;
-
-      console.log(`[GroupCard] Using representative image: ${representativeImage.id}`);
 
       const response = await fetch("/api/vision/tags", {
         method: "POST",
@@ -277,11 +301,7 @@ function GroupCard({
 
       const tagResult = result.data.results[0];
       if (tagResult) {
-        console.log(`[GroupCard] Calling updateGroupTags for group: ${group.id}`);
-        // Apply tags to all images in the group
         updateGroupTags(group.id, tagResult.title, tagResult.tags, tagResult.confidence);
-
-        // Show success indicator
         setShowSuccess(true);
         setTimeout(() => setShowSuccess(false), 3000);
       }
@@ -293,49 +313,150 @@ function GroupCard({
     }
   };
 
+  const handleToggleCollapse = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    toggleGroupCollapse(group.id);
+  };
+
+  const handleMoveToFolder = (folderId: string | null) => {
+    onMoveToFolder?.(group.id, folderId);
+    setShowFolderMenu(false);
+  };
+
+  const currentFolder = folders.find((f) => f.id === group.folderId);
+
   return (
     <div
-      onClick={onEdit}
       className={cn(
-        "border border-slate-200 border-t-2 border-t-white/10 bg-white rounded-xl shadow-sm p-6",
-        "cursor-pointer hover:border-blue-300 hover:shadow-lg transition-all duration-200"
+        "border border-slate-200 bg-white rounded-xl shadow-sm overflow-hidden",
+        "transition-all duration-200",
+        !isCollapsed && "hover:shadow-md"
       )}
     >
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          {/* Selection Checkbox */}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleSelect();
-            }}
-            className={cn(
-              "p-0.5 rounded transition-colors",
-              isSelected ? "text-blue-600" : "text-slate-400 hover:text-slate-600"
+      {/* Header - Always visible */}
+      <div
+        onClick={handleToggleCollapse}
+        className={cn(
+          "flex items-center gap-3 px-4 py-3 cursor-pointer",
+          "hover:bg-slate-50 transition-colors",
+          isCollapsed ? "border-b-0" : "border-b border-slate-100"
+        )}
+      >
+        {/* Collapse Toggle */}
+        <button className="p-1 text-slate-400 hover:text-slate-600 transition-colors">
+          {isCollapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+        </button>
+
+        {/* Selection Checkbox */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleSelect();
+          }}
+          className={cn(
+            "p-0.5 rounded transition-colors",
+            isSelected ? "text-blue-600" : "text-slate-400 hover:text-slate-600"
+          )}
+        >
+          {isSelected ? <CheckSquare className="h-5 w-5" /> : <Square className="h-5 w-5" />}
+        </button>
+
+        {/* Title & Info */}
+        <div className="flex-1 min-w-0">
+          <h3 className="font-medium text-slate-900 truncate">
+            {group.sharedTitle || `Group ${group.groupNumber}`}
+          </h3>
+          <div className="flex items-center gap-2 text-sm text-slate-500">
+            <span>{group.images.length} images</span>
+            {isTagged && (
+              <>
+                <span>•</span>
+                <span className="text-green-600">Tagged</span>
+              </>
             )}
-            title={isSelected ? "Deselect for export" : "Select for export"}
-            aria-label={isSelected ? "Deselect group" : "Select group"}
-          >
-            {isSelected ? <CheckSquare className="h-5 w-5" /> : <Square className="h-5 w-5" />}
-          </button>
-          <div>
-            <h3 className="font-medium text-slate-900">
-              {group.sharedTitle || `Group ${group.groupNumber}`}
-            </h3>
-            <p className="text-sm text-slate-500">
-              {group.images.length} images
-              {isTagged && " • Tagged"}
-            </p>
+            {currentFolder && (
+              <>
+                <span>•</span>
+                <span className="flex items-center gap-1">
+                  <Folder className="h-3 w-3" />
+                  {currentFolder.name}
+                </span>
+              </>
+            )}
           </div>
         </div>
-        <div className="flex items-center gap-2">
+
+        {/* Tag Summary (collapsed only) */}
+        {isCollapsed && isTagged && group.sharedTags.length > 0 && (
+          <div className="hidden md:flex items-center gap-1 max-w-[300px]">
+            {group.sharedTags.slice(0, 4).map((tag, i) => (
+              <span
+                key={i}
+                className="px-2 py-0.5 bg-slate-100 text-slate-600 text-xs rounded-full truncate max-w-[80px]"
+              >
+                {tag}
+              </span>
+            ))}
+            {group.sharedTags.length > 4 && (
+              <span className="text-xs text-slate-400">+{group.sharedTags.length - 4}</span>
+            )}
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+          {/* Folder Picker */}
+          {folders.length > 0 && (
+            <div className="relative" ref={folderMenuRef}>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowFolderMenu(!showFolderMenu);
+                }}
+                className={cn(
+                  "p-2 rounded-lg text-slate-400",
+                  "hover:bg-slate-100 hover:text-slate-600 transition-colors"
+                )}
+                title="Move to folder"
+              >
+                <FolderInput className="h-4 w-4" />
+              </button>
+
+              {showFolderMenu && (
+                <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-xl border border-slate-200 py-1 z-50">
+                  <button
+                    onClick={() => handleMoveToFolder(null)}
+                    className={cn(
+                      "w-full text-left px-3 py-2 text-sm hover:bg-slate-50 transition-colors",
+                      !group.folderId && "bg-blue-50 text-blue-700"
+                    )}
+                  >
+                    Uncategorized
+                  </button>
+                  {folders.map((folder) => (
+                    <button
+                      key={folder.id}
+                      onClick={() => handleMoveToFolder(folder.id)}
+                      className={cn(
+                        "w-full text-left px-3 py-2 text-sm hover:bg-slate-50 transition-colors flex items-center gap-2",
+                        group.folderId === folder.id && "bg-blue-50 text-blue-700"
+                      )}
+                    >
+                      <Folder className="h-4 w-4" />
+                      {folder.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {showSuccess && (
-            <span className="inline-flex items-center gap-1 text-sm text-green-600">
+            <span className="inline-flex items-center gap-1 text-sm text-green-600 px-2">
               <Check className="h-4 w-4" />
-              Done
             </span>
           )}
+
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -347,106 +468,103 @@ function GroupCard({
                 onDeleteGroup();
               }
             }}
-            className={cn(
-              "p-2 rounded-lg text-slate-400",
-              "hover:bg-red-50 hover:text-red-600 transition-colors"
-            )}
+            className="p-2 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors"
             title="Delete group"
           >
             <Trash2 className="h-4 w-4" />
           </button>
+
           <button
             onClick={(e) => {
               e.stopPropagation();
               onEdit();
             }}
-            className={cn(
-              "p-2 rounded-lg text-slate-500",
-              "hover:bg-slate-100 hover:text-slate-700 transition-colors"
-            )}
+            className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
             title="Edit tags"
           >
             <Edit2 className="h-4 w-4" />
           </button>
+
           <button
             onClick={handleGenerateTags}
             disabled={isLoading || group.images.length === 0}
             className={cn(
-              "inline-flex items-center gap-2",
+              "inline-flex items-center gap-1.5",
               "bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium",
-              "hover:bg-blue-700 hover:scale-105 transition-all duration-200",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2",
-              "disabled:opacity-50 disabled:pointer-events-none disabled:hover:scale-100"
+              "hover:bg-blue-700 transition-colors",
+              "disabled:opacity-50 disabled:pointer-events-none"
             )}
           >
             {isLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <Sparkles className="h-4 w-4" aria-hidden="true" />
+              <Sparkles className="h-4 w-4" />
             )}
-            {isLoading ? "Generating..." : isTagged ? "Regenerate Tags" : "Generate Tags"}
+            {isLoading ? "..." : isTagged ? "Redo" : "Tag"}
           </button>
         </div>
       </div>
 
-      {/* Error Message */}
-      {error && (
-        <div className="mb-4 p-2 bg-red-50 border border-red-200 rounded-lg">
-          <p className="text-sm text-red-700">{error}</p>
-        </div>
-      )}
+      {/* Expanded Content */}
+      {!isCollapsed && (
+        <div className="p-4">
+          {/* Error Message */}
+          {error && (
+            <div className="mb-4 p-2 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-700">{error}</p>
+            </div>
+          )}
 
-      {/* Tags Preview */}
-      {isTagged && group.sharedTags.length > 0 && (
-        <div className="mb-4 flex items-start gap-2">
-          <div className="flex flex-wrap gap-1 flex-1">
-            {group.sharedTags.slice(0, 8).map((tag, i) => (
-              <span
-                key={i}
-                className="inline-block px-2 py-0.5 bg-slate-100 text-slate-700 text-xs rounded-full"
+          {/* Tags Preview */}
+          {isTagged && group.sharedTags.length > 0 && (
+            <div className="mb-4 flex items-start gap-2">
+              <div className="flex flex-wrap gap-1 flex-1">
+                {group.sharedTags.slice(0, 12).map((tag, i) => (
+                  <span
+                    key={i}
+                    className="inline-block px-2 py-0.5 bg-slate-100 text-slate-700 text-xs rounded-full"
+                  >
+                    {tag}
+                  </span>
+                ))}
+                {group.sharedTags.length > 12 && (
+                  <span className="inline-block px-2 py-0.5 text-slate-500 text-xs">
+                    +{group.sharedTags.length - 12} more
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  const success = await copyToClipboard(group.sharedTags.join(", "));
+                  if (success) {
+                    toast.success(`Copied ${group.sharedTags.length} tags`);
+                  } else {
+                    toast.error("Failed to copy tags");
+                  }
+                }}
+                className="p-1.5 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors shrink-0"
+                title="Copy tags"
               >
-                {tag}
-              </span>
+                <Copy className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+
+          {/* Image Grid */}
+          <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
+            {group.images.map((image) => (
+              <DraggableImage
+                key={image.id}
+                image={image}
+                groupId={group.id}
+                onImageClick={(img) => onImageClick(img, group.id)}
+                onDeleteImage={onDeleteImage}
+              />
             ))}
-            {group.sharedTags.length > 8 && (
-              <span className="inline-block px-2 py-0.5 text-slate-500 text-xs">
-                +{group.sharedTags.length - 8} more
-              </span>
-            )}
           </div>
-          <button
-            onClick={async (e) => {
-              e.stopPropagation();
-              const success = await copyToClipboard(group.sharedTags.join(", "));
-              if (success) {
-                toast.success(`Copied ${group.sharedTags.length} tags`);
-              } else {
-                toast.error("Failed to copy tags");
-              }
-            }}
-            className="p-1.5 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors shrink-0"
-            title="Copy tags to clipboard"
-          >
-            <Copy className="h-4 w-4" />
-          </button>
         </div>
       )}
-
-      {/* Image Grid */}
-      <div
-        className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {group.images.map((image) => (
-          <DraggableImage
-            key={image.id}
-            image={image}
-            groupId={group.id}
-            onImageClick={(img) => onImageClick(img, group.id)}
-            onDeleteImage={onDeleteImage}
-          />
-        ))}
-      </div>
     </div>
   );
 }

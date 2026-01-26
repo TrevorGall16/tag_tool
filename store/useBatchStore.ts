@@ -28,6 +28,8 @@ export interface LocalGroup {
   sharedDescription?: string;
   sharedTags: string[];
   isVerified: boolean;
+  folderId?: string; // Which folder this group belongs to (null = Uncategorized)
+  isCollapsed?: boolean; // UI state for collapsible view
 }
 
 export type MarketplaceType = "ETSY" | "ADOBE_STOCK";
@@ -104,6 +106,10 @@ interface BatchState {
   ensureUnclusteredGroup: () => string;
   updateExportSettings: (settings: ExportSettings) => void;
   resetExportSettings: () => void;
+  moveGroupToFolder: (groupId: string, folderId: string | null) => void;
+  toggleGroupCollapse: (groupId: string) => void;
+  collapseAllGroups: () => void;
+  expandAllGroups: () => void;
 }
 
 export const useBatchStore = create<BatchState>()(
@@ -450,6 +456,35 @@ export const useBatchStore = create<BatchState>()(
 
         resetExportSettings: () => {
           set({ exportSettings: DEFAULT_EXPORT_SETTINGS });
+        },
+
+        moveGroupToFolder: (groupId, folderId) => {
+          console.log(`[Store] Moving group ${groupId} to folder ${folderId || "Uncategorized"}`);
+          set((state) => ({
+            groups: state.groups.map((group) =>
+              group.id === groupId ? { ...group, folderId: folderId || undefined } : group
+            ),
+          }));
+        },
+
+        toggleGroupCollapse: (groupId) => {
+          set((state) => ({
+            groups: state.groups.map((group) =>
+              group.id === groupId ? { ...group, isCollapsed: !group.isCollapsed } : group
+            ),
+          }));
+        },
+
+        collapseAllGroups: () => {
+          set((state) => ({
+            groups: state.groups.map((group) => ({ ...group, isCollapsed: true })),
+          }));
+        },
+
+        expandAllGroups: () => {
+          set((state) => ({
+            groups: state.groups.map((group) => ({ ...group, isCollapsed: false })),
+          }));
         },
       }),
       {

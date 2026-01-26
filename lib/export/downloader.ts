@@ -16,19 +16,21 @@ import { DEFAULT_EXPORT_SETTINGS } from "./types";
 import type { LocalImageItem } from "@/store/useBatchStore";
 
 export class ExportEngine {
-  private options: Required<Omit<ExportOptions, "settings" | "selectedGroupIds">>;
+  private options: Required<Omit<ExportOptions, "settings" | "selectedGroupIds" | "folderName">>;
   private settings: ExportSettings;
   private selectedGroupIds?: Set<string>;
+  private folderName?: string;
   private progressCallback?: ExportProgressCallback;
 
   constructor(options: ExportOptions) {
-    const { settings, selectedGroupIds, ...rest } = options;
+    const { settings, selectedGroupIds, folderName, ...rest } = options;
     this.options = {
       includeUnverified: true,
       ...rest,
     };
     this.settings = settings ?? DEFAULT_EXPORT_SETTINGS;
     this.selectedGroupIds = selectedGroupIds;
+    this.folderName = folderName;
   }
 
   /**
@@ -123,7 +125,10 @@ export class ExportEngine {
       });
 
       const timestamp = new Date().toISOString().slice(0, 10);
-      const zipFilename = `tagarchitect-export-${timestamp}.zip`;
+      // Name ZIP after folder if inside one, otherwise use generic name
+      const zipFilename = this.folderName
+        ? `tagarchitect-${slugify(this.folderName)}-${timestamp}.zip`
+        : `tagarchitect-export-${timestamp}.zip`;
 
       this.reportProgress({
         current: totalImages,

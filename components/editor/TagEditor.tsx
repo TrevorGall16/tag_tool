@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { X, Copy, Plus, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useBatchStore, LocalGroup } from "@/store/useBatchStore";
+import { useClickOutside } from "@/hooks";
 
 export interface TagEditorProps {
   group: LocalGroup;
@@ -13,6 +14,7 @@ export interface TagEditorProps {
 
 export function TagEditor({ group, isOpen, onClose }: TagEditorProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const { updateGroupMetadata } = useBatchStore();
 
   // Local state for editing
@@ -22,6 +24,17 @@ export function TagEditor({ group, isOpen, onClose }: TagEditorProps) {
   const [newTag, setNewTag] = useState("");
   const [copied, setCopied] = useState(false);
   const [copiedTagIndex, setCopiedTagIndex] = useState<number | null>(null);
+
+  // Use memoized callback to prevent unnecessary re-renders
+  const handleClose = useCallback(() => {
+    onClose();
+  }, [onClose]);
+
+  // Use click-outside hook with text selection awareness
+  useClickOutside(contentRef, handleClose, {
+    ignoreTextSelection: true,
+    enabled: isOpen,
+  });
 
   // Sync state when group changes or modal opens
   useEffect(() => {
@@ -83,23 +96,16 @@ export function TagEditor({ group, isOpen, onClose }: TagEditorProps) {
     onClose();
   };
 
-  const handleBackdropClick = (e: React.MouseEvent) => {
-    if (e.target === dialogRef.current) {
-      onClose();
-    }
-  };
-
   return (
     <dialog
       ref={dialogRef}
-      onClick={handleBackdropClick}
       onClose={onClose}
       className={cn(
         "w-full max-w-2xl p-0 rounded-xl bg-white shadow-2xl",
         "backdrop:bg-black/50 backdrop:backdrop-blur-sm"
       )}
     >
-      <div className="p-6">
+      <div ref={contentRef} className="p-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-semibold text-slate-900">Edit Group {group.groupNumber}</h2>

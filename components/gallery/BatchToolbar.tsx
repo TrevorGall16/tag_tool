@@ -25,9 +25,10 @@ interface Project {
 export interface BatchToolbarProps {
   className?: string;
   selectedProjectId?: string | null;
+  folderName?: string;
 }
 
-export function BatchToolbar({ className, selectedProjectId }: BatchToolbarProps) {
+export function BatchToolbar({ className, selectedProjectId, folderName }: BatchToolbarProps) {
   const { status } = useSession();
   const { groups } = useBatchStore();
   const [projects, setProjects] = useState<Project[]>([]);
@@ -276,7 +277,7 @@ export function BatchToolbar({ className, selectedProjectId }: BatchToolbarProps
       </div>
 
       {/* Right: Export Tools */}
-      <ExportToolbar projectName={currentProject?.name} />
+      <ExportToolbar projectName={folderName || currentProject?.name} />
     </div>
   );
 }

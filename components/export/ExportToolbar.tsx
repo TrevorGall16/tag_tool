@@ -31,8 +31,14 @@ import type {
 
 export interface ExportToolbarProps {
   className?: string;
-  projectName?: string;
+  projectName?: string; // Folder name when inside a folder
 }
+
+const slugify = (str: string) =>
+  str
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
 
 export function ExportToolbar({ className, projectName }: ExportToolbarProps) {
   const {
@@ -79,6 +85,7 @@ export function ExportToolbar({ className, projectName }: ExportToolbarProps) {
         marketplace,
         settings: exportSettings,
         selectedGroupIds: selectedGroupIds.size > 0 ? selectedGroupIds : undefined,
+        folderName: projectName, // Folder name for ZIP filename
       });
       engine.onProgress(setProgress);
 
@@ -159,20 +166,22 @@ export function ExportToolbar({ className, projectName }: ExportToolbarProps) {
     }
     const csv = generateAdobeStockCSV(groupsToExport);
 
-    // Build filename: tagarchitect-{project}-{group}.csv
-    const slugify = (str: string) =>
-      str
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-|-$/g, "");
-
-    const projectSlug = projectName ? slugify(projectName) : strategy;
+    // Build filename: tagarchitect-[FolderName]-[GroupName].csv
+    // If no folder (Uncategorized), just use group name
     const firstGroup = groupsToExport[0];
     const groupSlug = firstGroup?.sharedTitle
       ? slugify(firstGroup.sharedTitle)
       : `group-${firstGroup?.groupNumber || 1}`;
 
-    const filename = `tagarchitect-${projectSlug}-${groupSlug}.csv`;
+    let filename: string;
+    if (projectName) {
+      // Inside a folder: tagarchitect-foldername-groupname.csv
+      filename = `tagarchitect-${slugify(projectName)}-${groupSlug}.csv`;
+    } else {
+      // Uncategorized: tagarchitect-groupname.csv
+      filename = `tagarchitect-${groupSlug}.csv`;
+    }
+
     downloadString(csv, filename, "text/csv;charset=utf-8");
     toast.success("Downloaded CSV");
   };

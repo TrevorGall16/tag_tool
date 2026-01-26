@@ -16,7 +16,8 @@ const PLANS = [
     popular: true,
     features: [
       "50 tagging credits",
-      "$0.10 per image",
+      "$0.10 per image (1 credit = 1 image analyzed)",
+      "Includes AI title + up to 50 tags per image",
       "Smart image grouping",
       "CSV & ZIP export",
       "Project folders",
@@ -30,7 +31,8 @@ const PLANS = [
     popular: false,
     features: [
       "200 tagging credits",
-      "$0.075 per image (25% off)",
+      "$0.075 per image (25% savings)",
+      "1 credit = 1 image analyzed (title + all tags)",
       "Everything in Starter",
       "Priority support",
       "Credits never expire",
@@ -204,8 +206,12 @@ function PricingContent() {
           <h3 className="text-lg font-semibold text-slate-900 mb-4">How credits work</h3>
           <div className="max-w-2xl mx-auto text-slate-600 space-y-2">
             <p>
-              <strong>1 credit = 1 image tagged</strong>. Each time you generate AI tags for an
-              image, it uses 1 credit from your balance.
+              <strong>1 Credit = 1 Image analyzed</strong> (includes AI-generated title + all tags).
+              Each time you generate AI tags for an image or group, it uses 1 credit from your
+              balance.
+            </p>
+            <p>
+              <strong>Starter: $0.10 per image</strong> | <strong>Pro: $0.075 per image</strong>
             </p>
             <p>Credits never expire and carry over. Buy once, use whenever you need them.</p>
           </div>

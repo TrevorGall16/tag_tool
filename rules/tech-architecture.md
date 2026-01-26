@@ -214,6 +214,11 @@ export async function createThumbnail(file: File): Promise<string> {
 // Use JPEG at 0.7 quality instead
 ```
 
+**URL State Synchronization:**
+* **Batch Persistence:** When a batch is created or loaded, the URL must update to `/dashboard?batchId=[uuid]`.
+* **Deep Linking:** Reloading `/dashboard?batchId=[uuid]` must restore the user's specific batch state immediately.
+* **Soft 404 Prevention:** If an invalid batch ID is accessed, the UI must show a clear "Batch Not Found" state with a button to create a new batch, rather than a generic 404 or empty uploader.
+
 ### 5.2 CLIP Clustering Logic
 
 **Representative Sample Selection:**
@@ -525,6 +530,11 @@ NEXT_PUBLIC_APP_URL="http://localhost:3000"
 
 - Target: <200ms for static pages (homepage, FAQ)
 - API routes: <500ms for credit checks, <2s for AI vision calls
+
+**Model Loading Constraint**
+* **Lazy Initialization:** The ONNX model (150MB) must not begin downloading on the Homepage (`/`).
+* **Trigger Event:** Model download is only permitted when the user navigates to `/dashboard` or clicks a "Get Started" CTA.
+* **Homepage LCP:** The Homepage must remain lightweight (<1MB total) to ensure LCP < 2.5s.
 
 ### 7.2 Hydration Safety
 

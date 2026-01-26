@@ -1369,6 +1369,50 @@ Before going live, confirm:
 - [ ] Open Graph tags present on all pages
 - [ ] Google Search Console property created (ready to submit sitemap after launch)
 
+19.1 Content Architecture
+Route Structure:
+
+/trends (Index Page): Lists all available categories.
+
+/trends/[category] (Cluster Page): e.g., /trends/wedding.
+
+/trends/[category]/[niche-slug] (Item Page): e.g., /trends/wedding/boho-rustic-invitation.
+
+Data Source:
+
+A static JSON file (/data/trends.json) containing ~50-100 high-volume niches.
+
+Note: No database required for V1. Hardcode popular niches to ensure indexability.
+
+19.2 Page Templates
+A. Niche Item Page (/trends/[category]/[niche-slug])
+
+H1 Title: "Best SEO Tags for [Niche Name] on Etsy & Adobe Stock"
+
+Intro Text: "Optimizing your listings for [Niche Name] requires precise tagging. Below are the top-performing keywords to boost your visibility."
+
+Tag Copy Block: A UI component displaying 30-50 relevant tags with a "Copy All" button.
+
+Conversion Block (The Hook):
+
+Text: "Don't guess your tags. Use AI to analyze YOUR specific image and generate 100% accurate metadata."
+
+CTA Button: "Analyze My Image for Free" (Links to /dashboard)
+
+Ad Placement: Insert Ad Unit 2 (Rectangle) below the tag list.
+
+19.3 Internal Linking Strategy
+Footer Link: Add "Popular Trends" to the global footer to ensure crawlers find these pages.
+
+Cross-Linking: On the homepage TextExpander content, link to 2-3 high-volume trend pages (e.g., "See popular Wedding Tags").
+
+19.4 Technical Rules for Trends
+SSG (Static Site Generation): All trend pages must be statically generated at build time (generateStaticParams in Next.js) for maximum speed (TTFB < 200ms).
+
+Canonical: Self-referencing canonical tag.
+
+Meta Description: "Copy the best SEO tags for [Niche Name]. Boost your Etsy and Adobe Stock rankings with these top-performing keywords."
+
 ---
 
 **End of Ads & Monetization + SEO Document**

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { ApiResponse, VisionClusterRequest, VisionClusterResponse } from "@/types";
 import { clusterImagesWithVision } from "@/lib/vision/cluster";
+import type { ClusterImageInput, ClusterResult } from "@/lib/vision";
 
-const MAX_IMAGES_PER_REQUEST = 20;
+const BATCH_SIZE = 20;
 const DEFAULT_MAX_GROUPS = 10;
 
 function validateRequest(body: VisionClusterRequest): string | null {
@@ -26,6 +27,38 @@ function validateRequest(body: VisionClusterRequest): string | null {
   return null;
 }
 
+/**
+ * Chunk an array into smaller arrays of specified size
+ */
+function chunkArray<T>(array: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < array.length; i += size) {
+    chunks.push(array.slice(i, i + size));
+  }
+  return chunks;
+}
+
+/**
+ * Merge multiple cluster results into a single unified result.
+ * Groups from different batches are combined with unique group IDs.
+ */
+function mergeClusterResults(results: ClusterResult[]): ClusterResult {
+  const allGroups: ClusterResult["groups"] = [];
+  let groupIndex = 0;
+
+  for (const result of results) {
+    for (const group of result.groups) {
+      // Ensure unique group IDs by prefixing with index
+      allGroups.push({
+        ...group,
+        groupId: `merged_${groupIndex++}_${group.groupId}`,
+      });
+    }
+  }
+
+  return { groups: allGroups };
+}
+
 export async function POST(
   request: NextRequest
 ): Promise<NextResponse<ApiResponse<VisionClusterResponse>>> {
@@ -41,17 +74,38 @@ export async function POST(
 
     const { images, marketplace, maxGroups = DEFAULT_MAX_GROUPS } = body;
 
-    if (images.length > MAX_IMAGES_PER_REQUEST) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Maximum ${MAX_IMAGES_PER_REQUEST} images per clustering request`,
-        },
-        { status: 400 }
+    let clusterResult: ClusterResult;
+
+    // If images fit in a single batch, process directly
+    if (images.length <= BATCH_SIZE) {
+      clusterResult = await clusterImagesWithVision(images, marketplace, maxGroups);
+    } else {
+      // Automatic batching: chunk images and process sequentially
+      const batches = chunkArray(images as ClusterImageInput[], BATCH_SIZE);
+      console.log(
+        `[Cluster API] Processing ${images.length} images in ${batches.length} batches of up to ${BATCH_SIZE}`
+      );
+
+      const batchResults: ClusterResult[] = [];
+
+      for (const [i, batch] of batches.entries()) {
+        console.log(
+          `[Cluster API] Processing batch ${i + 1}/${batches.length} (${batch.length} images)`
+        );
+
+        // Calculate proportional maxGroups for this batch
+        const batchMaxGroups = Math.max(2, Math.ceil((maxGroups * batch.length) / images.length));
+
+        const batchResult = await clusterImagesWithVision(batch, marketplace, batchMaxGroups);
+        batchResults.push(batchResult);
+      }
+
+      // Merge all batch results
+      clusterResult = mergeClusterResults(batchResults);
+      console.log(
+        `[Cluster API] Merged ${batchResults.length} batches into ${clusterResult.groups.length} groups`
       );
     }
-
-    const clusterResult = await clusterImagesWithVision(images, marketplace, maxGroups);
 
     return NextResponse.json({
       success: true,
