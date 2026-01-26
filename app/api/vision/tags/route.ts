@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import type { ApiResponse, VisionTagsRequest, VisionTagsResponse } from "@/types";
+import type { ApiResponse, VisionTagsRequest, VisionTagsResponse, TagImageInput } from "@/types";
 import { generateTagsForImages } from "@/lib/vision/tags";
+import type { ImageTagResult } from "@/lib/vision";
 
 const STRATEGY_LABELS: Record<string, string> = {
   standard: "Standard",
@@ -12,6 +13,69 @@ const STRATEGY_LABELS: Record<string, string> = {
 };
 
 const MAX_IMAGES_PER_REQUEST = 10;
+const IS_MOCK_MODE = process.env.NEXT_PUBLIC_MOCK_API === "true";
+
+// Sample mock tags for realistic testing
+const MOCK_TAGS = [
+  "handmade",
+  "vintage",
+  "boho",
+  "minimalist",
+  "rustic",
+  "modern",
+  "farmhouse",
+  "bohemian",
+  "scandinavian",
+  "industrial",
+  "cottagecore",
+  "aesthetic",
+  "unique",
+  "artisan",
+  "custom",
+  "personalized",
+  "gift",
+  "home decor",
+  "wall art",
+  "jewelry",
+  "accessories",
+  "clothing",
+  "organic",
+  "sustainable",
+  "eco-friendly",
+];
+
+const MOCK_TITLES = [
+  "Handcrafted Artisan Collection",
+  "Vintage-Inspired Design",
+  "Modern Minimalist Style",
+  "Boho Chic Piece",
+  "Rustic Farmhouse Decor",
+  "Unique Gift Item",
+  "Custom Made Creation",
+];
+
+/**
+ * Generate mock tag results for development/testing
+ */
+function generateMockTagResults(images: TagImageInput[], maxTags: number): ImageTagResult[] {
+  return images.map((img) => {
+    // Randomly select tags
+    const shuffled = [...MOCK_TAGS].sort(() => Math.random() - 0.5);
+    const tagCount = Math.min(maxTags, 10 + Math.floor(Math.random() * 15));
+    const tags = shuffled.slice(0, tagCount);
+
+    // Random title
+    const title = MOCK_TITLES[Math.floor(Math.random() * MOCK_TITLES.length)] ?? "Mock Item";
+
+    return {
+      imageId: img.id,
+      title,
+      description: `Mock description for ${title.toLowerCase()}`,
+      tags,
+      confidence: 0.8 + Math.random() * 0.15,
+    };
+  });
+}
 
 function validateRequest(body: VisionTagsRequest): string | null {
   if (!body.images || !Array.isArray(body.images)) {
@@ -59,11 +123,21 @@ export async function POST(
       );
     }
 
-    const results = await generateTagsForImages(images, marketplace, strategy, maxTags);
+    let results: ImageTagResult[];
 
-    // Deduct credits for authenticated users
+    // Mock mode: bypass real API calls for development/testing
+    if (IS_MOCK_MODE) {
+      console.log(`[Tags API] MOCK MODE - Generating mock tags for ${images.length} images`);
+      // Simulate network delay
+      await new Promise((resolve) => setTimeout(resolve, 300 + Math.random() * 700));
+      results = generateMockTagResults(images, maxTags);
+    } else {
+      results = await generateTagsForImages(images, marketplace, strategy, maxTags);
+    }
+
+    // Deduct credits for authenticated users (skip in mock mode)
     const session = await getServerSession(authOptions);
-    if (session?.user?.id) {
+    if (session?.user?.id && !IS_MOCK_MODE) {
       const creditsToDeduct = images.length;
       const strategyLabel = STRATEGY_LABELS[strategy] || "Standard";
 

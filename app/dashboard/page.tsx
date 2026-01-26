@@ -6,7 +6,13 @@ import { useBatchStore } from "@/store/useBatchStore";
 import { usePersistence, markExplicitClear } from "@/hooks/usePersistence";
 import { nukeAllData } from "@/lib/persistence";
 import { Dropzone } from "@/components/uploader";
-import { ImageGallery, GroupList, GroupSkeleton, BatchToolbar } from "@/components/gallery";
+import {
+  ImageGallery,
+  GroupList,
+  GroupSkeleton,
+  BatchToolbar,
+  ClusteringProgress,
+} from "@/components/gallery";
 import { Header } from "@/components/layout";
 import { ConfirmationModal } from "@/components/ui";
 import { cn } from "@/lib/utils";
@@ -515,7 +521,10 @@ export default function DashboardPage() {
 
             {/* All Groups (outside folders view) */}
             {isClustering ? (
-              <GroupSkeleton className="mt-6" count={3} />
+              <>
+                <ClusteringProgress className="mt-6" />
+                <GroupSkeleton className="mt-4" count={3} />
+              </>
             ) : (
               <GroupList
                 className="mt-6"
@@ -544,7 +553,10 @@ export default function DashboardPage() {
 
             {/* Groups in this folder */}
             {isClustering ? (
-              <GroupSkeleton className="mt-6" count={3} />
+              <>
+                <ClusteringProgress className="mt-6" />
+                <GroupSkeleton className="mt-4" count={3} />
+              </>
             ) : (
               <GroupList
                 className="mt-6"

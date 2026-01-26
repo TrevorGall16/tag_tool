@@ -1,10 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { ApiResponse, VisionClusterRequest, VisionClusterResponse } from "@/types";
 import { clusterImagesWithVision } from "@/lib/vision/cluster";
-import type { ClusterImageInput, ClusterResult } from "@/lib/vision";
+import type { ClusterImageInput, ClusterResult, ImageClusterGroup } from "@/lib/vision";
 
 const BATCH_SIZE = 20;
 const DEFAULT_MAX_GROUPS = 10;
+const IS_MOCK_MODE = process.env.NEXT_PUBLIC_MOCK_API === "true";
+
+/**
+ * Generate mock cluster results for development/testing
+ */
+function generateMockClusterResult(images: ClusterImageInput[], maxGroups: number): ClusterResult {
+  // Simulate processing delay
+  const groupCount = Math.min(maxGroups, Math.ceil(images.length / 3));
+  const groups: ImageClusterGroup[] = [];
+
+  for (let i = 0; i < groupCount; i++) {
+    const startIdx = Math.floor((i * images.length) / groupCount);
+    const endIdx = Math.floor(((i + 1) * images.length) / groupCount);
+    const groupImages = images.slice(startIdx, endIdx);
+
+    groups.push({
+      groupId: `mock_group_${i + 1}`,
+      imageIds: groupImages.map((img) => img.id),
+      suggestedLabel: `Mock Group ${i + 1}`,
+      confidence: 0.85 + Math.random() * 0.1,
+    });
+  }
+
+  return { groups };
+}
 
 function validateRequest(body: VisionClusterRequest): string | null {
   if (!body.images || !Array.isArray(body.images)) {
@@ -76,8 +101,14 @@ export async function POST(
 
     let clusterResult: ClusterResult;
 
-    // If images fit in a single batch, process directly
-    if (images.length <= BATCH_SIZE) {
+    // Mock mode: bypass real API calls for development/testing
+    if (IS_MOCK_MODE) {
+      console.log(`[Cluster API] MOCK MODE - Generating mock clusters for ${images.length} images`);
+      // Simulate network delay
+      await new Promise((resolve) => setTimeout(resolve, 500 + Math.random() * 1000));
+      clusterResult = generateMockClusterResult(images as ClusterImageInput[], maxGroups);
+    } else if (images.length <= BATCH_SIZE) {
+      // If images fit in a single batch, process directly
       clusterResult = await clusterImagesWithVision(images, marketplace, maxGroups);
     } else {
       // Automatic batching: chunk images and process sequentially

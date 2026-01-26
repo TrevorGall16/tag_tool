@@ -74,6 +74,7 @@ export function ImageGallery({ className }: ImageGalleryProps) {
 
       // Transform API response into LocalGroup[] format
       // CRITICAL: Always generate UUID for group IDs to ensure uniqueness
+      const baseTimestamp = Date.now();
       const newGroups: LocalGroup[] = result.data.groups.map((cluster, index) => {
         const groupId = crypto.randomUUID(); // Always use UUID, ignore API's groupId
         console.log(`[Clustering] Created group ${groupId} with ${cluster.imageIds.length} images`);
@@ -86,6 +87,7 @@ export function ImageGallery({ className }: ImageGalleryProps) {
           sharedTags: [],
           sharedTitle: cluster.suggestedLabel, // Use AI's suggested label if provided
           isVerified: false,
+          createdAt: baseTimestamp + index, // Preserve order with incrementing timestamps
         };
       });
 

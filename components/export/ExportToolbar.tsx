@@ -187,62 +187,71 @@ export function ExportToolbar({ className, projectName }: ExportToolbarProps) {
   };
 
   return (
-    <div className={cn("flex items-center gap-2 shrink-0", className)}>
-      <Button
-        onClick={handleCopyAllTags}
-        variant="outline"
-        size="md"
-        title="Copy all tags to clipboard"
-        disabled={exportableGroups.length === 0}
-      >
-        <Copy className="h-4 w-4" />
-      </Button>
+    <div className={cn("flex flex-col gap-3", className)}>
+      {/* Row 1: Quick action buttons */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <Button
+          onClick={handleCopyAllTags}
+          variant="outline"
+          size="md"
+          title="Copy all tags to clipboard"
+          disabled={exportableGroups.length === 0}
+        >
+          <Copy className="h-4 w-4" />
+        </Button>
 
-      <Button
-        onClick={handleDownloadAdobeCSV}
-        variant="outline"
-        size="md"
-        title="Download Adobe Stock CSV"
-        disabled={exportableGroups.length === 0}
-      >
-        <FileSpreadsheet className="h-4 w-4" />
-      </Button>
+        <Button
+          onClick={handlePreview}
+          variant="outline"
+          size="md"
+          title="Preview Metadata"
+          disabled={exportableGroups.length === 0}
+        >
+          <Eye className="h-4 w-4" />
+        </Button>
 
-      <Button
-        onClick={handlePreview}
-        variant="outline"
-        size="md"
-        title="Preview Metadata"
-        disabled={exportableGroups.length === 0}
-      >
-        <Eye className="h-4 w-4" />
-      </Button>
+        <Button
+          onClick={() => setShowSettings(true)}
+          variant="outline"
+          size="md"
+          title="Export Settings"
+        >
+          <Settings2 className="h-4 w-4" />
+        </Button>
+      </div>
 
-      <Button
-        onClick={() => setShowSettings(true)}
-        variant="outline"
-        size="md"
-        title="Export Settings"
-      >
-        <Settings2 className="h-4 w-4" />
-      </Button>
+      {/* Row 2: Download buttons (full width) */}
+      <div className="flex flex-col sm:flex-row gap-2">
+        <Button
+          onClick={handleDownloadAdobeCSV}
+          variant="outline"
+          size="md"
+          title="Download Adobe Stock CSV"
+          disabled={exportableGroups.length === 0}
+          className="flex-1 justify-center"
+        >
+          <FileSpreadsheet className="h-4 w-4 mr-2" />
+          Download CSV
+        </Button>
 
-      <Button
-        onClick={handleExport}
-        disabled={!canExport}
-        isLoading={isExporting}
-        variant="primary"
-        size="md"
-        className="whitespace-nowrap shrink-0 max-w-fit px-2 h-9 text-[10px] uppercase tracking-tighter"
-      >
-        {!isExporting && <Download className="h-4 w-4 mr-2" />}
-        {getButtonText()}
-      </Button>
+        <Button
+          onClick={handleExport}
+          disabled={!canExport}
+          isLoading={isExporting}
+          variant="primary"
+          size="md"
+          className="flex-1 justify-center whitespace-nowrap"
+        >
+          {!isExporting && <Download className="h-4 w-4 mr-2" />}
+          {getButtonText()}
+        </Button>
+      </div>
 
+      {/* Result notification */}
       {showResult && result && (
         <div
           className={cn(
-            "flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm",
+            "flex items-center gap-2 px-3 py-2 rounded-lg text-sm",
             result.success
               ? "bg-green-50 text-green-700 border border-green-200"
               : "bg-red-50 text-red-700 border border-red-200"

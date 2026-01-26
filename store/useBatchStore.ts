@@ -30,6 +30,7 @@ export interface LocalGroup {
   isVerified: boolean;
   folderId?: string; // Which folder this group belongs to (null = Uncategorized)
   isCollapsed?: boolean; // UI state for collapsible view
+  createdAt?: number; // Timestamp for stable sorting (optional for backwards compat)
 }
 
 export type MarketplaceType = "ETSY" | "ADOBE_STOCK";
@@ -54,6 +55,13 @@ interface BatchState {
   isUploading: boolean;
   isClustering: boolean;
   isTagging: boolean;
+
+  // Clustering progress (for batch processing)
+  clusteringProgress: {
+    currentBatch: number;
+    totalBatches: number;
+    totalImages: number;
+  } | null;
 
   // Error state
   error: string | null;
@@ -110,6 +118,9 @@ interface BatchState {
   toggleGroupCollapse: (groupId: string) => void;
   collapseAllGroups: () => void;
   expandAllGroups: () => void;
+  setClusteringProgress: (
+    progress: { currentBatch: number; totalBatches: number; totalImages: number } | null
+  ) => void;
 }
 
 export const useBatchStore = create<BatchState>()(
@@ -128,6 +139,7 @@ export const useBatchStore = create<BatchState>()(
         isUploading: false,
         isClustering: false,
         isTagging: false,
+        clusteringProgress: null,
         error: null,
         exportSettings: DEFAULT_EXPORT_SETTINGS,
 
@@ -206,13 +218,31 @@ export const useBatchStore = create<BatchState>()(
         },
 
         setGroups: (groups) => {
-          set({ groups });
+          // Sort groups by createdAt to maintain stable order
+          // Put "unclustered" group first, then sort by createdAt ascending
+          const sortedGroups = [...groups].sort((a, b) => {
+            if (a.id === "unclustered") return -1;
+            if (b.id === "unclustered") return 1;
+            return (a.createdAt || 0) - (b.createdAt || 0);
+          });
+          set({ groups: sortedGroups });
         },
 
         addGroup: (group) => {
-          set((state) => ({
-            groups: [...state.groups, group],
-          }));
+          set((state) => {
+            // Ensure createdAt is set
+            const newGroup = {
+              ...group,
+              createdAt: group.createdAt || Date.now(),
+            };
+            // Insert and maintain sort order
+            const newGroups = [...state.groups, newGroup].sort((a, b) => {
+              if (a.id === "unclustered") return -1;
+              if (b.id === "unclustered") return 1;
+              return (a.createdAt || 0) - (b.createdAt || 0);
+            });
+            return { groups: newGroups };
+          });
         },
 
         updateGroup: (groupId, updates) => {
@@ -445,6 +475,7 @@ export const useBatchStore = create<BatchState>()(
             images: [],
             sharedTags: [],
             isVerified: false,
+            createdAt: 0, // Always first
           };
           set({ groups: [unclusteredGroup, ...state.groups] });
           return unclusteredGroup.id;
@@ -485,6 +516,10 @@ export const useBatchStore = create<BatchState>()(
           set((state) => ({
             groups: state.groups.map((group) => ({ ...group, isCollapsed: false })),
           }));
+        },
+
+        setClusteringProgress: (progress) => {
+          set({ clusteringProgress: progress });
         },
       }),
       {

@@ -5,6 +5,7 @@ import type {
   ClusterImageInput,
   TagImageInput,
   ImageTagResult,
+  ImageClusterGroup,
   MarketplaceType,
   StrategyType,
 } from "./types";
@@ -19,6 +20,7 @@ export type {
   ClusterImageInput,
   TagImageInput,
   ImageTagResult,
+  ImageClusterGroup,
   MarketplaceType,
   StrategyType,
 };
