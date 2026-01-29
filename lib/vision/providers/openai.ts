@@ -87,7 +87,8 @@ export class OpenAIVisionProvider implements IVisionProvider {
   async clusterImages(
     images: ClusterImageInput[],
     marketplace: MarketplaceType,
-    maxGroups: number
+    maxGroups: number,
+    _context?: string // Not used by OpenAI provider's simple prompt
   ): Promise<ClusterResult> {
     const contentParts = images.map((img) => ({
       type: "image_url" as const,

@@ -32,7 +32,8 @@ export class AnthropicVisionProvider implements IVisionProvider {
   async clusterImages(
     images: ClusterImageInput[],
     marketplace: MarketplaceType,
-    maxGroups: number
+    maxGroups: number,
+    context?: string
   ): Promise<ClusterResult> {
     const imageContent: Anthropic.ImageBlockParam[] = images.map((img) => ({
       type: "image" as const,
@@ -50,7 +51,7 @@ export class AnthropicVisionProvider implements IVisionProvider {
       })
       .join("\n");
 
-    const prompt = buildClusteringPrompt(imageIndex, marketplace, maxGroups);
+    const prompt = buildClusteringPrompt(imageIndex, marketplace, maxGroups, context);
 
     const message = await this.client.messages.create({
       model: this.model,

@@ -16,7 +16,8 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
 } from "@/components/ui";
-import type { VisionClusterResponse } from "@/types";
+import { ClusterDialog } from "./ClusterDialog";
+import type { VisionClusterResponse, ClusterSettings } from "@/types";
 
 export interface ImageGalleryProps {
   className?: string;
@@ -37,7 +38,9 @@ export function ImageGallery({ className }: ImageGalleryProps) {
   } = useBatchStore();
 
   const [showClusterDialog, setShowClusterDialog] = useState(false);
+  const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const [clusterMode, setClusterMode] = useState<"append" | "clear" | null>(null);
+  const [pendingSettings, setPendingSettings] = useState<ClusterSettings | undefined>(undefined);
 
   const BATCH_SIZE = 20;
 
@@ -67,22 +70,31 @@ export function ImageGallery({ className }: ImageGalleryProps) {
       return;
     }
 
-    // If there are existing groups, show the dialog
+    // Show settings dialog first
+    setShowSettingsDialog(true);
+  };
+
+  const handleSettingsConfirm = (settings: ClusterSettings) => {
+    setShowSettingsDialog(false);
+    setPendingSettings(settings);
+
+    // If there are existing groups, ask about append/clear
     if (hasExistingGroups) {
       setShowClusterDialog(true);
       return;
     }
 
-    // No existing groups, proceed directly
-    performClustering("append");
+    // No existing groups, proceed directly with settings
+    performClustering("append", settings);
   };
 
   const handleDialogChoice = (mode: "append" | "clear") => {
     setShowClusterDialog(false);
-    performClustering(mode);
+    performClustering(mode, pendingSettings);
+    setPendingSettings(undefined);
   };
 
-  const performClustering = async (mode: "append" | "clear") => {
+  const performClustering = async (mode: "append" | "clear", settings?: ClusterSettings) => {
     if (images.length < 2) {
       setError("At least 2 images are required for clustering");
       return;
@@ -138,6 +150,7 @@ export function ImageGallery({ className }: ImageGalleryProps) {
               })),
               marketplace,
               maxGroups: Math.max(2, Math.ceil(10 * (batchImages.length / images.length))),
+              settings,
             }),
           });
 
@@ -166,6 +179,7 @@ export function ImageGallery({ className }: ImageGalleryProps) {
             })),
             marketplace,
             maxGroups: 10,
+            settings,
           }),
         });
 
@@ -309,7 +323,15 @@ export function ImageGallery({ className }: ImageGalleryProps) {
         </div>
       )}
 
-      {/* Clustering Dialog */}
+      {/* Cluster Settings Dialog */}
+      <ClusterDialog
+        isOpen={showSettingsDialog}
+        onClose={() => setShowSettingsDialog(false)}
+        onConfirm={handleSettingsConfirm}
+        imageCount={images.length}
+      />
+
+      {/* Existing Groups Dialog */}
       <AlertDialog open={showClusterDialog} onOpenChange={setShowClusterDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>

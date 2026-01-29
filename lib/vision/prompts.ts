@@ -15,20 +15,34 @@ export function getStrategyPersona(strategy: StrategyType): string {
   return STRATEGY_PERSONAS[strategy] || "";
 }
 
+// Context-specific instructions for clustering
+const CONTEXT_INSTRUCTIONS: Record<string, string> = {
+  general: "Use standard industry categories suitable for any purpose.",
+  stock:
+    "Use professional stock photography categories. Focus on commercial licensing terms like 'Business', 'Lifestyle', 'Technology', 'Nature'.",
+  ecommerce:
+    "Use e-commerce product categories. Focus on product types like 'Apparel', 'Home & Garden', 'Electronics', 'Beauty'.",
+};
+
 export function buildClusteringPrompt(
   imageIndex: string,
   marketplace: MarketplaceType,
-  maxGroups: number
+  maxGroups: number,
+  context?: string
 ): string {
   const marketplaceContext =
     marketplace === "ETSY"
       ? "CONTEXT: You are organizing a boutique shop. Buyers search for specific items like 'Ceramic Mug', 'Linen Dress', or 'Nursery Art'."
       : "CONTEXT: You are organizing a professional stock portfolio. Buyers search for concrete subjects like 'Business Meeting', 'Fresh Pasta', or 'Modern Architecture'.";
 
+  const contextInstruction = context
+    ? `\nCATEGORIZATION STYLE: ${CONTEXT_INSTRUCTIONS[context] || CONTEXT_INSTRUCTIONS.general}`
+    : "";
+
   return `You are a Senior Digital Archivist organizing images by BROAD INDUSTRY CATEGORY.
 Your goal is to create the FEWEST groups possible while keeping unrelated subjects separate.
 
-${marketplaceContext}
+${marketplaceContext}${contextInstruction}
 
 ### ABSOLUTELY FORBIDDEN LABELS (NEVER USE THESE):
 - "Objects", "Items", "Things", "Stuff", "Elements", "Entities"

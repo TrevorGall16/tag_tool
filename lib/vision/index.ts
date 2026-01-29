@@ -63,12 +63,14 @@ export class VisionFactory {
 export async function clusterImagesWithVision(
   images: ClusterImageInput[],
   marketplace: string,
-  maxGroups: number
+  maxGroups: number,
+  context?: string
 ): Promise<ClusterResult> {
   return VisionFactory.getProvider().clusterImages(
     images,
     marketplace as MarketplaceType,
-    maxGroups
+    maxGroups,
+    context
   );
 }
 

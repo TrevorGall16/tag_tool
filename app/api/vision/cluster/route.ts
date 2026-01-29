@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import type { ApiResponse, VisionClusterRequest, VisionClusterResponse } from "@/types";
+import type {
+  ApiResponse,
+  VisionClusterRequest,
+  VisionClusterResponse,
+  ClusterSettings,
+} from "@/types";
 import { clusterImagesWithVision } from "@/lib/vision/cluster";
 import type { ClusterImageInput, ClusterResult, ImageClusterGroup } from "@/lib/vision";
 
@@ -163,35 +168,70 @@ function isBannedLabel(label: string | undefined): boolean {
 }
 
 /**
- * Simple index-based fallback for group titles.
- * We no longer try to guess from filenames - stock photo names are too messy.
+ * Check if a title is a valid AI-generated category (not a fallback)
  */
-function getIndexFallback(index: number): string {
-  return `Untitled Group ${index + 1}`;
+function isValidAICategory(title: string | undefined): boolean {
+  if (!title) return false;
+  const lower = title.toLowerCase();
+  // Reject fallback patterns
+  if (lower.includes("group") || lower.includes("untitled") || lower.includes("unlabeled")) {
+    return false;
+  }
+  // Reject if it looks like a numbered fallback (e.g., "Something 01", "Test 12")
+  if (/\s\d{1,2}$/.test(title)) {
+    return false;
+  }
+  return true;
 }
 
 /**
- * Valid Title Logic - Simple and predictable
- * Priority: 1. AI Title -> 2. First Semantic Tag -> 3. "Untitled Group N"
+ * Format group title with optional prefix - SINGLE POINT OF PREFIX APPLICATION
+ * Ensures prefix appears exactly once in the final title.
  */
-function getValidTitle(
-  title: string | undefined,
-  semanticTags: string[] | undefined,
+function formatTitle(
+  baseTitle: string | undefined,
+  settings: ClusterSettings | undefined,
   index: number
 ): string {
-  // Priority 1: AI-provided title (if not banned)
-  if (title && !isBannedLabel(title)) {
+  const prefix = settings?.prefix?.trim();
+  const startNum = (settings?.startNumber || 1) + index;
+  const numStr = startNum.toString().padStart(2, "0");
+
+  // CASE 1: No prefix - just return title or "Group 01"
+  if (!prefix) {
+    return isValidAICategory(baseTitle) ? baseTitle! : `Group ${numStr}`;
+  }
+
+  // CASE 2: Has prefix + valid AI category -> "Prefix - Category"
+  if (isValidAICategory(baseTitle)) {
+    return `${prefix} - ${baseTitle}`;
+  }
+
+  // CASE 3: Has prefix but no valid AI title -> "Prefix 01"
+  return `${prefix} ${numStr}`;
+}
+
+/**
+ * Get the raw category from AI response (title or first semantic tag)
+ * Does NOT apply prefix - that's done by formatTitle at the end
+ */
+function getRawCategory(
+  title: string | undefined,
+  semanticTags: string[] | undefined
+): string | undefined {
+  // Priority 1: AI-provided title (if valid)
+  if (title && !isBannedLabel(title) && isValidAICategory(title)) {
     return title;
   }
 
   // Priority 2: First valid semantic tag
   if (semanticTags && semanticTags.length > 0) {
-    const firstValidTag = semanticTags.find((tag) => !isBannedLabel(tag));
+    const firstValidTag = semanticTags.find((tag) => !isBannedLabel(tag) && isValidAICategory(tag));
     if (firstValidTag) return firstValidTag;
   }
 
-  // Priority 3: Simple index-based fallback (no filename guessing)
-  return getIndexFallback(index);
+  // No valid category found
+  return undefined;
 }
 
 /**
@@ -270,24 +310,23 @@ function mergeDuplicateGroups(result: ClusterResult): ClusterResult {
  * Merge multiple cluster results into a single unified result.
  * Groups from different batches are combined with unique group IDs.
  */
-function mergeClusterResults(results: ClusterResult[]): ClusterResult {
+function mergeClusterResults(results: ClusterResult[], settings?: ClusterSettings): ClusterResult {
   const allGroups: ClusterResult["groups"] = [];
   let groupIndex = 0;
 
   for (const result of results) {
     for (const group of result.groups) {
       const sanitizedTags = sanitizeSemanticTags(group.semanticTags);
-      const validTitle = getValidTitle(
-        group.title || group.suggestedLabel,
-        sanitizedTags,
-        groupIndex
-      );
+      // Get raw AI category (no prefix applied yet)
+      const rawCategory = getRawCategory(group.title || group.suggestedLabel, sanitizedTags);
+      // Apply prefix exactly once via formatTitle
+      const finalTitle = formatTitle(rawCategory, settings, groupIndex);
 
       allGroups.push({
         ...group,
         groupId: `merged_${groupIndex}_${group.groupId}`,
-        title: validTitle,
-        suggestedLabel: validTitle,
+        title: finalTitle,
+        suggestedLabel: finalTitle,
         semanticTags: sanitizedTags,
       });
       groupIndex++;
@@ -300,16 +339,19 @@ function mergeClusterResults(results: ClusterResult[]): ClusterResult {
 /**
  * Ensure all groups in a result have valid labels (non-vague)
  */
-function ensureLabels(result: ClusterResult): ClusterResult {
+function ensureLabels(result: ClusterResult, settings?: ClusterSettings): ClusterResult {
   return {
     groups: result.groups.map((group, index) => {
       const sanitizedTags = sanitizeSemanticTags(group.semanticTags);
-      const validTitle = getValidTitle(group.title || group.suggestedLabel, sanitizedTags, index);
+      // Get raw AI category (no prefix applied yet)
+      const rawCategory = getRawCategory(group.title || group.suggestedLabel, sanitizedTags);
+      // Apply prefix exactly once via formatTitle
+      const finalTitle = formatTitle(rawCategory, settings, index);
 
       return {
         ...group,
-        title: validTitle,
-        suggestedLabel: validTitle,
+        title: finalTitle,
+        suggestedLabel: finalTitle,
         semanticTags: sanitizedTags,
       };
     }),
@@ -329,7 +371,14 @@ export async function POST(
       return NextResponse.json({ success: false, error: validationError }, { status: 400 });
     }
 
-    const { images, marketplace, maxGroups = DEFAULT_MAX_GROUPS } = body;
+    const { images, marketplace, maxGroups = DEFAULT_MAX_GROUPS, settings } = body;
+
+    // Log settings if provided
+    if (settings) {
+      console.log(
+        `[Cluster API] Settings: prefix="${settings.prefix || ""}", startNumber=${settings.startNumber || 1}, context="${settings.context || "general"}"`
+      );
+    }
 
     let clusterResult: ClusterResult;
 
@@ -341,8 +390,13 @@ export async function POST(
       clusterResult = generateMockClusterResult(images as ClusterImageInput[], maxGroups);
     } else if (images.length <= BATCH_SIZE) {
       // If images fit in a single batch, process directly
-      const rawResult = await clusterImagesWithVision(images, marketplace, maxGroups);
-      clusterResult = ensureLabels(rawResult);
+      const rawResult = await clusterImagesWithVision(
+        images,
+        marketplace,
+        maxGroups,
+        settings?.context
+      );
+      clusterResult = ensureLabels(rawResult, settings);
     } else {
       // Automatic batching: chunk images and process sequentially
       const batches = chunkArray(images as ClusterImageInput[], BATCH_SIZE);
@@ -360,19 +414,24 @@ export async function POST(
         // Calculate proportional maxGroups for this batch
         const batchMaxGroups = Math.max(2, Math.ceil((maxGroups * batch.length) / images.length));
 
-        const batchResult = await clusterImagesWithVision(batch, marketplace, batchMaxGroups);
+        const batchResult = await clusterImagesWithVision(
+          batch,
+          marketplace,
+          batchMaxGroups,
+          settings?.context
+        );
         batchResults.push(batchResult);
       }
 
       // Merge all batch results
-      clusterResult = mergeClusterResults(batchResults);
+      clusterResult = mergeClusterResults(batchResults, settings);
       console.log(
         `[Cluster API] Merged ${batchResults.length} batches into ${clusterResult.groups.length} groups`
       );
     }
 
     // Final processing: sanitize labels and merge duplicates
-    const sanitizedResult = ensureLabels(clusterResult);
+    const sanitizedResult = ensureLabels(clusterResult, settings);
     const finalResult = mergeDuplicateGroups(sanitizedResult);
 
     return NextResponse.json({

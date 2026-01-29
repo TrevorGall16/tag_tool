@@ -92,10 +92,19 @@ export interface CheckoutSessionResponse {
 }
 
 // Vision Clustering types
+export type ClusterContext = "general" | "stock" | "ecommerce";
+
+export interface ClusterSettings {
+  prefix?: string; // Optional prefix for group names (e.g., "Summer Shoot")
+  startNumber?: number; // Starting number for groups (default: 1)
+  context?: ClusterContext; // Context for clustering (affects AI categorization)
+}
+
 export interface VisionClusterRequest {
   images: ClusterImageInput[];
   marketplace: "ETSY" | "ADOBE_STOCK";
   maxGroups?: number;
+  settings?: ClusterSettings;
 }
 
 export interface ClusterImageInput {

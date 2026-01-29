@@ -19,7 +19,8 @@ export interface IVisionProvider {
   clusterImages(
     images: ClusterImageInput[],
     marketplace: MarketplaceType,
-    maxGroups: number
+    maxGroups: number,
+    context?: string
   ): Promise<ClusterResult>;
   generateTags(
     images: TagImageInput[],
