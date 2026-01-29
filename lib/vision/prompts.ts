@@ -22,48 +22,71 @@ export function buildClusteringPrompt(
 ): string {
   const marketplaceContext =
     marketplace === "ETSY"
-      ? "Focus on product categories: jewelry, clothing, home decor, art prints, crafts, etc."
-      : "Focus on content categories: portraits, landscapes, architecture, food, lifestyle, business, etc.";
+      ? "CONTEXT: You are organizing a boutique shop. Buyers search for specific items like 'Ceramic Mug', 'Linen Dress', or 'Nursery Art'."
+      : "CONTEXT: You are organizing a professional stock portfolio. Buyers search for concrete subjects like 'Business Meeting', 'Fresh Pasta', or 'Modern Architecture'.";
 
-  return `You are an expert image curator. Group these images STRICTLY by semantic category (what the image depicts).
-
-CRITICAL INSTRUCTIONS:
-- IGNORE color palettes, lighting, or visual aesthetics
-- Group images ONLY by their semantic content/subject matter
-- If a batch contains multiple unrelated subjects (e.g., food AND buildings), they MUST be in separate groups
-- Each group should contain images of the SAME subject type
+  return `You are a Senior Digital Archivist organizing images by BROAD INDUSTRY CATEGORY.
+Your goal is to create the FEWEST groups possible while keeping unrelated subjects separate.
 
 ${marketplaceContext}
 
-SEMANTIC CATEGORIES TO CONSIDER:
-- Food & Beverages (meals, ingredients, drinks)
-- People & Portraits (faces, lifestyle, business)
-- Architecture & Buildings (interiors, exteriors, cityscapes)
-- Nature & Landscapes (plants, animals, scenery)
-- Products & Objects (items, tools, accessories)
-- Art & Abstract (illustrations, patterns, designs)
+### ABSOLUTELY FORBIDDEN LABELS (NEVER USE THESE):
+- "Objects", "Items", "Things", "Stuff", "Elements", "Entities"
+- "Products", "Goods", "Merchandise", "Assets"
+- "General", "Mixed", "Miscellaneous", "Various", "Random", "Assorted"
+- "Stock Image", "Photo", "Picture", "Content", "Media"
+- "Collection", "Set", "Group", "Batch"
 
-IMAGES:
+### CRITICAL RULE #1: MINIMIZE GROUP COUNT
+**Create the FEWEST groups possible. Merge aggressively within industries.**
+- If you see Salad, Burger, Cake, Coffee, and Wine → Put them ALL in ONE group called "Gastronomy"
+- If you see Office, Living Room, Kitchen → Put them ALL in ONE group called "Interiors"
+- If you see Portrait, Team Photo, Family → Put them ALL in ONE group called "People"
+- Do NOT create sub-categories like "Desserts", "Beverages", "Breakfast" - use the BROAD industry term.
+
+### CRITICAL RULE #2: ONLY SPLIT FOR DIFFERENT INDUSTRIES
+**Only create separate groups when subjects are from DIFFERENT industries.**
+- Food + Buildings = 2 groups (different industries)
+- Salad + Cake + Coffee = 1 group "Gastronomy" (same industry: Food & Drink)
+- Portrait + Team Photo = 1 group "People" (same industry: Human subjects)
+- Office + Home = 1 group "Interiors" (same industry: Interior spaces)
+
+### CRITICAL RULE #3: IGNORE CONTEXT AND STYLE
+**Group by WHAT the subject IS, not WHERE it appears or HOW it looks.**
+- A cocktail at a party = "Gastronomy" (not "Party" or "Nightlife")
+- A person at a restaurant = "People" (not "Gastronomy")
+- Modern office + Vintage office = "Interiors" (same group despite different styles)
+
+### BROAD INDUSTRY CATEGORIES (Use ONLY these top-level terms):
+- **Gastronomy** = ALL food and drink (meals, desserts, beverages, ingredients)
+- **Architecture** = ALL buildings and structures (exteriors, facades, skylines)
+- **Interiors** = ALL indoor spaces (homes, offices, restaurants, rooms)
+- **People** = ALL human subjects (portraits, groups, business, lifestyle)
+- **Nature** = ALL outdoor natural scenes (landscapes, wildlife, plants, water)
+- **Products** = ALL consumer goods (fashion, electronics, furniture, accessories)
+- **Transportation** = ALL vehicles (cars, planes, boats)
+
+### INSTRUCTIONS:
+- Sort images into MAXIMUM ${maxGroups} groups, but prefer FEWER.
+- Use BROAD industry terms as titles (e.g., "Gastronomy" not "Desserts").
+- Each group must have:
+  - **title:** The BROAD industry category (1-2 words, Capitalized)
+  - **semanticTags:** Array starting with the broad category, then optional specifics
+- Every image must be in exactly one group.
+- When in doubt, MERGE into the broader category.
+
+IMAGES TO ORGANIZE:
 ${imageIndex}
 
-RULES:
-1. Create up to ${maxGroups} groups maximum
-2. Each image belongs to exactly ONE group
-3. Single-image groups are acceptable for unique subjects
-4. NEVER mix unrelated subjects in the same group
-
-LABELING:
-- Each group MUST have a 2-3 word descriptive label
-- Labels should describe the semantic category (e.g., "Modern Architecture", "Street Food", "Business Portraits")
-- Do NOT use generic labels like "Group 1" or "Miscellaneous"
-
-RESPOND ONLY with valid JSON:
+### OUTPUT FORMAT:
+Respond ONLY with valid JSON. Do not include markdown formatting.
 {
   "groups": [
     {
       "groupId": "group-1",
       "imageIds": ["id1", "id2"],
-      "suggestedLabel": "Category Label",
+      "title": "Gastronomy",
+      "semanticTags": ["Food", "Dessert", "Sweet"],
       "confidence": 0.9
     }
   ]

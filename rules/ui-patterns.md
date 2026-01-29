@@ -250,6 +250,11 @@ border-top: 2px solid rgba(255, 255, 255, 0.2);
 - Navigates to `/`
 - Shows confirmation modal if user has unsaved work: "You have X unverified images. Are you sure you want to go back?"
 
+**Implementation Requirement (SEO Strictness):**
+* **Server-Side Rendering:** The full text  MUST be present in the initial HTML response.
+* **Hiding Mechanism:** Use CSS classes (`max-h-24 overflow-hidden`) to truncate the visual display.
+* **Prohibited:** DO NOT use conditional rendering (e.g., `if (!expanded) return null`) to hide text. If it is not in the DOM, search engines will not index it, violating the "High-Value Content" rule.
+
 ### 4.2 Credit Balance Display
 
 **Component:** `<CreditBalance />`

@@ -411,12 +411,36 @@ function CollapsibleGroupCard({
             <h3 className="font-medium text-slate-900 truncate">
               {group.sharedTitle || `Group ${group.groupNumber}`}
             </h3>
-            {/* Semantic Category Badge */}
-            {group.semanticLabel && (
-              <span className="ml-2 px-2.5 py-0.5 rounded-md bg-amber-100 text-amber-800 text-xs font-semibold border border-amber-200 shadow-sm">
-                {group.semanticLabel}
-              </span>
-            )}
+            {/* Semantic Tags Badges - fallback to sharedTitle if tags empty */}
+            {(() => {
+              const badges =
+                group.semanticTags && group.semanticTags.length > 0
+                  ? group.semanticTags
+                  : group.sharedTitle
+                    ? [group.sharedTitle]
+                    : null;
+
+              if (badges && badges.length > 0) {
+                return (
+                  <div className="ml-2 flex items-center gap-1">
+                    {badges.slice(0, 3).map((tag, idx) => (
+                      <span
+                        key={idx}
+                        className="px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 text-xs font-semibold border border-amber-200 shadow-sm"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                );
+              }
+
+              return (
+                <span className="ml-2 px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-500 text-xs font-medium border border-slate-200">
+                  Unlabeled
+                </span>
+              );
+            })()}
           </div>
           <div className="flex items-center gap-2 text-sm text-slate-500">
             <span>{group.images.length} images</span>

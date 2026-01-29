@@ -101,6 +101,8 @@ export interface VisionClusterRequest {
 export interface ClusterImageInput {
   id: string;
   dataUrl: string;
+  name?: string; // Original filename for context
+  description?: string; // Optional description for context
 }
 
 export interface VisionClusterResponse {
@@ -111,7 +113,9 @@ export interface VisionClusterResponse {
 export interface ImageClusterGroup {
   groupId: string;
   imageIds: string[];
-  suggestedLabel?: string;
+  title?: string; // AI-provided human-readable title (1-2 words)
+  suggestedLabel?: string; // Deprecated: use title instead
+  semanticTags?: string[]; // Multi-level tags: [Broad Category, Specific Type, Vibe/Attribute]
   confidence: number;
 }
 

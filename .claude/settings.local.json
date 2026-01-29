@@ -15,7 +15,8 @@
       "Bash(pnpm type-check:*)",
       "Bash(xargs:*)",
       "Bash(pnpm tsc:*)",
-      "Bash(npx shadcn@latest add:*)"
+      "Bash(npx shadcn@latest add:*)",
+      "Bash(pnpm exec tsc:*)"
     ]
   }
 }

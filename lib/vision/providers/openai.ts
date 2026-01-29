@@ -98,11 +98,10 @@ export class OpenAIVisionProvider implements IVisionProvider {
       },
     }));
 
-    const prompt = buildClusteringPrompt(
-      images.map((img) => img.id).join(", "),
-      marketplace,
-      maxGroups
-    );
+    const imageList = images
+      .map((img) => (img.name ? `${img.id} (${img.name})` : img.id))
+      .join(", ");
+    const prompt = buildClusteringPrompt(imageList, marketplace, maxGroups);
 
     // 'as any' silences the version conflict errors
     const response = (await this.client.chat.completions.create({

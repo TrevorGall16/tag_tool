@@ -43,7 +43,12 @@ export class AnthropicVisionProvider implements IVisionProvider {
       },
     }));
 
-    const imageIndex = images.map((img, i) => `Image ${i + 1}: ID="${img.id}"`).join("\n");
+    const imageIndex = images
+      .map((img, i) => {
+        const name = img.name ? ` Name="${img.name}"` : "";
+        return `Image ${i + 1}: ID="${img.id}"${name}`;
+      })
+      .join("\n");
 
     const prompt = buildClusteringPrompt(imageIndex, marketplace, maxGroups);
 
@@ -145,18 +150,34 @@ export class AnthropicVisionProvider implements IVisionProvider {
           groupId?: string;
           imageIds?: string[];
           image_ids?: string[];
+          title?: string;
           suggestedLabel?: string;
+          semanticTags?: string[];
           label?: string;
           confidence?: number;
         }>;
       };
 
-      const groups: ImageClusterGroup[] = parsed.groups.map((group, index) => ({
-        groupId: group.groupId || `group-${index + 1}`,
-        imageIds: group.imageIds || group.image_ids || [],
-        suggestedLabel: group.suggestedLabel || group.label || undefined,
-        confidence: typeof group.confidence === "number" ? group.confidence : 0.8,
-      }));
+      const groups: ImageClusterGroup[] = parsed.groups.map((group, index) => {
+        // Extract semanticTags, fall back to suggestedLabel as single-item array
+        const semanticTags = Array.isArray(group.semanticTags)
+          ? group.semanticTags
+          : group.suggestedLabel || group.label
+            ? [group.suggestedLabel || group.label || ""]
+            : undefined;
+
+        // Title priority: explicit title > first semanticTag > suggestedLabel
+        const title = group.title || semanticTags?.[0] || group.suggestedLabel || group.label;
+
+        return {
+          groupId: group.groupId || `group-${index + 1}`,
+          imageIds: group.imageIds || group.image_ids || [],
+          title,
+          suggestedLabel: title, // Keep suggestedLabel in sync for backwards compatibility
+          semanticTags,
+          confidence: typeof group.confidence === "number" ? group.confidence : 0.8,
+        };
+      });
 
       const assignedIds = new Set(groups.flatMap((g) => g.imageIds));
       const unassignedIds = originalImages
@@ -167,7 +188,9 @@ export class AnthropicVisionProvider implements IVisionProvider {
         groups.push({
           groupId: "group-unclustered",
           imageIds: unassignedIds,
+          title: "Uncategorized",
           suggestedLabel: "Uncategorized",
+          semanticTags: ["Uncategorized"],
           confidence: 0.5,
         });
       }
@@ -180,7 +203,9 @@ export class AnthropicVisionProvider implements IVisionProvider {
           {
             groupId: "group-1",
             imageIds: originalImages.map((img) => img.id),
+            title: "All Images",
             suggestedLabel: "All Images",
+            semanticTags: ["All Images"],
             confidence: 0.5,
           },
         ],

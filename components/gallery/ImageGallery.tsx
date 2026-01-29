@@ -134,6 +134,7 @@ export function ImageGallery({ className }: ImageGalleryProps) {
               images: batchImages.map((img) => ({
                 id: img.id,
                 dataUrl: img.thumbnailDataUrl,
+                name: img.originalFilename || "Untitled",
               })),
               marketplace,
               maxGroups: Math.max(2, Math.ceil(10 * (batchImages.length / images.length))),
@@ -161,6 +162,7 @@ export function ImageGallery({ className }: ImageGalleryProps) {
             images: images.map((img) => ({
               id: img.id,
               dataUrl: img.thumbnailDataUrl,
+              name: img.originalFilename || "Untitled",
             })),
             marketplace,
             maxGroups: 10,
@@ -193,8 +195,8 @@ export function ImageGallery({ className }: ImageGalleryProps) {
             .map((id) => images.find((img) => img.id === id))
             .filter((img): img is NonNullable<typeof img> => img !== undefined),
           sharedTags: [],
-          sharedTitle: cluster.suggestedLabel, // Use AI's suggested label if provided
-          semanticLabel: cluster.suggestedLabel, // Store semantic category label
+          sharedTitle: cluster.title || cluster.suggestedLabel, // Use AI title with fallback
+          semanticTags: cluster.semanticTags, // Store semantic category tags array
           isVerified: false,
           createdAt: baseTimestamp + index, // Preserve order with incrementing timestamps
         };

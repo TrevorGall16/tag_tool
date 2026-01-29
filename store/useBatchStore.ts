@@ -31,7 +31,7 @@ export interface LocalGroup {
   folderId?: string; // Which folder this group belongs to (null = Uncategorized)
   isCollapsed?: boolean; // UI state for collapsible view
   createdAt?: number; // Timestamp for stable sorting (optional for backwards compat)
-  semanticLabel?: string; // AI-generated category label (e.g., "Food", "Architecture")
+  semanticTags?: string[]; // AI-generated category tags: [Broad, Specific, Vibe] (e.g., ["Gastronomy", "Dessert", "Sweet"])
 }
 
 export type MarketplaceType = "ETSY" | "ADOBE_STOCK";
