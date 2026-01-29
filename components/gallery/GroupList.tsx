@@ -413,12 +413,7 @@ function CollapsibleGroupCard({
             </h3>
             {/* Semantic Category Badge */}
             {group.semanticLabel && (
-              <span
-                className={cn(
-                  "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium",
-                  "bg-amber-100 text-amber-800 border border-amber-200"
-                )}
-              >
+              <span className="ml-2 px-2.5 py-0.5 rounded-md bg-amber-100 text-amber-800 text-xs font-semibold border border-amber-200 shadow-sm">
                 {group.semanticLabel}
               </span>
             )}

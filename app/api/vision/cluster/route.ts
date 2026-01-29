@@ -7,6 +7,20 @@ const BATCH_SIZE = 20;
 const DEFAULT_MAX_GROUPS = 10;
 const IS_MOCK_MODE = process.env.NEXT_PUBLIC_MOCK_API === "true";
 
+// Semantic labels to cycle through in mock mode
+const MOCK_SEMANTIC_LABELS = [
+  "Architecture",
+  "Food & Drink",
+  "Nature",
+  "Urban Life",
+  "Products",
+  "Portraits",
+  "Abstract Art",
+  "Technology",
+  "Travel",
+  "Lifestyle",
+];
+
 /**
  * Generate mock cluster results for development/testing
  */
@@ -20,10 +34,13 @@ function generateMockClusterResult(images: ClusterImageInput[], maxGroups: numbe
     const endIdx = Math.floor(((i + 1) * images.length) / groupCount);
     const groupImages = images.slice(startIdx, endIdx);
 
+    // Cycle through semantic labels
+    const semanticLabel = MOCK_SEMANTIC_LABELS[i % MOCK_SEMANTIC_LABELS.length];
+
     groups.push({
       groupId: `mock_group_${i + 1}`,
       imageIds: groupImages.map((img) => img.id),
-      suggestedLabel: `Mock Group ${i + 1}`,
+      suggestedLabel: semanticLabel,
       confidence: 0.85 + Math.random() * 0.1,
     });
   }
@@ -63,6 +80,9 @@ function chunkArray<T>(array: T[], size: number): T[][] {
   return chunks;
 }
 
+// Fallback labels when AI doesn't provide one
+const FALLBACK_LABELS = ["General", "Mixed Content", "Assorted", "Various Items", "Collection"];
+
 /**
  * Merge multiple cluster results into a single unified result.
  * Groups from different batches are combined with unique group IDs.
@@ -74,14 +94,30 @@ function mergeClusterResults(results: ClusterResult[]): ClusterResult {
   for (const result of results) {
     for (const group of result.groups) {
       // Ensure unique group IDs by prefixing with index
+      // Also ensure suggestedLabel is always populated
       allGroups.push({
         ...group,
-        groupId: `merged_${groupIndex++}_${group.groupId}`,
+        groupId: `merged_${groupIndex}_${group.groupId}`,
+        suggestedLabel:
+          group.suggestedLabel || FALLBACK_LABELS[groupIndex % FALLBACK_LABELS.length],
       });
+      groupIndex++;
     }
   }
 
   return { groups: allGroups };
+}
+
+/**
+ * Ensure all groups in a result have a suggestedLabel
+ */
+function ensureLabels(result: ClusterResult): ClusterResult {
+  return {
+    groups: result.groups.map((group, index) => ({
+      ...group,
+      suggestedLabel: group.suggestedLabel || FALLBACK_LABELS[index % FALLBACK_LABELS.length],
+    })),
+  };
 }
 
 export async function POST(
@@ -109,7 +145,8 @@ export async function POST(
       clusterResult = generateMockClusterResult(images as ClusterImageInput[], maxGroups);
     } else if (images.length <= BATCH_SIZE) {
       // If images fit in a single batch, process directly
-      clusterResult = await clusterImagesWithVision(images, marketplace, maxGroups);
+      const rawResult = await clusterImagesWithVision(images, marketplace, maxGroups);
+      clusterResult = ensureLabels(rawResult);
     } else {
       // Automatic batching: chunk images and process sequentially
       const batches = chunkArray(images as ClusterImageInput[], BATCH_SIZE);

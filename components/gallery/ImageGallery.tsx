@@ -231,25 +231,30 @@ export function ImageGallery({ className }: ImageGalleryProps) {
         <h2 className="text-xl font-semibold text-slate-900">
           Uploaded Images {images.length > 0 && `(${images.length})`}
         </h2>
-        <button
-          onClick={handleClusterButtonClick}
-          disabled={images.length < 2 || isClustering}
-          className={cn(
-            "inline-flex items-center gap-2",
-            "bg-blue-600 text-white px-4 py-2 rounded-lg font-medium",
-            "hover:bg-blue-700 hover:scale-105",
-            "transition-all duration-200",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2",
-            "disabled:opacity-50 disabled:pointer-events-none disabled:hover:scale-100"
-          )}
-        >
-          {isClustering ? (
-            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-          ) : (
-            <Layers className="h-4 w-4" aria-hidden="true" />
-          )}
-          {isClustering ? "Clustering..." : "Cluster Images"}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleClusterButtonClick}
+            disabled={images.length < 2 || isClustering}
+            className={cn(
+              "inline-flex items-center gap-2",
+              "bg-blue-600 text-white px-4 py-2 rounded-lg font-medium",
+              "hover:bg-blue-700 hover:scale-105",
+              "transition-all duration-200",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2",
+              "disabled:opacity-50 disabled:pointer-events-none disabled:hover:scale-100"
+            )}
+          >
+            {isClustering ? (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <Layers className="h-4 w-4" aria-hidden="true" />
+            )}
+            {isClustering ? "Clustering..." : "Cluster Images"}
+          </button>
+          <span className="text-[10px] text-green-600 font-medium bg-green-50 px-2 py-0.5 rounded-full border border-green-200">
+            Free (No credits)
+          </span>
+        </div>
       </div>
 
       {/* Grid or Empty State */}
