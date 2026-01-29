@@ -242,6 +242,9 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100">
+      {/* Fixed progress bar at top */}
+      <ClusteringProgress />
+
       <Header onNewBatch={handleNewBatchClick} isResetting={isResetting} />
 
       <main className="max-w-6xl mx-auto px-6 py-8">
@@ -521,10 +524,7 @@ export default function DashboardPage() {
 
             {/* All Groups (outside folders view) */}
             {isClustering ? (
-              <>
-                <ClusteringProgress className="mt-6" />
-                <GroupSkeleton className="mt-4" count={3} />
-              </>
+              <GroupSkeleton className="mt-6" count={3} />
             ) : (
               <GroupList
                 className="mt-6"
@@ -553,10 +553,7 @@ export default function DashboardPage() {
 
             {/* Groups in this folder */}
             {isClustering ? (
-              <>
-                <ClusteringProgress className="mt-6" />
-                <GroupSkeleton className="mt-4" count={3} />
-              </>
+              <GroupSkeleton className="mt-6" count={3} />
             ) : (
               <GroupList
                 className="mt-6"

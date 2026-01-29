@@ -20,22 +20,42 @@ export function buildClusteringPrompt(
   marketplace: MarketplaceType,
   maxGroups: number
 ): string {
-  const context =
+  const marketplaceContext =
     marketplace === "ETSY"
-      ? "Group by: product type, color scheme, or style (e.g., all earrings, all blue items)"
-      : "Group by: subject matter, composition, or visual concept (e.g., all portraits, all nature)";
+      ? "Focus on product categories: jewelry, clothing, home decor, art prints, crafts, etc."
+      : "Focus on content categories: portraits, landscapes, architecture, food, lifestyle, business, etc.";
 
-  return `Group these images by visual similarity.
+  return `You are an expert image curator. Group these images STRICTLY by semantic category (what the image depicts).
 
-${context}
+CRITICAL INSTRUCTIONS:
+- IGNORE color palettes, lighting, or visual aesthetics
+- Group images ONLY by their semantic content/subject matter
+- If a batch contains multiple unrelated subjects (e.g., food AND buildings), they MUST be in separate groups
+- Each group should contain images of the SAME subject type
+
+${marketplaceContext}
+
+SEMANTIC CATEGORIES TO CONSIDER:
+- Food & Beverages (meals, ingredients, drinks)
+- People & Portraits (faces, lifestyle, business)
+- Architecture & Buildings (interiors, exteriors, cityscapes)
+- Nature & Landscapes (plants, animals, scenery)
+- Products & Objects (items, tools, accessories)
+- Art & Abstract (illustrations, patterns, designs)
 
 IMAGES:
 ${imageIndex}
 
 RULES:
-1. Aim for ${maxGroups} or fewer groups
-2. Each image in exactly one group
-3. Single-image groups OK for unique items
+1. Create up to ${maxGroups} groups maximum
+2. Each image belongs to exactly ONE group
+3. Single-image groups are acceptable for unique subjects
+4. NEVER mix unrelated subjects in the same group
+
+LABELING:
+- Each group MUST have a 2-3 word descriptive label
+- Labels should describe the semantic category (e.g., "Modern Architecture", "Street Food", "Business Portraits")
+- Do NOT use generic labels like "Group 1" or "Miscellaneous"
 
 RESPOND ONLY with valid JSON:
 {
@@ -43,7 +63,7 @@ RESPOND ONLY with valid JSON:
     {
       "groupId": "group-1",
       "imageIds": ["id1", "id2"],
-      "suggestedLabel": "Brief description",
+      "suggestedLabel": "Category Label",
       "confidence": 0.9
     }
   ]

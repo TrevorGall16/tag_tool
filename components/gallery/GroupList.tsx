@@ -15,16 +15,24 @@ import {
   ChevronRight,
   FolderInput,
   Folder,
+  XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn, copyToClipboard } from "@/lib/utils";
-import { useBatchStore, LocalGroup, LocalImageItem } from "@/store/useBatchStore";
+import { useBatchStore, LocalGroup, LocalImageItem, GroupSortOption } from "@/store/useBatchStore";
 import { TagEditor } from "@/components/editor";
 import { BatchDndContext, DraggableImage, DroppableGroup } from "@/components/dnd";
 import { ImageLightbox } from "./ImageLightbox";
 import { deleteImageData, deleteGroupData } from "@/lib/persistence";
 import { markExplicitClear } from "@/hooks/usePersistence";
+import { Select } from "@/components/ui";
 import type { VisionTagsResponse } from "@/types";
+
+const SORT_OPTIONS = [
+  { value: "date", label: "Sort by Date" },
+  { value: "name", label: "Sort by Name" },
+  { value: "imageCount", label: "Sort by Image Count" },
+];
 
 interface FolderOption {
   id: string;
@@ -52,8 +60,17 @@ export function GroupList({
   onMoveToFolder,
   filterFolderId,
 }: GroupListProps) {
-  const { groups, selectedGroupIds, toggleGroupSelection, removeImageFromGroup, removeGroup } =
-    useBatchStore();
+  const {
+    groups,
+    selectedGroupIds,
+    toggleGroupSelection,
+    removeImageFromGroup,
+    removeGroup,
+    groupSortOption,
+    setGroupSortOption,
+    getSortedGroups,
+    clearAllGroups,
+  } = useBatchStore();
   const [selectedGroup, setSelectedGroup] = useState<LocalGroup | null>(null);
   const [lightboxState, setLightboxState] = useState<LightboxState>({
     image: null,
@@ -61,8 +78,8 @@ export function GroupList({
     imageIndex: -1,
   });
 
-  // Filter groups based on filterFolderId
-  let clusteredGroups = groups.filter((g) => g.id !== "unclustered" && g.images.length > 0);
+  // Get sorted groups and filter based on filterFolderId
+  let clusteredGroups = getSortedGroups();
 
   if (filterFolderId !== undefined) {
     if (filterFolderId === null) {
@@ -159,10 +176,37 @@ export function GroupList({
   return (
     <BatchDndContext>
       <div className={cn("space-y-4", className)}>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-4">
           <h2 className="text-xl font-semibold text-slate-900">
             Image Groups ({clusteredGroups.length})
           </h2>
+          <div className="flex items-center gap-2">
+            <Select
+              options={SORT_OPTIONS}
+              value={groupSortOption}
+              onChange={(value) => setGroupSortOption(value as GroupSortOption)}
+              className="min-w-[160px]"
+            />
+            {clusteredGroups.length > 0 && (
+              <button
+                onClick={() => {
+                  if (confirm("Clear all groups? This cannot be undone.")) {
+                    clearAllGroups();
+                    toast.success("All groups cleared");
+                  }
+                }}
+                className={cn(
+                  "inline-flex items-center gap-1.5 px-3 py-2 text-sm",
+                  "text-red-600 hover:text-red-700 hover:bg-red-50",
+                  "border border-red-200 rounded-lg transition-colors"
+                )}
+                title="Clear all groups"
+              >
+                <XCircle className="h-4 w-4" />
+                Clear All
+              </button>
+            )}
+          </div>
         </div>
 
         {clusteredGroups.map((group) => (
@@ -363,9 +407,22 @@ function CollapsibleGroupCard({
 
         {/* Title & Info */}
         <div className="flex-1 min-w-0">
-          <h3 className="font-medium text-slate-900 truncate">
-            {group.sharedTitle || `Group ${group.groupNumber}`}
-          </h3>
+          <div className="flex items-center gap-2">
+            <h3 className="font-medium text-slate-900 truncate">
+              {group.sharedTitle || `Group ${group.groupNumber}`}
+            </h3>
+            {/* Semantic Category Badge */}
+            {group.semanticLabel && (
+              <span
+                className={cn(
+                  "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium",
+                  "bg-amber-100 text-amber-800 border border-amber-200"
+                )}
+              >
+                {group.semanticLabel}
+              </span>
+            )}
+          </div>
           <div className="flex items-center gap-2 text-sm text-slate-500">
             <span>{group.images.length} images</span>
             {isTagged && (

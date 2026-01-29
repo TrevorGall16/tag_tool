@@ -14,7 +14,8 @@
       "Bash(npx tsc --noEmit)",
       "Bash(pnpm type-check:*)",
       "Bash(xargs:*)",
-      "Bash(pnpm tsc:*)"
+      "Bash(pnpm tsc:*)",
+      "Bash(npx shadcn@latest add:*)"
     ]
   }
 }

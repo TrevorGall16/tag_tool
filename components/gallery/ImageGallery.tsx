@@ -1,10 +1,21 @@
 "use client";
 
+import { useState } from "react";
 import { Layers, ImageIcon, Loader2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useBatchStore, LocalGroup } from "@/store/useBatchStore";
 import { deleteImageData } from "@/lib/persistence";
 import { markExplicitClear } from "@/hooks/usePersistence";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@/components/ui";
 import type { VisionClusterResponse } from "@/types";
 
 export interface ImageGalleryProps {
@@ -17,11 +28,18 @@ export function ImageGallery({ className }: ImageGalleryProps) {
     marketplace,
     isClustering,
     error,
-    setGroups,
+    appendGroups,
+    clearAllGroups,
     setProcessingState,
     setError,
     removeImageFromGroup,
+    setClusteringProgress,
   } = useBatchStore();
+
+  const [showClusterDialog, setShowClusterDialog] = useState(false);
+  const [clusterMode, setClusterMode] = useState<"append" | "clear" | null>(null);
+
+  const BATCH_SIZE = 20;
 
   const unclusteredGroup = groups.find((g) => g.id === "unclustered");
   const images = unclusteredGroup?.images ?? [];
@@ -39,43 +57,133 @@ export function ImageGallery({ className }: ImageGalleryProps) {
     }
   };
 
-  const handleClusterClick = async () => {
+  // Check if there are existing clustered groups
+  const existingGroups = groups.filter((g) => g.id !== "unclustered" && g.images.length > 0);
+  const hasExistingGroups = existingGroups.length > 0;
+
+  const handleClusterButtonClick = () => {
     if (images.length < 2) {
       setError("At least 2 images are required for clustering");
       return;
     }
 
+    // If there are existing groups, show the dialog
+    if (hasExistingGroups) {
+      setShowClusterDialog(true);
+      return;
+    }
+
+    // No existing groups, proceed directly
+    performClustering("append");
+  };
+
+  const handleDialogChoice = (mode: "append" | "clear") => {
+    setShowClusterDialog(false);
+    performClustering(mode);
+  };
+
+  const performClustering = async (mode: "append" | "clear") => {
+    if (images.length < 2) {
+      setError("At least 2 images are required for clustering");
+      return;
+    }
+
+    // If clearing, do it before clustering
+    if (mode === "clear") {
+      clearAllGroups();
+    }
+
     setError(null);
     setProcessingState({ isClustering: true });
 
-    try {
-      const response = await fetch("/api/vision/cluster", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          images: images.map((img) => ({
-            id: img.id,
-            dataUrl: img.thumbnailDataUrl,
-          })),
-          marketplace,
-          maxGroups: 10,
-        }),
+    // Calculate batches for progress tracking
+    const totalBatches = Math.ceil(images.length / BATCH_SIZE);
+    const needsBatching = images.length > BATCH_SIZE;
+
+    if (needsBatching) {
+      setClusteringProgress({
+        currentBatch: 0,
+        totalBatches,
+        totalImages: images.length,
       });
+    }
 
-      const result = (await response.json()) as {
-        success: boolean;
-        data?: VisionClusterResponse;
-        error?: string;
-      };
+    try {
+      const allGroups: VisionClusterResponse["groups"] = [];
 
-      if (!result.success || !result.data) {
-        throw new Error(result.error || "Clustering failed");
+      if (needsBatching) {
+        // Client-side batching for progress tracking
+        for (let i = 0; i < totalBatches; i++) {
+          const start = i * BATCH_SIZE;
+          const batchImages = images.slice(start, start + BATCH_SIZE);
+
+          setClusteringProgress({
+            currentBatch: i + 1,
+            totalBatches,
+            totalImages: images.length,
+          });
+
+          console.log(
+            `[Clustering] Processing batch ${i + 1}/${totalBatches} (${batchImages.length} images)`
+          );
+
+          const response = await fetch("/api/vision/cluster", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              images: batchImages.map((img) => ({
+                id: img.id,
+                dataUrl: img.thumbnailDataUrl,
+              })),
+              marketplace,
+              maxGroups: Math.max(2, Math.ceil(10 * (batchImages.length / images.length))),
+            }),
+          });
+
+          const result = (await response.json()) as {
+            success: boolean;
+            data?: VisionClusterResponse;
+            error?: string;
+          };
+
+          if (!result.success || !result.data) {
+            throw new Error(result.error || `Clustering failed for batch ${i + 1}`);
+          }
+
+          allGroups.push(...result.data.groups);
+        }
+      } else {
+        // Single batch - no progress needed
+        const response = await fetch("/api/vision/cluster", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            images: images.map((img) => ({
+              id: img.id,
+              dataUrl: img.thumbnailDataUrl,
+            })),
+            marketplace,
+            maxGroups: 10,
+          }),
+        });
+
+        const result = (await response.json()) as {
+          success: boolean;
+          data?: VisionClusterResponse;
+          error?: string;
+        };
+
+        if (!result.success || !result.data) {
+          throw new Error(result.error || "Clustering failed");
+        }
+
+        allGroups.push(...result.data.groups);
       }
 
       // Transform API response into LocalGroup[] format
       // CRITICAL: Always generate UUID for group IDs to ensure uniqueness
       const baseTimestamp = Date.now();
-      const newGroups: LocalGroup[] = result.data.groups.map((cluster, index) => {
+      const newGroups: LocalGroup[] = allGroups.map((cluster, index) => {
         const groupId = crypto.randomUUID(); // Always use UUID, ignore API's groupId
         console.log(`[Clustering] Created group ${groupId} with ${cluster.imageIds.length} images`);
         return {
@@ -86,18 +194,20 @@ export function ImageGallery({ className }: ImageGalleryProps) {
             .filter((img): img is NonNullable<typeof img> => img !== undefined),
           sharedTags: [],
           sharedTitle: cluster.suggestedLabel, // Use AI's suggested label if provided
+          semanticLabel: cluster.suggestedLabel, // Store semantic category label
           isVerified: false,
           createdAt: baseTimestamp + index, // Preserve order with incrementing timestamps
         };
       });
 
       console.log(`[Clustering] Created ${newGroups.length} groups with UUIDs`);
-      setGroups(newGroups);
+      appendGroups(newGroups);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Clustering failed";
       setError(message);
     } finally {
       setProcessingState({ isClustering: false });
+      setClusteringProgress(null);
     }
   };
 
@@ -122,7 +232,7 @@ export function ImageGallery({ className }: ImageGalleryProps) {
           Uploaded Images {images.length > 0 && `(${images.length})`}
         </h2>
         <button
-          onClick={handleClusterClick}
+          onClick={handleClusterButtonClick}
           disabled={images.length < 2 || isClustering}
           className={cn(
             "inline-flex items-center gap-2",
@@ -191,6 +301,32 @@ export function ImageGallery({ className }: ImageGalleryProps) {
           <p className="text-sm text-slate-500">Drop images in the dropzone above to get started</p>
         </div>
       )}
+
+      {/* Clustering Dialog */}
+      <AlertDialog open={showClusterDialog} onOpenChange={setShowClusterDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Existing Groups Found</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have {existingGroups.length} existing group
+              {existingGroups.length !== 1 ? "s" : ""} with{" "}
+              {existingGroups.reduce((sum, g) => sum + g.images.length, 0)} images. Do you want to
+              keep your current groups or start fresh?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowClusterDialog(false)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction variant="outline" onClick={() => handleDialogChoice("append")}>
+              Keep & Add New
+            </AlertDialogAction>
+            <AlertDialogAction variant="destructive" onClick={() => handleDialogChoice("clear")}>
+              Clear & Restart
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -31,10 +31,12 @@ export interface LocalGroup {
   folderId?: string; // Which folder this group belongs to (null = Uncategorized)
   isCollapsed?: boolean; // UI state for collapsible view
   createdAt?: number; // Timestamp for stable sorting (optional for backwards compat)
+  semanticLabel?: string; // AI-generated category label (e.g., "Food", "Architecture")
 }
 
 export type MarketplaceType = "ETSY" | "ADOBE_STOCK";
 export type StrategyType = "standard" | "etsy" | "stock";
+export type GroupSortOption = "date" | "name" | "imageCount";
 
 interface BatchState {
   // Session state
@@ -68,6 +70,9 @@ interface BatchState {
 
   // Export settings
   exportSettings: ExportSettings;
+
+  // UI preferences
+  groupSortOption: GroupSortOption;
 
   // Actions
   initSession: () => void;
@@ -121,6 +126,10 @@ interface BatchState {
   setClusteringProgress: (
     progress: { currentBatch: number; totalBatches: number; totalImages: number } | null
   ) => void;
+  setGroupSortOption: (option: GroupSortOption) => void;
+  getSortedGroups: () => LocalGroup[];
+  appendGroups: (newGroups: LocalGroup[]) => void;
+  clearAllGroups: () => void;
 }
 
 export const useBatchStore = create<BatchState>()(
@@ -142,6 +151,7 @@ export const useBatchStore = create<BatchState>()(
         clusteringProgress: null,
         error: null,
         exportSettings: DEFAULT_EXPORT_SETTINGS,
+        groupSortOption: "date",
 
         // Actions
         initSession: () => {
@@ -521,6 +531,69 @@ export const useBatchStore = create<BatchState>()(
         setClusteringProgress: (progress) => {
           set({ clusteringProgress: progress });
         },
+
+        setGroupSortOption: (option) => {
+          set({ groupSortOption: option });
+        },
+
+        getSortedGroups: () => {
+          const state = get();
+          const clusteredGroups = state.groups.filter(
+            (g) => g.id !== "unclustered" && g.images.length > 0
+          );
+
+          switch (state.groupSortOption) {
+            case "name":
+              return [...clusteredGroups].sort((a, b) => {
+                const nameA = a.sharedTitle || `Group ${a.groupNumber}`;
+                const nameB = b.sharedTitle || `Group ${b.groupNumber}`;
+                return nameA.localeCompare(nameB);
+              });
+            case "imageCount":
+              return [...clusteredGroups].sort((a, b) => b.images.length - a.images.length);
+            case "date":
+            default:
+              return [...clusteredGroups].sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+          }
+        },
+
+        appendGroups: (newGroups) => {
+          set((state) => {
+            // Get current max group number
+            const maxGroupNumber = state.groups.reduce(
+              (max, g) => (g.groupNumber > max ? g.groupNumber : max),
+              0
+            );
+
+            // Assign new group numbers and ensure createdAt
+            const groupsWithNumbers = newGroups.map((group, index) => ({
+              ...group,
+              groupNumber: maxGroupNumber + index + 1,
+              createdAt: group.createdAt || Date.now() + index,
+            }));
+
+            // Keep existing groups (except unclustered), add new groups
+            const existingGroups = state.groups.filter((g) => g.id !== "unclustered");
+            const allGroups = [...existingGroups, ...groupsWithNumbers];
+
+            // Sort by createdAt
+            const sortedGroups = allGroups.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+
+            console.log(
+              `[Store] Appended ${newGroups.length} groups. Total: ${sortedGroups.length}`
+            );
+
+            return { groups: sortedGroups };
+          });
+        },
+
+        clearAllGroups: () => {
+          console.log("[Store] Clearing all groups");
+          set((state) => ({
+            groups: state.groups.filter((g) => g.id === "unclustered"),
+            selectedGroupIds: new Set(),
+          }));
+        },
       }),
       {
         name: "tagarchitect-batch-storage",
@@ -532,6 +605,7 @@ export const useBatchStore = create<BatchState>()(
           maxTags: state.maxTags,
           currentGroupIndex: state.currentGroupIndex,
           exportSettings: state.exportSettings,
+          groupSortOption: state.groupSortOption,
         }),
       }
     ),

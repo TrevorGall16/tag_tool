@@ -23,8 +23,10 @@ export function ClusteringProgress({ className }: ClusteringProgressProps) {
   return (
     <div
       className={cn(
-        "rounded-xl border border-blue-200 bg-blue-50/50 p-6",
-        "animate-in fade-in duration-300",
+        "fixed top-0 left-0 right-0 z-[9999]",
+        "bg-blue-50 border-b border-blue-200 shadow-lg",
+        "p-4 md:p-6",
+        "animate-in slide-in-from-top duration-300",
         className
       )}
     >
