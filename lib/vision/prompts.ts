@@ -15,96 +15,48 @@ export function getStrategyPersona(strategy: StrategyType): string {
   return STRATEGY_PERSONAS[strategy] || "";
 }
 
-// Context-specific instructions for clustering
-const CONTEXT_INSTRUCTIONS: Record<string, string> = {
-  general: "Use standard industry categories suitable for any purpose.",
-  stock:
-    "Use professional stock photography categories. Focus on commercial licensing terms like 'Business', 'Lifestyle', 'Technology', 'Nature'.",
-  ecommerce:
-    "Use e-commerce product categories. Focus on product types like 'Apparel', 'Home & Garden', 'Electronics', 'Beauty'.",
-};
+// Approved category list - these are the ONLY titles the AI should use
+export const APPROVED_CATEGORIES = [
+  "Gastronomy",
+  "Architecture",
+  "Interiors",
+  "Fashion",
+  "Nature",
+  "People",
+  "Technology",
+  "Transportation",
+  "Art & Design",
+  "Objects",
+] as const;
+
+export type ApprovedCategory = (typeof APPROVED_CATEGORIES)[number];
 
 export function buildClusteringPrompt(
   imageIndex: string,
-  marketplace: MarketplaceType,
+  _marketplace: MarketplaceType,
   maxGroups: number,
-  context?: string
+  _context?: string
 ): string {
-  const marketplaceContext =
-    marketplace === "ETSY"
-      ? "CONTEXT: You are organizing a boutique shop. Buyers search for specific items like 'Ceramic Mug', 'Linen Dress', or 'Nursery Art'."
-      : "CONTEXT: You are organizing a professional stock portfolio. Buyers search for concrete subjects like 'Business Meeting', 'Fresh Pasta', or 'Modern Architecture'.";
+  return `You are an Image Classifier. Sort images into SHARED categories to minimize groups.
 
-  const contextInstruction = context
-    ? `\nCATEGORIZATION STYLE: ${CONTEXT_INSTRUCTIONS[context] || CONTEXT_INSTRUCTIONS.general}`
-    : "";
+CLASSIFICATION MENU (Pick ONE for each group):
+- Gastronomy (Food, drink, dining, meals, desserts)
+- Architecture (Buildings, cities, exteriors, urban)
+- Interiors (Rooms, furniture, decor, homes)
+- Nature (Plants, landscapes, animals, wildlife)
+- People (Portraits, fashion, lifestyle, business)
+- Objects (Tech, products, devices, miscellaneous)
 
-  return `You are a Senior Digital Archivist organizing images by BROAD INDUSTRY CATEGORY.
-Your goal is to create the FEWEST groups possible while keeping unrelated subjects separate.
+CRITICAL RULES:
+1. **REUSE CATEGORIES:** If Image 1 is Salad and Image 2 is Beer, BOTH go in ONE group titled "Gastronomy".
+2. **FORBIDDEN WORDS:** NEVER use "Group", "Batch", "Set", "Untitled", or numbers as titles.
+3. **MINIMIZE GROUPS:** Create the FEWEST groups possible. Maximum ${maxGroups} groups.
 
-${marketplaceContext}${contextInstruction}
-
-### ABSOLUTELY FORBIDDEN LABELS (NEVER USE THESE):
-- "Objects", "Items", "Things", "Stuff", "Elements", "Entities"
-- "Products", "Goods", "Merchandise", "Assets"
-- "General", "Mixed", "Miscellaneous", "Various", "Random", "Assorted"
-- "Stock Image", "Photo", "Picture", "Content", "Media"
-- "Collection", "Set", "Group", "Batch"
-
-### CRITICAL RULE #1: MINIMIZE GROUP COUNT
-**Create the FEWEST groups possible. Merge aggressively within industries.**
-- If you see Salad, Burger, Cake, Coffee, and Wine → Put them ALL in ONE group called "Gastronomy"
-- If you see Office, Living Room, Kitchen → Put them ALL in ONE group called "Interiors"
-- If you see Portrait, Team Photo, Family → Put them ALL in ONE group called "People"
-- Do NOT create sub-categories like "Desserts", "Beverages", "Breakfast" - use the BROAD industry term.
-
-### CRITICAL RULE #2: ONLY SPLIT FOR DIFFERENT INDUSTRIES
-**Only create separate groups when subjects are from DIFFERENT industries.**
-- Food + Buildings = 2 groups (different industries)
-- Salad + Cake + Coffee = 1 group "Gastronomy" (same industry: Food & Drink)
-- Portrait + Team Photo = 1 group "People" (same industry: Human subjects)
-- Office + Home = 1 group "Interiors" (same industry: Interior spaces)
-
-### CRITICAL RULE #3: IGNORE CONTEXT AND STYLE
-**Group by WHAT the subject IS, not WHERE it appears or HOW it looks.**
-- A cocktail at a party = "Gastronomy" (not "Party" or "Nightlife")
-- A person at a restaurant = "People" (not "Gastronomy")
-- Modern office + Vintage office = "Interiors" (same group despite different styles)
-
-### BROAD INDUSTRY CATEGORIES (Use ONLY these top-level terms):
-- **Gastronomy** = ALL food and drink (meals, desserts, beverages, ingredients)
-- **Architecture** = ALL buildings and structures (exteriors, facades, skylines)
-- **Interiors** = ALL indoor spaces (homes, offices, restaurants, rooms)
-- **People** = ALL human subjects (portraits, groups, business, lifestyle)
-- **Nature** = ALL outdoor natural scenes (landscapes, wildlife, plants, water)
-- **Products** = ALL consumer goods (fashion, electronics, furniture, accessories)
-- **Transportation** = ALL vehicles (cars, planes, boats)
-
-### INSTRUCTIONS:
-- Sort images into MAXIMUM ${maxGroups} groups, but prefer FEWER.
-- Use BROAD industry terms as titles (e.g., "Gastronomy" not "Desserts").
-- Each group must have:
-  - **title:** The BROAD industry category (1-2 words, Capitalized)
-  - **semanticTags:** Array starting with the broad category, then optional specifics
-- Every image must be in exactly one group.
-- When in doubt, MERGE into the broader category.
-
-IMAGES TO ORGANIZE:
+IMAGES:
 ${imageIndex}
 
-### OUTPUT FORMAT:
-Respond ONLY with valid JSON. Do not include markdown formatting.
-{
-  "groups": [
-    {
-      "groupId": "group-1",
-      "imageIds": ["id1", "id2"],
-      "title": "Gastronomy",
-      "semanticTags": ["Food", "Dessert", "Sweet"],
-      "confidence": 0.9
-    }
-  ]
-}`;
+Return ONLY valid JSON (no markdown, no code blocks, no explanation):
+{"groups":[{"groupId":"group-1","imageIds":["id1","id2"],"title":"Gastronomy","semanticTags":["Gastronomy","Salad","Beer"],"confidence":0.9}]}`;
 }
 
 export interface TagPromptOptions {

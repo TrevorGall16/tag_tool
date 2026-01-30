@@ -87,160 +87,98 @@ function chunkArray<T>(array: T[], size: number): T[][] {
   return chunks;
 }
 
-// Exact-match banned labels (only ban if the ENTIRE label matches these)
-const EXACT_MATCH_BANNED = [
-  // Ultra-generic nouns (exact match only to avoid banning "Beauty Products")
+// Approved categories from the prompt - if AI returns one of these, it's valid
+const APPROVED_CATEGORIES = [
+  "gastronomy",
+  "architecture",
+  "interiors",
+  "fashion",
+  "nature",
+  "people",
+  "technology",
+  "transportation",
+  "art & design",
   "objects",
-  "object",
-  "items",
-  "item",
-  "things",
-  "thing",
-  "entities",
-  "entity",
-  "elements",
-  "element",
-  "stuff",
-  "products",
-  "product",
-  "goods",
-  "merchandise",
-  // Vague categories
-  "general",
-  "mixed",
-  "miscellaneous",
-  "random",
-  "assorted",
-  "various",
-  "other",
-  "collection",
-  "uncategorized",
-  "undefined",
-  "unknown",
-  "group",
-  "set",
-  "batch",
 ];
 
-// Fuzzy-match banned labels (ban if label contains these anywhere)
-const FUZZY_MATCH_BANNED = [
-  // Medium descriptors (always ban these as they describe the medium, not content)
+// Minimal ban list - only ban truly useless labels
+// We're more permissive now because we're forcing the AI to use approved categories
+const BANNED_LABELS = [
+  // Only ban medium descriptors that describe the file, not content
   "stock image",
   "stock photo",
-  "stock photography",
-  "creative assets",
-  "visual content",
-  "photography",
-  "photograph",
-  "picture",
-  "image",
-  "media",
-  "photo",
-  "asset",
-  "content",
-  // Multi-word vague labels
-  "mixed content",
-  "various items",
-  "product shot",
-  "product shots",
-  "lifestyle shot",
+  "untitled",
+  "unnamed",
+  "no title",
 ];
 
 /**
- * Check if a label is banned (too vague or meta)
- * Uses exact match for generic nouns, fuzzy match for medium descriptors
+ * SIMPLIFIED: Check if a title is valid (trust the AI!)
+ * Only reject obvious placeholders. Accept everything else.
  */
-function isBannedLabel(label: string | undefined): boolean {
-  if (!label) return true;
-  const normalized = label.toLowerCase().trim();
+function isValidTitle(title: string | undefined): boolean {
+  if (!title || title.trim().length < 2) return false;
 
-  // Check exact match for generic nouns (e.g., "Products" banned, but "Beauty Products" OK)
-  if (EXACT_MATCH_BANNED.includes(normalized)) return true;
+  const lower = title.toLowerCase().trim();
 
-  // Check fuzzy match for medium descriptors (e.g., "Stock Image" banned anywhere)
-  for (const banned of FUZZY_MATCH_BANNED) {
-    if (normalized.includes(banned)) {
-      return true;
-    }
-  }
+  // Only ban obvious placeholder patterns
+  if (lower === "untitled" || lower.includes("untitled group")) return false;
+  if (lower.startsWith("group ") && /^group \d+$/.test(lower)) return false;
+  if (lower.startsWith("batch ")) return false;
+  if (lower === "unnamed" || lower === "unknown") return false;
 
-  return false;
-}
-
-/**
- * Check if a title is a valid AI-generated category (not a fallback)
- */
-function isValidAICategory(title: string | undefined): boolean {
-  if (!title) return false;
-  const lower = title.toLowerCase();
-  // Reject fallback patterns
-  if (lower.includes("group") || lower.includes("untitled") || lower.includes("unlabeled")) {
-    return false;
-  }
-  // Reject if it looks like a numbered fallback (e.g., "Something 01", "Test 12")
-  if (/\s\d{1,2}$/.test(title)) {
-    return false;
-  }
+  // TRUST THE AI - accept everything else!
   return true;
 }
 
 /**
- * Format group title with optional prefix - SINGLE POINT OF PREFIX APPLICATION
- * Ensures prefix appears exactly once in the final title.
+ * SIMPLIFIED: Get the title from AI response
+ * Trust the AI's output - minimal filtering
  */
-function formatTitle(
-  baseTitle: string | undefined,
+function getAITitle(
+  title: string | undefined,
+  semanticTags: string[] | undefined,
+  index: number
+): string {
+  // Priority 1: AI-provided title (TRUST IT)
+  if (isValidTitle(title)) {
+    return title!;
+  }
+
+  // Priority 2: First semantic tag (TRUST IT)
+  if (semanticTags && semanticTags.length > 0 && isValidTitle(semanticTags[0])) {
+    return semanticTags[0]!;
+  }
+
+  // Priority 3: Last resort fallback
+  return `Group ${index + 1}`;
+}
+
+/**
+ * Format final title with optional prefix
+ */
+function formatFinalTitle(
+  aiTitle: string,
   settings: ClusterSettings | undefined,
   index: number
 ): string {
   const prefix = settings?.prefix?.trim();
   const startNum = (settings?.startNumber || 1) + index;
-  const numStr = startNum.toString().padStart(2, "0");
 
-  // CASE 1: No prefix - just return title or "Group 01"
+  // No prefix - just return the AI title
   if (!prefix) {
-    return isValidAICategory(baseTitle) ? baseTitle! : `Group ${numStr}`;
+    return aiTitle;
   }
 
-  // CASE 2: Has prefix + valid AI category -> "Prefix - Category"
-  if (isValidAICategory(baseTitle)) {
-    return `${prefix} - ${baseTitle}`;
+  // Has prefix - check if title is a fallback or real category
+  const isFallback = aiTitle.startsWith("Group ");
+  if (isFallback) {
+    // Fallback: "Prefix 01"
+    return `${prefix} ${String(startNum).padStart(2, "0")}`;
   }
 
-  // CASE 3: Has prefix but no valid AI title -> "Prefix 01"
-  return `${prefix} ${numStr}`;
-}
-
-/**
- * Get the raw category from AI response (title or first semantic tag)
- * Does NOT apply prefix - that's done by formatTitle at the end
- */
-function getRawCategory(
-  title: string | undefined,
-  semanticTags: string[] | undefined
-): string | undefined {
-  // Priority 1: AI-provided title (if valid)
-  if (title && !isBannedLabel(title) && isValidAICategory(title)) {
-    return title;
-  }
-
-  // Priority 2: First valid semantic tag
-  if (semanticTags && semanticTags.length > 0) {
-    const firstValidTag = semanticTags.find((tag) => !isBannedLabel(tag) && isValidAICategory(tag));
-    if (firstValidTag) return firstValidTag;
-  }
-
-  // No valid category found
-  return undefined;
-}
-
-/**
- * REPLACEMENT: Sanitize Tags
- * Just removes banned ones. Returns empty array if none valid.
- */
-function sanitizeSemanticTags(tags: string[] | undefined): string[] {
-  if (!tags || tags.length === 0) return [];
-  return tags.filter((tag) => !isBannedLabel(tag));
+  // Real category: "Prefix - Category"
+  return `${prefix} - ${aiTitle}`;
 }
 
 /**
@@ -259,20 +197,36 @@ function normalizeLabel(label: string): string {
 }
 
 /**
+ * Check if a label is a generic placeholder that should NOT be used for merging
+ */
+function isGenericLabel(label: string): boolean {
+  const lower = label.toLowerCase().trim();
+  // Reject "Group 1", "Batch 2", "Set 3", etc.
+  if (/^(group|batch|set|untitled|unnamed)\s*\d*$/i.test(lower)) return true;
+  if (lower.includes("unlabeled") || lower.includes("uncategorized")) return true;
+  if (lower.length < 2) return true;
+  return false;
+}
+
+/**
  * Merge groups with duplicate or similar labels (based on first semantic tag)
+ * Uses CASE-INSENSITIVE comparison for merging
  */
 function mergeDuplicateGroups(result: ClusterResult): ClusterResult {
   const labelMap = new Map<string, ImageClusterGroup>();
 
   for (const group of result.groups) {
-    // Use first semantic tag for grouping, fall back to suggestedLabel
-    const primaryTag = group.semanticTags?.[0] || group.suggestedLabel || "";
+    // Use first semantic tag for grouping, fall back to title, then suggestedLabel
+    const primaryTag = group.semanticTags?.[0] || group.title || group.suggestedLabel || "";
     const normalizedLabel = normalizeLabel(primaryTag);
 
-    // If the label is extremely generic (like "Unlabeled Batch"), do NOT merge based on it.
-    // We want to keep unbranded groups separate so the user can fix them.
-    if (normalizedLabel.includes("unlabeled") || normalizedLabel.length < 2) {
-      // Just push it with a unique key so it doesn't merge
+    console.log(
+      `[Cluster API] Merge check: primaryTag="${primaryTag}", normalized="${normalizedLabel}", isGeneric=${isGenericLabel(primaryTag)}`
+    );
+
+    // If the label is generic (like "Group 1"), do NOT merge based on it.
+    // Give it a unique key so it stays separate for user to fix.
+    if (isGenericLabel(primaryTag)) {
       labelMap.set(`unique_${Math.random()}`, group);
       continue;
     }
@@ -283,6 +237,9 @@ function mergeDuplicateGroups(result: ClusterResult): ClusterResult {
       existing.imageIds = [...existing.imageIds, ...group.imageIds];
       // Keep higher confidence
       existing.confidence = Math.max(existing.confidence, group.confidence);
+      console.log(
+        `[Cluster API] Merged "${primaryTag}" into existing group (now ${existing.imageIds.length} images)`
+      );
     } else {
       // Add new group (clone to avoid mutation)
       labelMap.set(normalizedLabel, {
@@ -316,18 +273,21 @@ function mergeClusterResults(results: ClusterResult[], settings?: ClusterSetting
 
   for (const result of results) {
     for (const group of result.groups) {
-      const sanitizedTags = sanitizeSemanticTags(group.semanticTags);
-      // Get raw AI category (no prefix applied yet)
-      const rawCategory = getRawCategory(group.title || group.suggestedLabel, sanitizedTags);
-      // Apply prefix exactly once via formatTitle
-      const finalTitle = formatTitle(rawCategory, settings, groupIndex);
+      // TRUST THE AI: Get title directly from AI response
+      const aiTitle = getAITitle(group.title, group.semanticTags, groupIndex);
+      // Apply prefix exactly once
+      const finalTitle = formatFinalTitle(aiTitle, settings, groupIndex);
+
+      console.log(
+        `[Cluster API] Merge group ${groupIndex}: AI raw="${group.title}", semanticTags=${JSON.stringify(group.semanticTags)}, aiTitle="${aiTitle}", final="${finalTitle}"`
+      );
 
       allGroups.push({
         ...group,
         groupId: `merged_${groupIndex}_${group.groupId}`,
         title: finalTitle,
         suggestedLabel: finalTitle,
-        semanticTags: sanitizedTags,
+        semanticTags: group.semanticTags,
       });
       groupIndex++;
     }
@@ -338,21 +298,34 @@ function mergeClusterResults(results: ClusterResult[], settings?: ClusterSetting
 
 /**
  * Ensure all groups in a result have valid labels (non-vague)
+ * SIMPLIFIED: Trust the AI output, minimal filtering
  */
 function ensureLabels(result: ClusterResult, settings?: ClusterSettings): ClusterResult {
   return {
     groups: result.groups.map((group, index) => {
-      const sanitizedTags = sanitizeSemanticTags(group.semanticTags);
-      // Get raw AI category (no prefix applied yet)
-      const rawCategory = getRawCategory(group.title || group.suggestedLabel, sanitizedTags);
-      // Apply prefix exactly once via formatTitle
-      const finalTitle = formatTitle(rawCategory, settings, index);
+      // DEBUG: Log raw AI output (TRUTH LOG)
+      console.log(
+        `[Cluster API] TRUTH: Group ${index} raw AI response:`,
+        JSON.stringify({
+          title: group.title,
+          suggestedLabel: group.suggestedLabel,
+          semanticTags: group.semanticTags,
+        })
+      );
+
+      // TRUST THE AI: Get title directly from AI response
+      const aiTitle = getAITitle(group.title, group.semanticTags, index);
+
+      // Apply prefix exactly once
+      const finalTitle = formatFinalTitle(aiTitle, settings, index);
+
+      console.log(`[Cluster API] Group ${index}: aiTitle="${aiTitle}", finalTitle="${finalTitle}"`);
 
       return {
         ...group,
         title: finalTitle,
         suggestedLabel: finalTitle,
-        semanticTags: sanitizedTags,
+        semanticTags: group.semanticTags,
       };
     }),
   };

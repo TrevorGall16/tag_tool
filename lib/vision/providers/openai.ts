@@ -18,17 +18,27 @@ export interface OpenAIProviderConfig {
 // 2. HELPER FUNCTIONS (Optimized & Self-Contained)
 // ==============================================================
 
-// This was the missing piece causing the red line!
 function extractJsonFromResponse(text: string): any {
   try {
-    const firstBrace = text.indexOf("{");
-    const lastBrace = text.lastIndexOf("}");
-    if (firstBrace >= 0 && lastBrace >= 0) {
-      return JSON.parse(text.substring(firstBrace, lastBrace + 1));
+    // 1. Remove markdown code blocks (```json ... ``` or ``` ... ```)
+    let clean = text
+      .replace(/```json\s*/gi, "")
+      .replace(/```\s*/g, "")
+      .trim();
+
+    // 2. Find the first '{' and last '}' to handle intro/outro text
+    const first = clean.indexOf("{");
+    const last = clean.lastIndexOf("}");
+
+    if (first === -1 || last === -1) {
+      console.error("[OpenAI extractJsonFromResponse] No JSON object found. Raw text:", text);
+      return { groups: [] };
     }
-    return JSON.parse(text);
+
+    return JSON.parse(clean.substring(first, last + 1));
   } catch (e) {
-    return {};
+    console.error("[OpenAI extractJsonFromResponse] JSON Parse Failed. Raw text:", text, e);
+    return { groups: [] };
   }
 }
 
@@ -118,7 +128,103 @@ export class OpenAIVisionProvider implements IVisionProvider {
     })) as any;
 
     const text = response.choices[0].message.content || "{}";
-    return extractJsonFromResponse(text);
+
+    // DEBUG: Log raw AI response before parsing
+    console.log("[OpenAI Cluster] RAW TEXT:", text);
+
+    return this.parseClusterResponse(text, images);
+  }
+
+  private parseClusterResponse(
+    responseText: string,
+    originalImages: ClusterImageInput[]
+  ): ClusterResult {
+    try {
+      const parsed = extractJsonFromResponse(responseText) as {
+        groups?: Array<{
+          groupId?: string;
+          imageIds?: string[];
+          image_ids?: string[];
+          title?: string;
+          name?: string; // AI sometimes returns 'name' instead of 'title'
+          category?: string;
+          suggestedLabel?: string;
+          semanticTags?: string[];
+          label?: string;
+          confidence?: number;
+        }>;
+      };
+
+      if (!parsed.groups || !Array.isArray(parsed.groups)) {
+        console.error("[OpenAI] No groups array in response:", parsed);
+        return {
+          groups: [
+            {
+              groupId: "group-1",
+              imageIds: originalImages.map((img) => img.id),
+              title: "All Images",
+              suggestedLabel: "All Images",
+              semanticTags: ["All Images"],
+              confidence: 0.5,
+            },
+          ],
+        };
+      }
+
+      const groups = parsed.groups.map((group, index) => {
+        // Title priority: title > name > category > label
+        const title =
+          group.title || group.name || group.category || group.label || `Group ${index + 1}`;
+
+        const semanticTags = Array.isArray(group.semanticTags)
+          ? group.semanticTags
+          : title
+            ? [title]
+            : undefined;
+
+        return {
+          groupId: group.groupId || `group-${index + 1}`,
+          imageIds: group.imageIds || group.image_ids || [],
+          title,
+          suggestedLabel: title,
+          semanticTags,
+          confidence: typeof group.confidence === "number" ? group.confidence : 0.8,
+        };
+      });
+
+      // Handle unassigned images
+      const assignedIds = new Set(groups.flatMap((g) => g.imageIds));
+      const unassignedIds = originalImages
+        .map((img) => img.id)
+        .filter((id) => !assignedIds.has(id));
+
+      if (unassignedIds.length > 0) {
+        groups.push({
+          groupId: "group-unclustered",
+          imageIds: unassignedIds,
+          title: "Uncategorized",
+          suggestedLabel: "Uncategorized",
+          semanticTags: ["Uncategorized"],
+          confidence: 0.5,
+        });
+      }
+
+      return { groups };
+    } catch (error) {
+      console.error("[OpenAI] Failed to parse cluster response:", responseText, error);
+      return {
+        groups: [
+          {
+            groupId: "group-1",
+            imageIds: originalImages.map((img) => img.id),
+            title: "All Images",
+            suggestedLabel: "All Images",
+            semanticTags: ["All Images"],
+            confidence: 0.5,
+          },
+        ],
+      };
+    }
   }
 
   async generateTags(

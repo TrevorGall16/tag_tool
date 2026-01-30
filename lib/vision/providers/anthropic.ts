@@ -73,6 +73,9 @@ export class AnthropicVisionProvider implements IVisionProvider {
     const firstContent = message.content[0];
     const responseText = firstContent?.type === "text" ? firstContent.text : "";
 
+    // DEBUG: Log raw AI response before parsing
+    console.log("[Anthropic Cluster] RAW TEXT:", responseText);
+
     return this.parseClusterResponse(responseText, images);
   }
 
@@ -152,6 +155,8 @@ export class AnthropicVisionProvider implements IVisionProvider {
           imageIds?: string[];
           image_ids?: string[];
           title?: string;
+          name?: string; // AI sometimes returns 'name' instead of 'title'
+          category?: string; // AI sometimes returns 'category'
           suggestedLabel?: string;
           semanticTags?: string[];
           label?: string;
@@ -163,12 +168,18 @@ export class AnthropicVisionProvider implements IVisionProvider {
         // Extract semanticTags, fall back to suggestedLabel as single-item array
         const semanticTags = Array.isArray(group.semanticTags)
           ? group.semanticTags
-          : group.suggestedLabel || group.label
-            ? [group.suggestedLabel || group.label || ""]
+          : group.suggestedLabel || group.label || group.name
+            ? [group.suggestedLabel || group.label || group.name || ""]
             : undefined;
 
-        // Title priority: explicit title > first semanticTag > suggestedLabel
-        const title = group.title || semanticTags?.[0] || group.suggestedLabel || group.label;
+        // Title priority: explicit title > name > category > first semanticTag > suggestedLabel > label
+        const title =
+          group.title ||
+          group.name ||
+          group.category ||
+          semanticTags?.[0] ||
+          group.suggestedLabel ||
+          group.label;
 
         return {
           groupId: group.groupId || `group-${index + 1}`,

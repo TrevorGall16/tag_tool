@@ -413,6 +413,20 @@ function CollapsibleGroupCard({
             </h3>
             {/* Semantic Tags Badges - fallback to sharedTitle if tags empty */}
             {(() => {
+              // Approved categories get special styling
+              const APPROVED = [
+                "gastronomy",
+                "architecture",
+                "interiors",
+                "fashion",
+                "nature",
+                "people",
+                "technology",
+                "transportation",
+                "art & design",
+                "objects",
+              ];
+
               const badges =
                 group.semanticTags && group.semanticTags.length > 0
                   ? group.semanticTags
@@ -423,14 +437,22 @@ function CollapsibleGroupCard({
               if (badges && badges.length > 0) {
                 return (
                   <div className="ml-2 flex items-center gap-1">
-                    {badges.slice(0, 3).map((tag, idx) => (
-                      <span
-                        key={idx}
-                        className="px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 text-xs font-semibold border border-amber-200 shadow-sm"
-                      >
-                        {tag}
-                      </span>
-                    ))}
+                    {badges.slice(0, 3).map((tag, idx) => {
+                      const isApproved = APPROVED.includes(tag.toLowerCase());
+                      return (
+                        <span
+                          key={idx}
+                          className={cn(
+                            "px-2 py-0.5 rounded-md text-xs font-semibold border shadow-sm",
+                            isApproved
+                              ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+                              : "bg-amber-100 text-amber-800 border-amber-200"
+                          )}
+                        >
+                          {tag}
+                        </span>
+                      );
+                    })}
                   </div>
                 );
               }
