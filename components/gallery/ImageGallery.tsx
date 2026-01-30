@@ -270,8 +270,8 @@ export function ImageGallery({ className }: ImageGalleryProps) {
             )}
             {isClustering ? "Clustering..." : "Cluster Images"}
           </button>
-          <span className="text-[10px] text-green-600 font-medium bg-green-50 px-2 py-0.5 rounded-full border border-green-200">
-            Free (No credits)
+          <span className="text-[10px] text-blue-600 font-medium bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
+            1 Credit / Image
           </span>
         </div>
       </div>

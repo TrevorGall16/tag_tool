@@ -3,12 +3,20 @@ import type { CsvRow, MarketplaceType } from "./types";
 import { generateCsv } from "./csv-generator";
 
 /**
+ * Escape special regex characters in a string
+ */
+function escapeRegExp(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
  * Generate a stock photo submission CSV from clustered groups.
  * Maps each image to a row with its group's metadata.
  */
 export function generateStockCSV(
   groups: LocalGroup[],
-  marketplace: MarketplaceType = "ADOBE_STOCK"
+  marketplace: MarketplaceType = "ADOBE_STOCK",
+  prefix?: string
 ): string {
   const rows: CsvRow[] = [];
 
@@ -18,8 +26,19 @@ export function generateStockCSV(
       continue;
     }
 
-    // 1. CLEAN TITLE: Remove duplicate prefixes (e.g., "TEST_ - TEST_ - Title" -> "TEST_ - Title")
-    const cleanTitle = deduplicatePrefix(group.sharedTitle || "Untitled");
+    // 1. CLEAN TITLE: Strip existing prefix and re-add cleanly to prevent doubling
+    let cleanTitle = group.sharedTitle || "Untitled";
+
+    if (prefix && prefix.trim()) {
+      // Strip any existing prefix (case-insensitive) before re-adding
+      const prefixPattern = new RegExp(`^${escapeRegExp(prefix)}[-_\\s]*`, "i");
+      cleanTitle = cleanTitle.replace(prefixPattern, "").trim();
+      // Re-add the prefix cleanly
+      cleanTitle = `${prefix} - ${cleanTitle}`;
+    } else {
+      // No prefix provided, just deduplicate any existing duplicates
+      cleanTitle = deduplicatePrefix(cleanTitle);
+    }
 
     // 2. BUILD TAGS with universal safety net
     const keywords = buildKeywords(group);

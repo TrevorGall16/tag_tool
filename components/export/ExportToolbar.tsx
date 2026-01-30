@@ -160,7 +160,8 @@ export function ExportToolbar({ className, projectName }: ExportToolbarProps) {
     }
 
     // Use the new stock-csv generator with full semanticTags support
-    const csv = generateStockCSV(groupsToExport, marketplace);
+    // Pass projectName as prefix to handle deduplication
+    const csv = generateStockCSV(groupsToExport, marketplace, exportSettings.naming.projectName);
 
     // Build filename: tagarchitect-[FolderName]-[GroupName].csv
     const firstGroup = groupsToExport[0];

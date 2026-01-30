@@ -118,16 +118,15 @@ export function ExportSettings({
     setPatternError(null);
   };
 
-  const handleBackdropClick = (e: React.MouseEvent) => {
-    if (e.target === dialogRef.current) {
-      onClose();
-    }
+  // Prevent ESC key from closing the dialog (user must use Cancel/X button)
+  const handleCancel = (e: React.SyntheticEvent) => {
+    e.preventDefault();
   };
 
   return (
     <dialog
       ref={dialogRef}
-      onClick={handleBackdropClick}
+      onCancel={handleCancel}
       onClose={onClose}
       className={cn(
         "w-full max-w-lg p-0 rounded-xl bg-white shadow-2xl",

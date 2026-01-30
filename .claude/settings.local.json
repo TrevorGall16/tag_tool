@@ -17,7 +17,8 @@
       "Bash(pnpm tsc:*)",
       "Bash(npx shadcn@latest add:*)",
       "Bash(pnpm exec tsc:*)",
-      "Bash(if not exist \"D:\\\\Projects\\\\Tagtool\\\\lib\\\\export\" mkdir \"D:\\\\Projects\\\\Tagtool\\\\lib\\\\export\")"
+      "Bash(if not exist \"D:\\\\Projects\\\\Tagtool\\\\lib\\\\export\" mkdir \"D:\\\\Projects\\\\Tagtool\\\\lib\\\\export\")",
+      "Bash(Remove-Item -Recurse -Force ..next -ErrorAction SilentlyContinue)"
     ]
   }
 }
