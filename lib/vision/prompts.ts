@@ -37,26 +37,35 @@ export function buildClusteringPrompt(
   maxGroups: number,
   _context?: string
 ): string {
-  return `You are an Image Classifier. Sort images into SHARED categories to minimize groups.
+  return `You are an automated Metadata Engine for Adobe Stock.
+Your job is to group images and generate commercial metadata.
 
-CLASSIFICATION MENU (Pick ONE for each group):
-- Gastronomy (Food, drink, dining, meals, desserts)
-- Architecture (Buildings, cities, exteriors, urban)
-- Interiors (Rooms, furniture, decor, homes)
-- Nature (Plants, landscapes, animals, wildlife)
-- People (Portraits, fashion, lifestyle, business)
-- Objects (Tech, products, devices, miscellaneous)
+STRICT OUTPUT RULES:
 
-CRITICAL RULES:
-1. **REUSE CATEGORIES:** If Image 1 is Salad and Image 2 is Beer, BOTH go in ONE group titled "Gastronomy".
-2. **FORBIDDEN WORDS:** NEVER use "Group", "Batch", "Set", "Untitled", or numbers as titles.
-3. **MINIMIZE GROUPS:** Create the FEWEST groups possible. Maximum ${maxGroups} groups.
+1. **TITLE**: Must be EXACTLY one of these (no variations):
+   - Gastronomy
+   - Architecture
+   - Nature
+   - People
+   - Objects
+   - Transportation
+   - Urban
 
-IMAGES:
+2. **TAGS (semanticTags)**:
+   - You MUST generate **10 to 20 keywords** per group.
+   - Tags must be specific visual elements (objects, colors, textures, materials, actions).
+   - **FORBIDDEN:** Do not repeat the category name. Do not use "image", "photo", "picture".
+   - Example for a Salad photo: ["lettuce", "tomato", "bowl", "fresh", "healthy", "lunch", "green", "vegetable", "diet", "meal", "fork", "dressing"].
+
+3. **GROUPING**:
+   - Combine similar images. Salad + Beer + Steak = ONE group titled "Gastronomy".
+   - Maximum ${maxGroups} groups.
+
+IMAGES TO PROCESS:
 ${imageIndex}
 
-Return ONLY valid JSON (no markdown, no code blocks, no explanation):
-{"groups":[{"groupId":"group-1","imageIds":["id1","id2"],"title":"Gastronomy","semanticTags":["Gastronomy","Salad","Beer"],"confidence":0.9}]}`;
+Return ONLY valid JSON (no markdown, no explanation):
+{"groups":[{"title":"Gastronomy","semanticTags":["lettuce","tomato","bowl","fresh","healthy","lunch","green","vegetable","diet","meal","fork","dressing"],"imageIds":["id1","id2"],"confidence":0.95}]}`;
 }
 
 export interface TagPromptOptions {

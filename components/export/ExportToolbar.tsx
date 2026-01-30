@@ -12,15 +12,9 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui";
-import {
-  cn,
-  generateAdobeStockCSV,
-  collectAllTags,
-  copyToClipboard,
-  downloadString,
-} from "@/lib/utils";
+import { cn, collectAllTags, copyToClipboard, downloadString } from "@/lib/utils";
 import { useBatchStore } from "@/store/useBatchStore";
-import { ExportEngine } from "@/lib/export";
+import { ExportEngine, generateStockCSV } from "@/lib/export";
 import { ExportSettings } from "./ExportSettings";
 import { CSVPreviewModal } from "./CSVPreviewModal";
 import type {
@@ -164,10 +158,11 @@ export function ExportToolbar({ className, projectName }: ExportToolbarProps) {
       toast.error("No groups to export");
       return;
     }
-    const csv = generateAdobeStockCSV(groupsToExport);
+
+    // Use the new stock-csv generator with full semanticTags support
+    const csv = generateStockCSV(groupsToExport, marketplace);
 
     // Build filename: tagarchitect-[FolderName]-[GroupName].csv
-    // If no folder (Uncategorized), just use group name
     const firstGroup = groupsToExport[0];
     const groupSlug = firstGroup?.sharedTitle
       ? slugify(firstGroup.sharedTitle)
@@ -175,15 +170,15 @@ export function ExportToolbar({ className, projectName }: ExportToolbarProps) {
 
     let filename: string;
     if (projectName) {
-      // Inside a folder: tagarchitect-foldername-groupname.csv
       filename = `tagarchitect-${slugify(projectName)}-${groupSlug}.csv`;
     } else {
-      // Uncategorized: tagarchitect-groupname.csv
       filename = `tagarchitect-${groupSlug}.csv`;
     }
 
     downloadString(csv, filename, "text/csv;charset=utf-8");
-    toast.success("Downloaded CSV");
+    toast.success(
+      `Exported ${groupsToExport.reduce((sum, g) => sum + g.images.length, 0)} images to CSV`
+    );
   };
 
   return (

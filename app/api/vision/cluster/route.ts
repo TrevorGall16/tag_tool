@@ -237,8 +237,15 @@ function mergeDuplicateGroups(result: ClusterResult): ClusterResult {
       existing.imageIds = [...existing.imageIds, ...group.imageIds];
       // Keep higher confidence
       existing.confidence = Math.max(existing.confidence, group.confidence);
+
+      // MERGE and DEDUPE semantic tags from both groups
+      const allTags = new Set([...(existing.semanticTags || []), ...(group.semanticTags || [])]);
+      // Remove the title from tags to avoid redundancy
+      if (existing.title) allTags.delete(existing.title);
+      existing.semanticTags = Array.from(allTags);
+
       console.log(
-        `[Cluster API] Merged "${primaryTag}" into existing group (now ${existing.imageIds.length} images)`
+        `[Cluster API] Merged "${primaryTag}" into existing group (now ${existing.imageIds.length} images, ${existing.semanticTags.length} tags)`
       );
     } else {
       // Add new group (clone to avoid mutation)

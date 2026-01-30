@@ -158,19 +158,35 @@ export class AnthropicVisionProvider implements IVisionProvider {
           name?: string; // AI sometimes returns 'name' instead of 'title'
           category?: string; // AI sometimes returns 'category'
           suggestedLabel?: string;
-          semanticTags?: string[];
+          semanticTags?: string[] | string; // AI may return array OR comma-separated string
+          keywords?: string[] | string; // AI may return array OR comma-separated string
+          tags?: string[] | string; // AI may return array OR comma-separated string
           label?: string;
           confidence?: number;
         }>;
       };
 
       const groups: ImageClusterGroup[] = parsed.groups.map((group, index) => {
-        // Extract semanticTags, fall back to suggestedLabel as single-item array
-        const semanticTags = Array.isArray(group.semanticTags)
-          ? group.semanticTags
-          : group.suggestedLabel || group.label || group.name
+        // Helper: Convert string to array (handles comma-separated strings)
+        const toArray = (val: string[] | string | undefined): string[] | undefined => {
+          if (Array.isArray(val)) return val;
+          if (typeof val === "string" && val.trim()) {
+            return val
+              .split(",")
+              .map((s) => s.trim())
+              .filter(Boolean);
+          }
+          return undefined;
+        };
+
+        // Extract semanticTags - check multiple possible field names, handle string values
+        const semanticTags =
+          toArray(group.semanticTags) ||
+          toArray(group.keywords) ||
+          toArray(group.tags) ||
+          (group.suggestedLabel || group.label || group.name
             ? [group.suggestedLabel || group.label || group.name || ""]
-            : undefined;
+            : undefined);
 
         // Title priority: explicit title > name > category > first semanticTag > suggestedLabel > label
         const title =

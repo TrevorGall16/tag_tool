@@ -16,7 +16,8 @@
       "Bash(xargs:*)",
       "Bash(pnpm tsc:*)",
       "Bash(npx shadcn@latest add:*)",
-      "Bash(pnpm exec tsc:*)"
+      "Bash(pnpm exec tsc:*)",
+      "Bash(if not exist \"D:\\\\Projects\\\\Tagtool\\\\lib\\\\export\" mkdir \"D:\\\\Projects\\\\Tagtool\\\\lib\\\\export\")"
     ]
   }
 }

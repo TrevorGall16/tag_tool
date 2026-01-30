@@ -149,7 +149,9 @@ export class OpenAIVisionProvider implements IVisionProvider {
           name?: string; // AI sometimes returns 'name' instead of 'title'
           category?: string;
           suggestedLabel?: string;
-          semanticTags?: string[];
+          semanticTags?: string[] | string; // AI may return array OR comma-separated string
+          keywords?: string[] | string; // AI may return array OR comma-separated string
+          tags?: string[] | string; // AI may return array OR comma-separated string
           label?: string;
           confidence?: number;
         }>;
@@ -171,16 +173,29 @@ export class OpenAIVisionProvider implements IVisionProvider {
         };
       }
 
+      // Helper: Convert string to array (handles comma-separated strings)
+      const toArray = (val: string[] | string | undefined): string[] | undefined => {
+        if (Array.isArray(val)) return val;
+        if (typeof val === "string" && val.trim()) {
+          return val
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean);
+        }
+        return undefined;
+      };
+
       const groups = parsed.groups.map((group, index) => {
         // Title priority: title > name > category > label
         const title =
           group.title || group.name || group.category || group.label || `Group ${index + 1}`;
 
-        const semanticTags = Array.isArray(group.semanticTags)
-          ? group.semanticTags
-          : title
-            ? [title]
-            : undefined;
+        // SemanticTags priority: semanticTags > keywords > tags > [title]
+        const semanticTags =
+          toArray(group.semanticTags) ||
+          toArray(group.keywords) ||
+          toArray(group.tags) ||
+          (title ? [title] : undefined);
 
         return {
           groupId: group.groupId || `group-${index + 1}`,
