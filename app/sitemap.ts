@@ -1,23 +1,44 @@
 import { MetadataRoute } from 'next'
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  // ⚠️ CHANGE THIS if you buy a domain later.
-  // For now, use your Vercel URL.
-  const baseUrl = 'https://tag-tool-six.vercel.app' 
+  // ⚠️ CHANGE THIS if/when you buy a domain.
+  const baseUrl = 'https://tag-tool-six.vercel.app'
 
   return [
+    // 1. Homepage (Most Important)
     {
       url: baseUrl,
       lastModified: new Date(),
       changeFrequency: 'weekly',
       priority: 1,
     },
-    // If you have a pricing page, add it here:
-    // {
-    //   url: `${baseUrl}/pricing`,
-    //   lastModified: new Date(),
-    //   changeFrequency: 'monthly',
-    //   priority: 0.8,
-    // },
+    // 2. Pricing (High Value - People searching for cost)
+    {
+      url: `${baseUrl}/pricing`,
+      lastModified: new Date(),
+      changeFrequency: 'weekly',
+      priority: 0.9,
+    },
+    // 3. FAQ (SEO Gold - Captures "how to" questions)
+    {
+      url: `${baseUrl}/faq`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.8,
+    },
+    // 4. Contact (Trust Signal)
+    {
+      url: `${baseUrl}/contact`,
+      lastModified: new Date(),
+      changeFrequency: 'yearly',
+      priority: 0.5,
+    },
+    // 5. Legal (Trust Signal - Google likes these)
+    {
+      url: `${baseUrl}/legal`, // Verify this matches your folder name exactly!
+      lastModified: new Date(),
+      changeFrequency: 'yearly',
+      priority: 0.3,
+    },
   ]
 }
