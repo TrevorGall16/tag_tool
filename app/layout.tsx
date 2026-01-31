@@ -11,8 +11,10 @@ export const metadata: Metadata = {
   description:
     "AI-powered batch tagging tool for marketplace sellers. Automate your product listings with smart clustering and Claude Vision.",
   keywords: ["batch tagging", "etsy", "adobe stock", "ai tagging", "product listing"],
+  verification: {
+    google: "C9M-8n8R4gW8Q4SKws3RdzvF4xwaSJFGtLpRV5x487A",
+},
 };
-
 export default function RootLayout({
   children,
 }: Readonly<{
