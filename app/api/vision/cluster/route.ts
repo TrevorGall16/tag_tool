@@ -427,6 +427,10 @@ export async function POST(
           "[Credits] Deduction failed:",
           creditError instanceof Error ? creditError.message : "Unknown"
         );
+        return NextResponse.json(
+          { success: false, error: "Credit deduction failed. Please try again." },
+          { status: 402 }
+        );
       }
     }
 
