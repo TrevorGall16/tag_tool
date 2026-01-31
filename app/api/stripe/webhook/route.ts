@@ -11,17 +11,8 @@ function getStripeClient(): Stripe {
 }
 
 export async function POST(request: NextRequest) {
-  // 🔍 DEBUG: Very first line - verify endpoint is being hit
-  console.log("═══════════════════════════════════════════════════════════");
-  console.log("🔍 DEBUG: Webhook endpoint hit at", new Date().toISOString());
-  console.log("═══════════════════════════════════════════════════════════");
-
   const body = await request.text();
   const signature = request.headers.get("stripe-signature");
-
-  console.log("🔍 DEBUG: Signature present:", !!signature);
-  console.log("🔍 DEBUG: Body length:", body.length);
-  console.log("🔍 DEBUG: STRIPE_WEBHOOK_SECRET set:", !!process.env.STRIPE_WEBHOOK_SECRET);
 
   if (!signature) {
     return NextResponse.json({ error: "Missing stripe-signature header" }, { status: 400 });
@@ -44,14 +35,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: `Webhook Error: ${message}` }, { status: 400 });
   }
 
-  // 💰 LOUD LOGGING - This helps verify the webhook is being received
-  console.log("═══════════════════════════════════════════════════════════");
-  console.log("💰 STRIPE WEBHOOK RECEIVED!", event.type);
-  console.log("═══════════════════════════════════════════════════════════");
-  console.log("Event ID:", event.id);
-  console.log("Event Type:", event.type);
-  console.log("Timestamp:", new Date().toISOString());
-
   try {
     switch (event.type) {
       case "checkout.session.completed": {
@@ -61,20 +44,8 @@ export async function POST(request: NextRequest) {
         const credits = session.metadata?.credits;
         const plan = session.metadata?.plan;
 
-        console.log("📦 Checkout Session Data:");
-        console.log("  - Session ID:", session.id);
-        console.log("  - Customer ID:", customerId);
-        console.log("  - User ID (from metadata):", userId);
-        console.log("  - Credits:", credits);
-        console.log("  - Plan:", plan);
-        console.log("  - Payment Status:", session.payment_status);
-
         if (credits && userId) {
           // Credit purchase completed - use userId from metadata
-          console.log(
-            `💳 [Stripe Webhook] Processing checkout for user ${userId}: +${credits} credits (${plan})`
-          );
-
           await prisma.$transaction(async (tx) => {
             await tx.user.update({
               where: { id: userId },
@@ -93,18 +64,8 @@ export async function POST(request: NextRequest) {
               },
             });
           });
-
-          console.log(
-            `✅ [Stripe Webhook] Successfully added ${credits} credits to user ${userId}`
-          );
-          console.log("═══════════════════════════════════════════════════════════");
         } else if (!credits || !userId) {
-          console.error("❌ Missing required data:");
-          console.error("  - credits:", credits);
-          console.error("  - userId:", userId);
-          console.error("  - customerId:", customerId);
-          console.error("  - Full metadata:", JSON.stringify(session.metadata));
-          console.error("  - client_reference_id:", session.client_reference_id);
+          console.error("[Stripe Webhook] Missing required metadata for credit fulfillment");
         }
 
         if (credits && customerId && !userId) {
@@ -166,16 +127,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ received: true });
   } catch (error) {
-    console.error("═══════════════════════════════════════════════════════════");
-    console.error("❌ WEBHOOK HANDLER ERROR:");
-    console.error("═══════════════════════════════════════════════════════════");
-    if (error instanceof Error) {
-      console.error("Error message:", error.message);
-      console.error("Error stack:", error.stack);
-    } else {
-      console.error("Unknown error:", error);
-    }
-    console.error("═══════════════════════════════════════════════════════════");
+    console.error(
+      "[Stripe Webhook] Handler error:",
+      error instanceof Error ? error.message : "Unknown"
+    );
     return NextResponse.json({ error: "Webhook handler failed" }, { status: 500 });
   }
 }

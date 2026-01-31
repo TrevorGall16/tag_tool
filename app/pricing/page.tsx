@@ -10,14 +10,14 @@ import Link from "next/link";
 const PLANS = [
   {
     id: "STARTER",
-    name: "Starter",
-    price: 5,
+    name: "Basic",
+    price: 3.9,
     credits: 50,
     popular: true,
     features: [
       "50 tagging credits",
-      "$0.10 per image (1 credit = 1 image analyzed)",
-      "Includes AI title + up to 50 tags per image",
+      "€0.078 per image",
+      "AI title + up to 50 tags per image",
       "Smart image grouping",
       "CSV & ZIP export",
       "Project folders",
@@ -26,14 +26,14 @@ const PLANS = [
   {
     id: "PRO",
     name: "Pro",
-    price: 15,
+    price: 5.0,
     credits: 200,
     popular: false,
     features: [
       "200 tagging credits",
-      "$0.075 per image (25% savings)",
-      "1 credit = 1 image analyzed (title + all tags)",
-      "Everything in Starter",
+      "€0.025 per image (68% savings)",
+      "AI title + up to 50 tags per image",
+      "Everything in Basic",
       "Priority support",
       "Credits never expire",
     ],
@@ -156,7 +156,9 @@ function PricingContent() {
               <div className="text-center mb-6">
                 <h2 className="text-2xl font-bold text-slate-900 mb-2">{plan.name}</h2>
                 <div className="flex items-baseline justify-center gap-1">
-                  <span className="text-4xl font-bold text-slate-900">€{plan.price}</span>
+                  <span className="text-4xl font-bold text-slate-900">
+                    €{plan.price.toFixed(2)}
+                  </span>
                   <span className="text-slate-500">one-time</span>
                 </div>
                 <p className="text-blue-600 font-medium mt-2">{plan.credits} credits</p>
@@ -211,7 +213,7 @@ function PricingContent() {
               balance.
             </p>
             <p>
-              <strong>Starter: $0.10 per image</strong> | <strong>Pro: $0.075 per image</strong>
+              <strong>Basic: €0.078 per image</strong> | <strong>Pro: €0.025 per image</strong>
             </p>
             <p>Credits never expire and carry over. Buy once, use whenever you need them.</p>
           </div>

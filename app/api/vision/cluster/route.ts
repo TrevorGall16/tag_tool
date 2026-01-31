@@ -224,10 +224,6 @@ function mergeDuplicateGroups(result: ClusterResult): ClusterResult {
     const primaryTag = group.semanticTags?.[0] || group.title || group.suggestedLabel || "";
     const normalizedLabel = normalizeLabel(primaryTag);
 
-    console.log(
-      `[Cluster API] Merge check: primaryTag="${primaryTag}", normalized="${normalizedLabel}", isGeneric=${isGenericLabel(primaryTag)}`
-    );
-
     // If the label is generic (like "Group 1"), do NOT merge based on it.
     // Give it a unique key so it stays separate for user to fix.
     if (isGenericLabel(primaryTag)) {
@@ -247,10 +243,6 @@ function mergeDuplicateGroups(result: ClusterResult): ClusterResult {
       // Remove the title from tags to avoid redundancy
       if (existing.title) allTags.delete(existing.title);
       existing.semanticTags = Array.from(allTags);
-
-      console.log(
-        `[Cluster API] Merged "${primaryTag}" into existing group (now ${existing.imageIds.length} images, ${existing.semanticTags.length} tags)`
-      );
     } else {
       // Add new group (clone to avoid mutation)
       labelMap.set(normalizedLabel, {
@@ -266,10 +258,6 @@ function mergeDuplicateGroups(result: ClusterResult): ClusterResult {
     ...group,
     groupId: `group-${index + 1}`,
   }));
-
-  console.log(
-    `[Cluster API] Merged ${result.groups.length} groups into ${mergedGroups.length} unique groups`
-  );
 
   return { groups: mergedGroups };
 }
@@ -288,10 +276,6 @@ function mergeClusterResults(results: ClusterResult[], settings?: ClusterSetting
       const aiTitle = getAITitle(group.title, group.semanticTags, groupIndex);
       // Apply prefix exactly once
       const finalTitle = formatFinalTitle(aiTitle, settings, groupIndex);
-
-      console.log(
-        `[Cluster API] Merge group ${groupIndex}: AI raw="${group.title}", semanticTags=${JSON.stringify(group.semanticTags)}, aiTitle="${aiTitle}", final="${finalTitle}"`
-      );
 
       allGroups.push({
         ...group,
@@ -314,23 +298,11 @@ function mergeClusterResults(results: ClusterResult[], settings?: ClusterSetting
 function ensureLabels(result: ClusterResult, settings?: ClusterSettings): ClusterResult {
   return {
     groups: result.groups.map((group, index) => {
-      // DEBUG: Log raw AI output (TRUTH LOG)
-      console.log(
-        `[Cluster API] TRUTH: Group ${index} raw AI response:`,
-        JSON.stringify({
-          title: group.title,
-          suggestedLabel: group.suggestedLabel,
-          semanticTags: group.semanticTags,
-        })
-      );
-
       // TRUST THE AI: Get title directly from AI response
       const aiTitle = getAITitle(group.title, group.semanticTags, index);
 
       // Apply prefix exactly once
       const finalTitle = formatFinalTitle(aiTitle, settings, index);
-
-      console.log(`[Cluster API] Group ${index}: aiTitle="${aiTitle}", finalTitle="${finalTitle}"`);
 
       return {
         ...group,
@@ -357,15 +329,16 @@ export async function POST(
 
     const { images, marketplace, maxGroups = DEFAULT_MAX_GROUPS, settings } = body;
 
-    // Log settings if provided
-    if (settings) {
-      console.log(
-        `[Cluster API] Settings: prefix="${settings.prefix || ""}", startNumber=${settings.startNumber || 1}, context="${settings.context || "general"}"`
+    // AUTH CHECK: Require authentication (skip only in mock mode)
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id && !IS_MOCK_MODE) {
+      return NextResponse.json(
+        { success: false, error: "Authentication required" },
+        { status: 401 }
       );
     }
 
     // CREDIT CHECK: Verify user has sufficient credits (skip in mock mode)
-    const session = await getServerSession(authOptions);
     const creditsRequired = images.length * CREDITS_PER_IMAGE;
 
     if (session?.user?.id && !IS_MOCK_MODE) {
@@ -389,7 +362,6 @@ export async function POST(
 
     // Mock mode: bypass real API calls for development/testing
     if (IS_MOCK_MODE) {
-      console.log(`[Cluster API] MOCK MODE - Generating mock clusters for ${images.length} images`);
       // Simulate network delay
       await new Promise((resolve) => setTimeout(resolve, 500 + Math.random() * 1000));
       clusterResult = generateMockClusterResult(images as ClusterImageInput[], maxGroups);
@@ -405,17 +377,9 @@ export async function POST(
     } else {
       // Automatic batching: chunk images and process sequentially
       const batches = chunkArray(images as ClusterImageInput[], BATCH_SIZE);
-      console.log(
-        `[Cluster API] Processing ${images.length} images in ${batches.length} batches of up to ${BATCH_SIZE}`
-      );
-
       const batchResults: ClusterResult[] = [];
 
-      for (const [i, batch] of batches.entries()) {
-        console.log(
-          `[Cluster API] Processing batch ${i + 1}/${batches.length} (${batch.length} images)`
-        );
-
+      for (const [, batch] of batches.entries()) {
         // Calculate proportional maxGroups for this batch
         const batchMaxGroups = Math.max(2, Math.ceil((maxGroups * batch.length) / images.length));
 
@@ -430,9 +394,6 @@ export async function POST(
 
       // Merge all batch results
       clusterResult = mergeClusterResults(batchResults, settings);
-      console.log(
-        `[Cluster API] Merged ${batchResults.length} batches into ${clusterResult.groups.length} groups`
-      );
     }
 
     // Final processing: sanitize labels and merge duplicates
@@ -461,13 +422,11 @@ export async function POST(
             },
           });
         });
-
-        console.log(
-          `[Credits] Deducted ${creditsRequired} credits from user ${session.user.id} for clustering`
-        );
       } catch (creditError) {
-        console.error("[Credits] Failed to deduct credits:", creditError);
-        // Don't fail the request if credit deduction fails - user already got the results
+        console.error(
+          "[Credits] Deduction failed:",
+          creditError instanceof Error ? creditError.message : "Unknown"
+        );
       }
     }
 
@@ -479,7 +438,7 @@ export async function POST(
       },
     });
   } catch (error) {
-    console.error("Vision cluster API error:", error);
+    console.error("[Cluster API] Error:", error instanceof Error ? error.message : "Unknown");
     const message = error instanceof Error ? error.message : "Clustering failed";
     return NextResponse.json({ success: false, error: message }, { status: 500 });
   }

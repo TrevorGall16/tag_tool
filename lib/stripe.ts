@@ -18,30 +18,23 @@ export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
  */
 export const PRICING = {
   STARTER: {
-    name: "Starter",
-    priceId: process.env.STRIPE_STARTER_PRICE_ID || "",
-    price: 1200, // €12.00 in cents
-    credits: 100,
-    features: [
-      "100 AI tagging credits",
-      "Batch clustering",
-      "CSV & ZIP export",
-      "EXIF/IPTC embedding",
-    ],
+    name: "Basic",
+    priceId: process.env.STRIPE_PRICE_ID_BASIC || "",
+    price: 390, // €3.90 in cents
+    credits: 50,
+    features: ["50 AI tagging credits", "Batch clustering", "CSV & ZIP export", "Project folders"],
   },
   PRO: {
     name: "Pro",
-    priceId: process.env.STRIPE_PRO_PRICE_ID || "",
-    price: 2900, // €29.00 in cents
-    credits: 500,
+    priceId: process.env.STRIPE_PRICE_ID_PRO || "",
+    price: 500, // €5.00 in cents
+    credits: 200,
     features: [
-      "500 AI tagging credits",
-      "Priority processing",
+      "200 AI tagging credits",
+      "Priority support",
       "Batch clustering",
       "CSV & ZIP export",
-      "EXIF/IPTC embedding",
-      "Global tags",
-      "Priority support",
+      "Credits never expire",
     ],
   },
 } as const;

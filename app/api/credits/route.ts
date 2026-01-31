@@ -1,23 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { LedgerReason } from "@prisma/client";
 import type { ApiResponse, CreditsBalanceResponse } from "@/types";
 
-export async function GET(
-  request: NextRequest
-): Promise<NextResponse<ApiResponse<CreditsBalanceResponse>>> {
-  try {
-    // TODO: Get user from session/auth
-    const userId = request.headers.get("x-user-id");
+const VALID_REASONS: LedgerReason[] = [
+  "PURCHASE",
+  "SUBSCRIPTION",
+  "USAGE",
+  "REFUND",
+  "BONUS",
+  "ADMIN_ADJUST",
+];
 
-    if (!userId) {
+export async function GET(): Promise<NextResponse<ApiResponse<CreditsBalanceResponse>>> {
+  try {
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user?.id) {
       return NextResponse.json(
-        { success: false, error: "User not authenticated" },
+        { success: false, error: "Authentication required" },
         { status: 401 }
       );
     }
 
     const user = await prisma.user.findUnique({
-      where: { id: userId },
+      where: { id: session.user.id },
       select: { creditsBalance: true, subscriptionTier: true },
     });
 
@@ -33,19 +42,18 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error("Credits fetch error:", error);
+    console.error("[Credits API] Fetch error:", error instanceof Error ? error.message : "Unknown");
     return NextResponse.json({ success: false, error: "Failed to fetch credits" }, { status: 500 });
   }
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse<ApiResponse>> {
   try {
-    // TODO: Get user from session/auth
-    const userId = request.headers.get("x-user-id");
+    const session = await getServerSession(authOptions);
 
-    if (!userId) {
+    if (!session?.user?.id) {
       return NextResponse.json(
-        { success: false, error: "User not authenticated" },
+        { success: false, error: "Authentication required" },
         { status: 401 }
       );
     }
@@ -53,9 +61,16 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
     const body = await request.json();
     const { amount, reason, description } = body;
 
-    if (!amount || !reason) {
+    if (!amount || typeof amount !== "number" || amount <= 0) {
       return NextResponse.json(
-        { success: false, error: "Amount and reason are required" },
+        { success: false, error: "Valid positive amount is required" },
+        { status: 400 }
+      );
+    }
+
+    if (!reason || typeof reason !== "string" || !VALID_REASONS.includes(reason as LedgerReason)) {
+      return NextResponse.json(
+        { success: false, error: `Invalid reason. Must be one of: ${VALID_REASONS.join(", ")}` },
         { status: 400 }
       );
     }
@@ -64,7 +79,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
     await prisma.$transaction(async (tx) => {
       // Deduct credits
       const user = await tx.user.update({
-        where: { id: userId },
+        where: { id: session.user.id },
         data: { creditsBalance: { decrement: amount } },
       });
 
@@ -76,9 +91,9 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
       // Log to ledger
       await tx.creditsLedger.create({
         data: {
-          userId,
+          userId: session.user.id,
           amount: -amount,
-          reason: reason,
+          reason: reason as LedgerReason,
           description,
         },
       });
@@ -86,7 +101,10 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Credits deduction error:", error);
+    console.error(
+      "[Credits API] Deduction error:",
+      error instanceof Error ? error.message : "Unknown"
+    );
     const message = error instanceof Error ? error.message : "Failed to process credits";
     return NextResponse.json({ success: false, error: message }, { status: 500 });
   }

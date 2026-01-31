@@ -104,6 +104,15 @@ export async function POST(
   const startTime = Date.now();
 
   try {
+    // AUTH CHECK: Require authentication (skip only in mock mode)
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id && !IS_MOCK_MODE) {
+      return NextResponse.json(
+        { success: false, error: "Authentication required" },
+        { status: 401 }
+      );
+    }
+
     const body = (await request.json()) as VisionTagsRequest;
     const validationError = validateRequest(body);
 
@@ -123,11 +132,30 @@ export async function POST(
       );
     }
 
+    const creditsRequired = images.length;
+
+    // CREDIT CHECK: Verify user has sufficient credits BEFORE API call (skip in mock mode)
+    if (session?.user?.id && !IS_MOCK_MODE) {
+      const user = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { creditsBalance: true },
+      });
+
+      if (!user || user.creditsBalance < creditsRequired) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Insufficient credits. You need ${creditsRequired} credits but have ${user?.creditsBalance ?? 0}.`,
+          },
+          { status: 402 }
+        );
+      }
+    }
+
     let results: ImageTagResult[];
 
     // Mock mode: bypass real API calls for development/testing
     if (IS_MOCK_MODE) {
-      console.log(`[Tags API] MOCK MODE - Generating mock tags for ${images.length} images`);
       // Simulate network delay
       await new Promise((resolve) => setTimeout(resolve, 300 + Math.random() * 700));
       results = generateMockTagResults(images, maxTags);
@@ -136,9 +164,7 @@ export async function POST(
     }
 
     // Deduct credits for authenticated users (skip in mock mode)
-    const session = await getServerSession(authOptions);
     if (session?.user?.id && !IS_MOCK_MODE) {
-      const creditsToDeduct = images.length;
       const strategyLabel = STRATEGY_LABELS[strategy] || "Standard";
 
       try {
@@ -146,10 +172,10 @@ export async function POST(
           // Deduct credits
           const user = await tx.user.update({
             where: { id: session.user.id },
-            data: { creditsBalance: { decrement: creditsToDeduct } },
+            data: { creditsBalance: { decrement: creditsRequired } },
           });
 
-          // Check for negative balance
+          // Check for negative balance (race condition protection)
           if (user.creditsBalance < 0) {
             throw new Error("Insufficient credits");
           }
@@ -158,19 +184,21 @@ export async function POST(
           await tx.creditsLedger.create({
             data: {
               userId: session.user.id,
-              amount: -creditsToDeduct,
+              amount: -creditsRequired,
               reason: "USAGE",
-              description: `Tag Generation (${strategyLabel}) - ${creditsToDeduct} image${creditsToDeduct > 1 ? "s" : ""}`,
+              description: `Tag Generation (${strategyLabel}) - ${creditsRequired} image${creditsRequired > 1 ? "s" : ""}`,
             },
           });
         });
-
-        console.log(
-          `[Credits] Deducted ${creditsToDeduct} credits from user ${session.user.id} for ${strategyLabel} analysis`
-        );
       } catch (creditError) {
-        console.error("[Credits] Failed to deduct credits:", creditError);
-        // Continue with the response - credits deduction failure shouldn't block the user
+        console.error(
+          "[Credits] Deduction failed:",
+          creditError instanceof Error ? creditError.message : "Unknown"
+        );
+        return NextResponse.json(
+          { success: false, error: "Credit deduction failed. Please try again." },
+          { status: 402 }
+        );
       }
     }
 
