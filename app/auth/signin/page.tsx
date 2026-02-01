@@ -82,11 +82,11 @@ function SignInContent() {
           {/* Terms */}
           <p className="mt-6 text-center text-xs text-slate-500">
             By signing in, you agree to our{" "}
-            <a href="/terms" className="text-blue-600 hover:underline">
+            <a href="/legal/terms" className="text-blue-600 hover:underline">
               Terms of Service
             </a>{" "}
             and{" "}
-            <a href="/privacy" className="text-blue-600 hover:underline">
+            <a href="/legal/privacy" className="text-blue-600 hover:underline">
               Privacy Policy
             </a>
           </p>
