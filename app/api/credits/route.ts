@@ -105,7 +105,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
       "[Credits API] Deduction error:",
       error instanceof Error ? error.message : "Unknown"
     );
-    const message = error instanceof Error ? error.message : "Failed to process credits";
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
+    return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
   }
 }

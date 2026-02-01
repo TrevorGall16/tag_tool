@@ -211,7 +211,6 @@ export async function POST(
     });
   } catch (error) {
     console.error("Vision tags API error:", error);
-    const message = error instanceof Error ? error.message : "Tag generation failed";
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
+    return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
   }
 }

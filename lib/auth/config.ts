@@ -58,9 +58,7 @@ export const authOptions: NextAuthOptions = {
             },
           });
 
-          if (result.count > 0) {
-            console.log(`[Auth] Promoted ${result.count} anonymous batch(es) to user ${user.id}`);
-          }
+          // Batch promotion logged server-side only if needed for debugging
         }
       } catch (error) {
         console.error("[Auth] Failed to promote anonymous batches:", error);
@@ -102,8 +100,6 @@ export const authOptions: NextAuthOptions = {
      * Create user event - initialize new users with default credits
      */
     async createUser({ user }) {
-      console.log(`[Auth] New user created: ${user.email}`);
-
       // User already has default credits from schema (50)
       // Add welcome bonus to ledger
       await prisma.creditsLedger.create({

@@ -129,9 +129,6 @@ export class OpenAIVisionProvider implements IVisionProvider {
 
     const text = response.choices[0].message.content || "{}";
 
-    // DEBUG: Log raw AI response before parsing
-    console.log("[OpenAI Cluster] RAW TEXT:", text);
-
     return this.parseClusterResponse(text, images);
   }
 

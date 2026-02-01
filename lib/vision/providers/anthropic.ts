@@ -73,9 +73,6 @@ export class AnthropicVisionProvider implements IVisionProvider {
     const firstContent = message.content[0];
     const responseText = firstContent?.type === "text" ? firstContent.text : "";
 
-    // DEBUG: Log raw AI response before parsing
-    console.log("[Anthropic Cluster] RAW TEXT:", responseText);
-
     return this.parseClusterResponse(responseText, images);
   }
 
