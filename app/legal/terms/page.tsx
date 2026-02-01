@@ -24,21 +24,33 @@ export default function TermsOfServicePage() {
         {/* Document Card */}
         <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl shadow-slate-200/50 dark:shadow-slate-950/50 border border-slate-200 dark:border-slate-800 overflow-hidden">
           {/* Card Header */}
-          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-8">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                <FileText className="w-7 h-7 text-white" />
+          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-10">
+            <div className="flex items-center gap-6">
+              <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-inner">
+                <FileText className="w-8 h-8 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-white">Terms of Service</h1>
-                <p className="text-blue-100 text-sm mt-1">Last updated: January 2026</p>
+                <h1 className="text-3xl font-bold text-white tracking-tight">Terms of Service</h1>
+                <p className="text-blue-100 mt-2 font-medium opacity-90">Last updated: January 2026</p>
               </div>
             </div>
           </div>
 
           {/* Card Content */}
-          <div className="px-8 py-10">
-            <div className="prose prose-slate dark:prose-invert prose-headings:font-semibold prose-h2:text-xl prose-h2:mt-8 prose-h2:mb-4 prose-h3:text-lg prose-p:text-slate-600 dark:prose-p:text-slate-400 prose-li:text-slate-600 dark:prose-li:text-slate-400 prose-a:text-blue-600 dark:prose-a:text-blue-400 prose-a:no-underline hover:prose-a:underline max-w-none">
+          <div className="px-8 py-12 md:px-12">
+             {/* UPDATED STYLING APPLIED:
+               - prose-p:leading-relaxed -> Easy to read lines
+               - prose-h2:mt-12 -> Big gaps before new sections
+               - prose-li:mb-2 -> Spacing for lists
+             */}
+            <div className="prose prose-slate dark:prose-invert max-w-none 
+              prose-headings:font-bold prose-headings:tracking-tight 
+              prose-h2:text-2xl prose-h2:mt-12 prose-h2:mb-6 prose-h2:border-b prose-h2:border-slate-100 dark:prose-h2:border-slate-800 prose-h2:pb-4
+              prose-h3:text-lg prose-h3:mt-8 prose-h3:text-slate-700 dark:prose-h3:text-slate-200
+              prose-p:text-slate-600 dark:prose-p:text-slate-400 prose-p:leading-relaxed prose-p:mb-6
+              prose-li:text-slate-600 dark:prose-li:text-slate-400 prose-li:leading-relaxed prose-li:mb-2
+              prose-a:text-blue-600 dark:prose-a:text-blue-400 prose-a:no-underline hover:prose-a:underline">
+              
               <h2>1. Agreement to Terms</h2>
               <p>
                 By accessing or using TagArchitect (&quot;Service&quot;), you agree to be bound by
@@ -172,10 +184,17 @@ export default function TermsOfServicePage() {
               <h2>13. Contact Information</h2>
               <p>
                 For questions about these Terms, please contact us at:{" "}
-                <a href="mailto:efwfew1611@gmail.com">efwfew1611@gmail.com</a>
+                <a href="mailto:efwfew1611@gmail.com" className="font-semibold text-blue-600 hover:text-blue-500">
+                  efwfew1611@gmail.com
+                </a>
               </p>
             </div>
           </div>
+        </div>
+        
+        {/* Footer Note */}
+        <div className="mt-8 text-center text-sm text-slate-500 dark:text-slate-400">
+          &copy; 2026 TagArchitect. All rights reserved.
         </div>
       </main>
     </div>
