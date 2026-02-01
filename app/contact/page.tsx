@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, Mail, MessageSquare, Send, CheckCircle, Clock, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const SUPPORT_EMAIL = "trevor.gallois@gmail.com";
+const SUPPORT_EMAIL = "efwfew1611@gmail.com";
 
 const FAQ_ITEMS = [
   {
