@@ -22,7 +22,7 @@ import { toast } from "sonner";
 import { cn, copyToClipboard } from "@/lib/utils";
 import { useBatchStore, LocalGroup, LocalImageItem, GroupSortOption } from "@/store/useBatchStore";
 import { TagEditor } from "@/components/editor";
-import { BatchDndContext, DraggableImage, DroppableGroup } from "@/components/dnd";
+import { DraggableImage, DroppableGroup } from "@/components/dnd";
 import { ImageLightbox } from "./ImageLightbox";
 import { deleteImageData, deleteGroupData } from "@/lib/persistence";
 import { markExplicitClear } from "@/hooks/usePersistence";
@@ -176,104 +176,102 @@ export function GroupList({
   }
 
   return (
-    <BatchDndContext>
-      <div className={cn("space-y-4", className)}>
-        <div className="flex items-center justify-between gap-4">
-          <h2 className="text-xl font-semibold text-slate-900">
-            Image Groups ({clusteredGroups.length})
-          </h2>
-          <div className="flex items-center gap-2">
+    <div className={cn("space-y-4", className)}>
+      <div className="flex items-center justify-between gap-4">
+        <h2 className="text-xl font-semibold text-slate-900">
+          Image Groups ({clusteredGroups.length})
+        </h2>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              const maxGroupNumber = groups.reduce(
+                (max, g) => (g.groupNumber > max ? g.groupNumber : max),
+                0
+              );
+              addGroup({
+                id: crypto.randomUUID(),
+                groupNumber: maxGroupNumber + 1,
+                images: [],
+                sharedTags: [],
+                isVerified: false,
+                createdAt: Date.now(),
+              });
+              toast.success("Empty group created — drag images into it");
+            }}
+            className={cn(
+              "inline-flex items-center gap-1.5 px-3 py-2 text-sm",
+              "text-blue-600 hover:text-blue-700 hover:bg-blue-50",
+              "border border-blue-200 rounded-lg transition-colors"
+            )}
+            title="Create an empty group"
+          >
+            <Plus className="h-4 w-4" />
+            New Group
+          </button>
+          <Select
+            options={SORT_OPTIONS}
+            value={groupSortOption}
+            onChange={(value) => setGroupSortOption(value as GroupSortOption)}
+            className="min-w-[160px]"
+          />
+          {clusteredGroups.length > 0 && (
             <button
               onClick={() => {
-                const maxGroupNumber = groups.reduce(
-                  (max, g) => (g.groupNumber > max ? g.groupNumber : max),
-                  0
-                );
-                addGroup({
-                  id: crypto.randomUUID(),
-                  groupNumber: maxGroupNumber + 1,
-                  images: [],
-                  sharedTags: [],
-                  isVerified: false,
-                  createdAt: Date.now(),
-                });
-                toast.success("Empty group created — drag images into it");
+                if (confirm("Clear all groups? This cannot be undone.")) {
+                  clearAllGroups();
+                  toast.success("All groups cleared");
+                }
               }}
               className={cn(
                 "inline-flex items-center gap-1.5 px-3 py-2 text-sm",
-                "text-blue-600 hover:text-blue-700 hover:bg-blue-50",
-                "border border-blue-200 rounded-lg transition-colors"
+                "text-red-600 hover:text-red-700 hover:bg-red-50",
+                "border border-red-200 rounded-lg transition-colors"
               )}
-              title="Create an empty group"
+              title="Clear all groups"
             >
-              <Plus className="h-4 w-4" />
-              New Group
+              <XCircle className="h-4 w-4" />
+              Clear All
             </button>
-            <Select
-              options={SORT_OPTIONS}
-              value={groupSortOption}
-              onChange={(value) => setGroupSortOption(value as GroupSortOption)}
-              className="min-w-[160px]"
-            />
-            {clusteredGroups.length > 0 && (
-              <button
-                onClick={() => {
-                  if (confirm("Clear all groups? This cannot be undone.")) {
-                    clearAllGroups();
-                    toast.success("All groups cleared");
-                  }
-                }}
-                className={cn(
-                  "inline-flex items-center gap-1.5 px-3 py-2 text-sm",
-                  "text-red-600 hover:text-red-700 hover:bg-red-50",
-                  "border border-red-200 rounded-lg transition-colors"
-                )}
-                title="Clear all groups"
-              >
-                <XCircle className="h-4 w-4" />
-                Clear All
-              </button>
-            )}
-          </div>
+          )}
         </div>
-
-        {clusteredGroups.map((group) => (
-          <DroppableGroup key={group.id} groupId={group.id}>
-            <CollapsibleGroupCard
-              group={group}
-              onEdit={() => setSelectedGroup(group)}
-              onImageClick={handleImageClick}
-              onDeleteImage={(imageId) => handleDeleteImage(group.id, imageId)}
-              onDeleteGroup={() => handleDeleteGroup(group.id)}
-              isSelected={selectedGroupIds.has(group.id)}
-              onToggleSelect={() => toggleGroupSelection(group.id)}
-              folders={folders}
-              onMoveToFolder={onMoveToFolder}
-            />
-          </DroppableGroup>
-        ))}
-
-        {selectedGroup && (
-          <TagEditor
-            group={selectedGroup}
-            isOpen={!!selectedGroup}
-            onClose={() => setSelectedGroup(null)}
-          />
-        )}
-
-        <ImageLightbox
-          image={lightboxState.image}
-          groupId={lightboxState.groupId}
-          isOpen={!!lightboxState.image}
-          onClose={handleLightboxClose}
-          onPrevious={handleLightboxPrevious}
-          onNext={handleLightboxNext}
-          hasPrevious={hasPrevious}
-          hasNext={hasNext}
-          onSaveComplete={onLightboxSave}
-        />
       </div>
-    </BatchDndContext>
+
+      {clusteredGroups.map((group) => (
+        <DroppableGroup key={group.id} groupId={group.id}>
+          <CollapsibleGroupCard
+            group={group}
+            onEdit={() => setSelectedGroup(group)}
+            onImageClick={handleImageClick}
+            onDeleteImage={(imageId) => handleDeleteImage(group.id, imageId)}
+            onDeleteGroup={() => handleDeleteGroup(group.id)}
+            isSelected={selectedGroupIds.has(group.id)}
+            onToggleSelect={() => toggleGroupSelection(group.id)}
+            folders={folders}
+            onMoveToFolder={onMoveToFolder}
+          />
+        </DroppableGroup>
+      ))}
+
+      {selectedGroup && (
+        <TagEditor
+          group={selectedGroup}
+          isOpen={!!selectedGroup}
+          onClose={() => setSelectedGroup(null)}
+        />
+      )}
+
+      <ImageLightbox
+        image={lightboxState.image}
+        groupId={lightboxState.groupId}
+        isOpen={!!lightboxState.image}
+        onClose={handleLightboxClose}
+        onPrevious={handleLightboxPrevious}
+        onNext={handleLightboxNext}
+        hasPrevious={hasPrevious}
+        hasNext={hasNext}
+        onSaveComplete={onLightboxSave}
+      />
+    </div>
   );
 }
 
@@ -512,17 +510,22 @@ function CollapsibleGroupCard({
           </div>
         </div>
 
-        {/* Tag Summary (collapsed only) */}
+        {/* Tag Summary (collapsed only) — strictly one row */}
         {isCollapsed && isTagged && group.sharedTags.length > 0 && (
-          <div className="hidden md:flex flex-wrap items-center gap-1 max-h-[3.5rem] overflow-hidden shrink min-w-0">
-            {group.sharedTags.map((tag, i) => (
+          <div className="hidden md:flex items-center gap-1 shrink min-w-0">
+            {group.sharedTags.slice(0, 4).map((tag, i) => (
               <span
                 key={i}
-                className="px-2 py-0.5 bg-slate-100 text-slate-600 text-xs rounded-full whitespace-nowrap"
+                className="px-2 py-0.5 bg-slate-100 text-slate-600 text-xs rounded-full whitespace-nowrap truncate max-w-[80px]"
               >
                 {tag}
               </span>
             ))}
+            {group.sharedTags.length > 4 && (
+              <span className="text-xs text-slate-400 whitespace-nowrap">
+                +{group.sharedTags.length - 4}
+              </span>
+            )}
           </div>
         )}
 

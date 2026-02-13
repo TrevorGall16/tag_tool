@@ -17,6 +17,7 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
 } from "@/components/ui";
+import { DraggableImage } from "@/components/dnd";
 import { ClusterDialog } from "./ClusterDialog";
 import type { VisionClusterResponse, ClusterSettings } from "@/types";
 
@@ -105,6 +106,10 @@ export function ImageGallery({ className }: ImageGalleryProps) {
     toast("Manual mode — create groups and drag images into them", {
       duration: 5000,
     });
+    // Scroll down so both the image pool and groups area are visible
+    setTimeout(() => {
+      window.scrollBy({ top: 300, behavior: "smooth" });
+    }, 100);
   };
 
   const handleSettingsConfirm = (settings: ClusterSettings) => {
@@ -313,40 +318,12 @@ export function ImageGallery({ className }: ImageGalleryProps) {
       {images.length > 0 ? (
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
           {images.map((image) => (
-            <div
+            <DraggableImage
               key={image.id}
-              className={cn(
-                "group relative aspect-square rounded-xl overflow-hidden",
-                "border border-slate-200 border-t-2 border-t-white/20 bg-white",
-                "shadow-sm hover:shadow-lg",
-                "hover:scale-105 transition-all duration-200"
-              )}
-            >
-              {/* Delete button */}
-              <button
-                type="button"
-                onClick={() => handleDeleteImage(image.id)}
-                className={cn(
-                  "absolute top-1 right-1 z-10 p-1 rounded-full",
-                  "bg-red-500/80 text-white",
-                  "opacity-0 group-hover:opacity-100 transition-opacity",
-                  "hover:bg-red-600 hover:scale-110"
-                )}
-                title={`Remove ${image.originalFilename}`}
-                aria-label={`Remove ${image.originalFilename}`}
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-              <img
-                src={image.thumbnailDataUrl}
-                alt={image.originalFilename}
-                className="w-full h-full object-cover"
-              />
-              {/* Filename overlay */}
-              <div className="absolute bottom-0 left-0 right-0 bg-black/60 backdrop-blur-sm px-2 py-1">
-                <p className="text-white text-xs truncate">{image.originalFilename}</p>
-              </div>
-            </div>
+              image={image}
+              groupId="unclustered"
+              onDeleteImage={(imageId) => handleDeleteImage(imageId)}
+            />
           ))}
         </div>
       ) : (

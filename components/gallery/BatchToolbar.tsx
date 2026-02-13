@@ -187,7 +187,7 @@ export function BatchToolbar({ className, selectedProjectId, folderName }: Batch
                           value={newProjectName}
                           onChange={(e) => setNewProjectName(e.target.value)}
                           placeholder="Folder name..."
-                          className="flex-1 px-2 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="flex-1 px-2 py-1.5 text-sm text-slate-900 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                           onKeyDown={(e) => {
                             if (e.key === "Enter") handleCreateProject();
                             if (e.key === "Escape") {
@@ -219,7 +219,7 @@ export function BatchToolbar({ className, selectedProjectId, folderName }: Batch
                   <button
                     onClick={() => handleMoveToProject(null)}
                     className={cn(
-                      "w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm",
+                      "w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-900",
                       "hover:bg-slate-50 transition-colors",
                       !currentProjectId && "bg-blue-50 text-blue-700"
                     )}
@@ -235,7 +235,7 @@ export function BatchToolbar({ className, selectedProjectId, folderName }: Batch
                       key={project.id}
                       onClick={() => handleMoveToProject(project.id)}
                       className={cn(
-                        "w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm",
+                        "w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-900",
                         "hover:bg-slate-50 transition-colors",
                         currentProjectId === project.id && "bg-blue-50 text-blue-700"
                       )}
