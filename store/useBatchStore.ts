@@ -538,9 +538,7 @@ export const useBatchStore = create<BatchState>()(
 
         getSortedGroups: () => {
           const state = get();
-          const clusteredGroups = state.groups.filter(
-            (g) => g.id !== "unclustered" && g.images.length > 0
-          );
+          const clusteredGroups = state.groups.filter((g) => g.id !== "unclustered");
 
           switch (state.groupSortOption) {
             case "name":

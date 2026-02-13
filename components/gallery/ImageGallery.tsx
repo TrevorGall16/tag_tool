@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Layers, ImageIcon, Loader2, X } from "lucide-react";
+import { Layers, ImageIcon, Loader2, X, Users, Hand } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useBatchStore, LocalGroup } from "@/store/useBatchStore";
 import { deleteImageData } from "@/lib/persistence";
@@ -37,6 +38,7 @@ export function ImageGallery({ className }: ImageGalleryProps) {
     setClusteringProgress,
   } = useBatchStore();
 
+  const [showOrganizeModal, setShowOrganizeModal] = useState(false);
   const [showClusterDialog, setShowClusterDialog] = useState(false);
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const [clusterMode, setClusterMode] = useState<"append" | "clear" | null>(null);
@@ -65,13 +67,44 @@ export function ImageGallery({ className }: ImageGalleryProps) {
   const hasExistingGroups = existingGroups.length > 0;
 
   const handleClusterButtonClick = () => {
-    if (images.length < 2) {
-      setError("At least 2 images are required for clustering");
+    if (images.length === 0) {
+      setError("Upload images first before organizing");
       return;
     }
 
-    // Show settings dialog first
+    // Show organize options modal first
+    setShowOrganizeModal(true);
+  };
+
+  const handleAIAutoCluster = () => {
+    setShowOrganizeModal(false);
+    if (images.length < 2) {
+      setError("At least 2 images are required for AI clustering");
+      return;
+    }
+    // Proceed to existing cluster settings dialog
     setShowSettingsDialog(true);
+  };
+
+  const handleGroupAllTogether = () => {
+    setShowOrganizeModal(false);
+    const newGroup: LocalGroup = {
+      id: crypto.randomUUID(),
+      groupNumber: 1,
+      images: [...images],
+      sharedTags: [],
+      isVerified: false,
+      createdAt: Date.now(),
+    };
+    appendGroups([newGroup]);
+    toast.success(`Grouped all ${images.length} images together`);
+  };
+
+  const handleManualMode = () => {
+    setShowOrganizeModal(false);
+    toast("Manual mode — create groups and drag images into them", {
+      duration: 5000,
+    });
   };
 
   const handleSettingsConfirm = (settings: ClusterSettings) => {
@@ -253,7 +286,7 @@ export function ImageGallery({ className }: ImageGalleryProps) {
         <div className="flex items-center gap-2">
           <button
             onClick={handleClusterButtonClick}
-            disabled={images.length < 2 || isClustering}
+            disabled={images.length === 0 || isClustering}
             className={cn(
               "inline-flex items-center gap-2",
               "bg-blue-600 text-white px-4 py-2 rounded-lg font-medium",
@@ -268,7 +301,7 @@ export function ImageGallery({ className }: ImageGalleryProps) {
             ) : (
               <Layers className="h-4 w-4" aria-hidden="true" />
             )}
-            {isClustering ? "Clustering..." : "Cluster Images"}
+            {isClustering ? "Clustering..." : "Organize"}
           </button>
           <span className="text-[10px] text-blue-600 font-medium bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
             1 Credit / Image
@@ -325,6 +358,73 @@ export function ImageGallery({ className }: ImageGalleryProps) {
           <p className="text-sm text-slate-500">Drop images in the dropzone above to get started</p>
         </div>
       )}
+
+      {/* Organize Options Modal */}
+      <AlertDialog open={showOrganizeModal} onOpenChange={setShowOrganizeModal}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>How would you like to organize?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Choose how to group your {images.length} image{images.length !== 1 ? "s" : ""} before
+              tagging.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="flex flex-col gap-3 py-2">
+            <button
+              onClick={handleAIAutoCluster}
+              className={cn(
+                "flex items-center gap-3 p-4 rounded-xl border-2 border-slate-200 text-left",
+                "hover:border-blue-400 hover:bg-blue-50 transition-all"
+              )}
+            >
+              <div className="p-2 rounded-lg bg-blue-100">
+                <Layers className="h-5 w-5 text-blue-600" />
+              </div>
+              <div>
+                <p className="font-semibold text-slate-900">AI Auto-Cluster</p>
+                <p className="text-sm text-slate-500">
+                  AI groups similar images together automatically
+                </p>
+              </div>
+            </button>
+            <button
+              onClick={handleGroupAllTogether}
+              className={cn(
+                "flex items-center gap-3 p-4 rounded-xl border-2 border-slate-200 text-left",
+                "hover:border-emerald-400 hover:bg-emerald-50 transition-all"
+              )}
+            >
+              <div className="p-2 rounded-lg bg-emerald-100">
+                <Users className="h-5 w-5 text-emerald-600" />
+              </div>
+              <div>
+                <p className="font-semibold text-slate-900">Group All Together</p>
+                <p className="text-sm text-slate-500">Put all images into one group instantly</p>
+              </div>
+            </button>
+            <button
+              onClick={handleManualMode}
+              className={cn(
+                "flex items-center gap-3 p-4 rounded-xl border-2 border-slate-200 text-left",
+                "hover:border-amber-400 hover:bg-amber-50 transition-all"
+              )}
+            >
+              <div className="p-2 rounded-lg bg-amber-100">
+                <Hand className="h-5 w-5 text-amber-600" />
+              </div>
+              <div>
+                <p className="font-semibold text-slate-900">Manual (I'll do it myself)</p>
+                <p className="text-sm text-slate-500">
+                  Create empty groups and drag images into them
+                </p>
+              </div>
+            </button>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Cluster Settings Dialog */}
       <ClusterDialog

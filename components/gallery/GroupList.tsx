@@ -16,6 +16,7 @@ import {
   FolderInput,
   Folder,
   XCircle,
+  Plus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn, copyToClipboard } from "@/lib/utils";
@@ -70,6 +71,7 @@ export function GroupList({
     setGroupSortOption,
     getSortedGroups,
     clearAllGroups,
+    addGroup,
   } = useBatchStore();
   const [selectedGroup, setSelectedGroup] = useState<LocalGroup | null>(null);
   const [lightboxState, setLightboxState] = useState<LightboxState>({
@@ -181,6 +183,32 @@ export function GroupList({
             Image Groups ({clusteredGroups.length})
           </h2>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                const maxGroupNumber = groups.reduce(
+                  (max, g) => (g.groupNumber > max ? g.groupNumber : max),
+                  0
+                );
+                addGroup({
+                  id: crypto.randomUUID(),
+                  groupNumber: maxGroupNumber + 1,
+                  images: [],
+                  sharedTags: [],
+                  isVerified: false,
+                  createdAt: Date.now(),
+                });
+                toast.success("Empty group created — drag images into it");
+              }}
+              className={cn(
+                "inline-flex items-center gap-1.5 px-3 py-2 text-sm",
+                "text-blue-600 hover:text-blue-700 hover:bg-blue-50",
+                "border border-blue-200 rounded-lg transition-colors"
+              )}
+              title="Create an empty group"
+            >
+              <Plus className="h-4 w-4" />
+              New Group
+            </button>
             <Select
               options={SORT_OPTIONS}
               value={groupSortOption}
@@ -372,7 +400,7 @@ function CollapsibleGroupCard({
   return (
     <div
       className={cn(
-        "border border-slate-200 bg-white rounded-xl shadow-sm overflow-hidden",
+        "border border-slate-200 bg-white rounded-xl shadow-sm",
         "transition-all duration-200",
         !isCollapsed && "hover:shadow-md"
       )}
@@ -486,18 +514,15 @@ function CollapsibleGroupCard({
 
         {/* Tag Summary (collapsed only) */}
         {isCollapsed && isTagged && group.sharedTags.length > 0 && (
-          <div className="hidden md:flex items-center gap-1 max-w-[300px]">
-            {group.sharedTags.slice(0, 4).map((tag, i) => (
+          <div className="hidden md:flex flex-wrap items-center gap-1">
+            {group.sharedTags.map((tag, i) => (
               <span
                 key={i}
-                className="px-2 py-0.5 bg-slate-100 text-slate-600 text-xs rounded-full truncate max-w-[80px]"
+                className="px-2 py-0.5 bg-slate-100 text-slate-600 text-xs rounded-full"
               >
                 {tag}
               </span>
             ))}
-            {group.sharedTags.length > 4 && (
-              <span className="text-xs text-slate-400">+{group.sharedTags.length - 4}</span>
-            )}
           </div>
         )}
 
@@ -555,34 +580,7 @@ function CollapsibleGroupCard({
             </span>
           )}
 
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              if (
-                confirm(
-                  `Delete "${group.sharedTitle || `Group ${group.groupNumber}`}" and all ${group.images.length} images?`
-                )
-              ) {
-                onDeleteGroup();
-              }
-            }}
-            className="p-2 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors"
-            title="Delete group"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
-
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit();
-            }}
-            className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
-            title="Edit tags"
-          >
-            <Edit2 className="h-4 w-4" />
-          </button>
-
+          {/* Generate Tags */}
           <button
             onClick={handleGenerateTags}
             disabled={isLoading || group.images.length === 0}
@@ -599,6 +597,44 @@ function CollapsibleGroupCard({
               <Sparkles className="h-4 w-4" />
             )}
             {isLoading ? "..." : isTagged ? "Redo" : "Tag"}
+          </button>
+
+          {/* Edit Tags */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit();
+            }}
+            className={cn(
+              "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium",
+              "border border-slate-300 text-slate-700",
+              "hover:bg-slate-100 hover:border-slate-400 transition-colors"
+            )}
+            title="Edit tags"
+          >
+            <Edit2 className="h-4 w-4" />
+            Edit Tags
+          </button>
+
+          {/* Spacer */}
+          <div className="w-px h-6 bg-slate-200 mx-1" />
+
+          {/* Delete */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              if (
+                confirm(
+                  `Delete "${group.sharedTitle || `Group ${group.groupNumber}`}" and all ${group.images.length} images?`
+                )
+              ) {
+                onDeleteGroup();
+              }
+            }}
+            className="p-2 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+            title="Delete group"
+          >
+            <Trash2 className="h-4 w-4" />
           </button>
         </div>
       </div>
@@ -617,7 +653,7 @@ function CollapsibleGroupCard({
           {isTagged && group.sharedTags.length > 0 && (
             <div className="mb-4 flex items-start gap-2">
               <div className="flex flex-wrap gap-1 flex-1">
-                {group.sharedTags.slice(0, 12).map((tag, i) => (
+                {group.sharedTags.map((tag, i) => (
                   <span
                     key={i}
                     className="inline-block px-2 py-0.5 bg-slate-100 text-slate-700 text-xs rounded-full"
@@ -625,11 +661,6 @@ function CollapsibleGroupCard({
                     {tag}
                   </span>
                 ))}
-                {group.sharedTags.length > 12 && (
-                  <span className="inline-block px-2 py-0.5 text-slate-500 text-xs">
-                    +{group.sharedTags.length - 12} more
-                  </span>
-                )}
               </div>
               <button
                 onClick={async (e) => {

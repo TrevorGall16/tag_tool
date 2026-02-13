@@ -4,7 +4,16 @@ import { useState, useEffect } from "react";
 import { useSession, signIn, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { RotateCcw, LogIn, LogOut, User, ChevronDown, Coins, Settings } from "lucide-react";
+import {
+  RotateCcw,
+  LogIn,
+  LogOut,
+  User,
+  ChevronDown,
+  Coins,
+  Settings,
+  HelpCircle,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCredits, setCreditsRefreshCallback } from "@/hooks/useCredits";
 import { useBatchStore } from "@/store/useBatchStore";
@@ -12,9 +21,10 @@ import { useBatchStore } from "@/store/useBatchStore";
 export interface HeaderProps {
   onNewBatch: () => void;
   isResetting?: boolean;
+  onHelpClick?: () => void;
 }
 
-export function Header({ onNewBatch, isResetting = false }: HeaderProps) {
+export function Header({ onNewBatch, isResetting = false, onHelpClick }: HeaderProps) {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -59,6 +69,15 @@ export function Header({ onNewBatch, isResetting = false }: HeaderProps) {
 
           {/* Right: Actions */}
           <div className="flex items-center gap-3">
+            {onHelpClick && (
+              <button
+                onClick={onHelpClick}
+                className="p-2 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                title="How it works"
+              >
+                <HelpCircle className="h-5 w-5" />
+              </button>
+            )}
             <button
               onClick={onNewBatch}
               disabled={isResetting}

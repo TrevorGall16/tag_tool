@@ -14,7 +14,16 @@ import {
   ClusteringProgress,
 } from "@/components/gallery";
 import { Header } from "@/components/layout";
-import { ConfirmationModal } from "@/components/ui";
+import {
+  ConfirmationModal,
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+} from "@/components/ui";
 import { cn } from "@/lib/utils";
 import {
   FolderPlus,
@@ -26,6 +35,9 @@ import {
   Pencil,
   Check,
   X,
+  Upload,
+  Layers,
+  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -55,6 +67,7 @@ export default function DashboardPage() {
   const [showNewFolderInput, setShowNewFolderInput] = useState(false);
   const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null);
   const [renamingValue, setRenamingValue] = useState("");
+  const [showTutorial, setShowTutorial] = useState(false);
 
   const isAuthenticated = status === "authenticated";
 
@@ -245,12 +258,16 @@ export default function DashboardPage() {
       {/* Fixed progress bar at top */}
       <ClusteringProgress />
 
-      <Header onNewBatch={handleNewBatchClick} isResetting={isResetting} />
+      <Header
+        onNewBatch={handleNewBatchClick}
+        isResetting={isResetting}
+        onHelpClick={() => setShowTutorial(true)}
+      />
 
       <main className="max-w-6xl mx-auto px-6 py-8">
         {/* Breadcrumb Navigation */}
         {activeFolderId && (
-          <div className="mb-6">
+          <div className="sticky top-0 z-30 bg-gradient-to-b from-slate-50 to-slate-100 pb-4 mb-6">
             <button
               onClick={() => setActiveFolderId(null)}
               className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-blue-600 transition-colors"
@@ -267,7 +284,7 @@ export default function DashboardPage() {
               ) : activeFolder ? (
                 <>
                   <FolderOpen className="h-6 w-6 text-blue-600" />
-                  {activeFolder.name}
+                  <span className="max-w-[30ch] break-words">{activeFolder.name}</span>
                 </>
               ) : null}
             </h1>
@@ -285,11 +302,23 @@ export default function DashboardPage() {
               <p className="text-lg text-slate-600">Upload, Cluster, and Tag</p>
             </div>
 
-            {/* Dropzone */}
+            {/* Step 1: Upload */}
+            <div className="flex items-center gap-2 mb-2">
+              <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold">
+                1
+              </span>
+              <span className="text-sm font-medium text-slate-600">Upload Images</span>
+            </div>
             <Dropzone />
 
-            {/* Image Gallery */}
-            <ImageGallery className="mt-12" />
+            {/* Step 2: Organize */}
+            <div className="flex items-center gap-2 mt-12 mb-2">
+              <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold">
+                2
+              </span>
+              <span className="text-sm font-medium text-slate-600">Organize into Groups</span>
+            </div>
+            <ImageGallery />
 
             {/* Folders Section */}
             {isAuthenticated && (
@@ -316,7 +345,7 @@ export default function DashboardPage() {
                         value={newFolderName}
                         onChange={(e) => setNewFolderName(e.target.value)}
                         placeholder="Folder name..."
-                        className="flex-1 px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         onKeyDown={(e) => {
                           if (e.key === "Enter") handleCreateFolder();
                           if (e.key === "Escape") {
@@ -330,7 +359,7 @@ export default function DashboardPage() {
                       <button
                         onClick={handleCreateFolder}
                         disabled={!newFolderName.trim() || isCreatingFolder}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        className="shrink-0 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       >
                         {isCreatingFolder ? "Creating..." : "Create"}
                       </button>
@@ -339,7 +368,7 @@ export default function DashboardPage() {
                           setShowNewFolderInput(false);
                           setNewFolderName("");
                         }}
-                        className="px-4 py-2 text-slate-600 hover:text-slate-900 transition-colors"
+                        className="shrink-0 px-4 py-2 text-slate-600 hover:text-slate-900 transition-colors"
                       >
                         Cancel
                       </button>
@@ -433,7 +462,7 @@ export default function DashboardPage() {
                                 type="text"
                                 value={renamingValue}
                                 onChange={(e) => setRenamingValue(e.target.value)}
-                                className="w-24 px-2 py-1 text-sm border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-24 px-2 py-1 text-sm text-slate-900 border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 autoFocus
                                 onKeyDown={(e) => {
                                   if (e.key === "Enter") handleRenameFolder(folder.id);
@@ -460,7 +489,9 @@ export default function DashboardPage() {
                               </button>
                             </div>
                           ) : (
-                            <h4 className="font-medium text-slate-900">{folder.name}</h4>
+                            <h4 className="font-medium text-slate-900 max-w-[30ch] truncate">
+                              {folder.name}
+                            </h4>
                           )}
 
                           {/* Stats */}
@@ -519,8 +550,16 @@ export default function DashboardPage() {
               </section>
             )}
 
+            {/* Step 3: Generate Tags */}
+            <div className="flex items-center gap-2 mt-12 mb-2">
+              <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold">
+                3
+              </span>
+              <span className="text-sm font-medium text-slate-600">Generate Tags</span>
+            </div>
+
             {/* Batch Toolbar */}
-            <BatchToolbar className="mt-8" folderName={undefined} />
+            <BatchToolbar folderName={undefined} />
 
             {/* All Groups (outside folders view) */}
             {isClustering ? (
@@ -566,6 +605,58 @@ export default function DashboardPage() {
           </>
         )}
       </main>
+
+      {/* Tutorial Modal */}
+      <AlertDialog open={showTutorial} onOpenChange={setShowTutorial}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>How TagArchitect Works</AlertDialogTitle>
+            <AlertDialogDescription>
+              Three simple steps to tag your images for Etsy or Adobe Stock.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="flex flex-col gap-4 py-2">
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                <Upload className="h-5 w-5 text-blue-600" />
+              </div>
+              <div>
+                <p className="font-semibold text-slate-900">1. Upload Images</p>
+                <p className="text-sm text-slate-500">
+                  Drag and drop or click the dropzone to upload your product photos.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
+                <Layers className="h-5 w-5 text-emerald-600" />
+              </div>
+              <div>
+                <p className="font-semibold text-slate-900">2. Organize into Groups</p>
+                <p className="text-sm text-slate-500">
+                  Cluster images with AI, group them all together, or manually create groups and
+                  drag images.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+                <Sparkles className="h-5 w-5 text-amber-600" />
+              </div>
+              <div>
+                <p className="font-semibold text-slate-900">3. Generate Tags</p>
+                <p className="text-sm text-slate-500">
+                  AI generates optimized titles and tags for each group. Edit, export, or copy as
+                  needed.
+                </p>
+              </div>
+            </div>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogAction>Got it</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Reset Confirmation Modal */}
       <ConfirmationModal
