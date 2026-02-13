@@ -22,7 +22,8 @@ export interface BatchDndContextProps {
 export function BatchDndContext({ children }: BatchDndContextProps) {
   const [activeImage, setActiveImage] = useState<LocalImageItem | null>(null);
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
-  const { groups, moveImageToGroup, sessionId, marketplace } = useBatchStore();
+  const { groups, moveImageToGroup, ensureUnclusteredGroup, sessionId, marketplace } =
+    useBatchStore();
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -75,6 +76,11 @@ export function BatchDndContext({ children }: BatchDndContextProps) {
     }
 
     console.log(`[DnD] Moving image ${imageId} from ${fromGroupId} to ${toGroupId}`);
+
+    // Ensure unclustered group exists when dragging back to pool
+    if (toGroupId === "unclustered") {
+      ensureUnclusteredGroup();
+    }
 
     // Update Zustand state
     moveImageToGroup(imageId, fromGroupId, toGroupId);

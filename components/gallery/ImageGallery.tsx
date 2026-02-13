@@ -17,8 +17,9 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
 } from "@/components/ui";
-import { DraggableImage } from "@/components/dnd";
+import { DraggableImage, DroppableGroup } from "@/components/dnd";
 import { ClusterDialog } from "./ClusterDialog";
+import { NamingSettings } from "./NamingSettings";
 import type { VisionClusterResponse, ClusterSettings } from "@/types";
 
 export interface ImageGalleryProps {
@@ -31,6 +32,7 @@ export function ImageGallery({ className }: ImageGalleryProps) {
     marketplace,
     isClustering,
     error,
+    namingSettings,
     appendGroups,
     clearAllGroups,
     setProcessingState,
@@ -112,8 +114,10 @@ export function ImageGallery({ className }: ImageGalleryProps) {
     }, 100);
   };
 
-  const handleSettingsConfirm = (settings: ClusterSettings) => {
+  const handleSettingsConfirm = () => {
     setShowSettingsDialog(false);
+    // Use global naming settings from store
+    const settings = namingSettings;
     setPendingSettings(settings);
 
     // If there are existing groups, ask about append/clear
@@ -289,6 +293,7 @@ export function ImageGallery({ className }: ImageGalleryProps) {
           Uploaded Images {images.length > 0 && `(${images.length})`}
         </h2>
         <div className="flex items-center gap-2">
+          <NamingSettings />
           <button
             onClick={handleClusterButtonClick}
             disabled={images.length === 0 || isClustering}
@@ -308,33 +313,37 @@ export function ImageGallery({ className }: ImageGalleryProps) {
             )}
             {isClustering ? "Clustering..." : "Organize"}
           </button>
-          <span className="text-[10px] text-blue-600 font-medium bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
-            1 Credit / Image
+          <span className="text-[10px] text-green-700 font-medium bg-green-50 px-2 py-0.5 rounded-full border border-green-200">
+            Free
           </span>
         </div>
       </div>
 
       {/* Grid or Empty State */}
-      {images.length > 0 ? (
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          {images.map((image) => (
-            <DraggableImage
-              key={image.id}
-              image={image}
-              groupId="unclustered"
-              onDeleteImage={(imageId) => handleDeleteImage(imageId)}
-            />
-          ))}
-        </div>
-      ) : (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <div className="rounded-full bg-slate-100 p-4 mb-4">
-            <ImageIcon className="h-8 w-8 text-slate-400" aria-hidden="true" />
+      <DroppableGroup groupId="unclustered">
+        {images.length > 0 ? (
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            {images.map((image) => (
+              <DraggableImage
+                key={image.id}
+                image={image}
+                groupId="unclustered"
+                onDeleteImage={(imageId) => handleDeleteImage(imageId)}
+              />
+            ))}
           </div>
-          <h3 className="text-lg font-medium text-slate-900 mb-1">No images uploaded yet</h3>
-          <p className="text-sm text-slate-500">Drop images in the dropzone above to get started</p>
-        </div>
-      )}
+        ) : (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="rounded-full bg-slate-100 p-4 mb-4">
+              <ImageIcon className="h-8 w-8 text-slate-400" aria-hidden="true" />
+            </div>
+            <h3 className="text-lg font-medium text-slate-900 mb-1">No images uploaded yet</h3>
+            <p className="text-sm text-slate-500">
+              Drop images in the dropzone above to get started
+            </p>
+          </div>
+        )}
+      </DroppableGroup>
 
       {/* Organize Options Modal */}
       <AlertDialog open={showOrganizeModal} onOpenChange={setShowOrganizeModal}>
@@ -403,7 +412,7 @@ export function ImageGallery({ className }: ImageGalleryProps) {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Cluster Settings Dialog */}
+      {/* Cluster Confirmation Dialog */}
       <ClusterDialog
         isOpen={showSettingsDialog}
         onClose={() => setShowSettingsDialog(false)}

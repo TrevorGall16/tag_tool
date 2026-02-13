@@ -92,10 +92,10 @@ function SignInContent() {
           </p>
         </div>
 
-        {/* Back to app */}
+        {/* Back to home */}
         <p className="mt-6 text-center text-sm text-slate-500">
-          <a href="/dashboard" className="text-blue-600 hover:underline">
-            Continue without signing in
+          <a href="/" className="text-blue-600 hover:underline">
+            Back to home
           </a>
         </p>
       </div>

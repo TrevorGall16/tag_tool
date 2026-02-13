@@ -14,7 +14,6 @@ import type { ClusterImageInput, ClusterResult, ImageClusterGroup } from "@/lib/
 const BATCH_SIZE = 20;
 const DEFAULT_MAX_GROUPS = 10;
 const IS_MOCK_MODE = process.env.NEXT_PUBLIC_MOCK_API === "true";
-const CREDITS_PER_IMAGE = 1;
 
 // Semantic tags for mock mode: [Broad Category, Specific Type, Vibe/Attribute]
 const MOCK_SEMANTIC_TAGS: string[][] = [
@@ -338,26 +337,6 @@ export async function POST(
       );
     }
 
-    // CREDIT CHECK: Verify user has sufficient credits (skip in mock mode)
-    const creditsRequired = images.length * CREDITS_PER_IMAGE;
-
-    if (session?.user?.id && !IS_MOCK_MODE) {
-      const user = await prisma.user.findUnique({
-        where: { id: session.user.id },
-        select: { creditsBalance: true },
-      });
-
-      if (!user || user.creditsBalance < creditsRequired) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: `Insufficient credits. You need ${creditsRequired} credits but have ${user?.creditsBalance ?? 0}.`,
-          },
-          { status: 402 }
-        );
-      }
-    }
-
     let clusterResult: ClusterResult;
 
     // Mock mode: bypass real API calls for development/testing
@@ -399,40 +378,6 @@ export async function POST(
     // Final processing: sanitize labels and merge duplicates
     const sanitizedResult = ensureLabels(clusterResult, settings);
     const finalResult = mergeDuplicateGroups(sanitizedResult);
-
-    // DEDUCT CREDITS: Charge for successful clustering (skip in mock mode)
-    if (session?.user?.id && !IS_MOCK_MODE) {
-      try {
-        await prisma.$transaction(async (tx) => {
-          const user = await tx.user.update({
-            where: { id: session.user.id },
-            data: { creditsBalance: { decrement: creditsRequired } },
-          });
-
-          if (user.creditsBalance < 0) {
-            throw new Error("Insufficient credits");
-          }
-
-          await tx.creditsLedger.create({
-            data: {
-              userId: session.user.id,
-              amount: -creditsRequired,
-              reason: "USAGE",
-              description: `Image Clustering - ${images.length} image${images.length > 1 ? "s" : ""}`,
-            },
-          });
-        });
-      } catch (creditError) {
-        console.error(
-          "[Credits] Deduction failed:",
-          creditError instanceof Error ? creditError.message : "Unknown"
-        );
-        return NextResponse.json(
-          { success: false, error: "Credit deduction failed. Please try again." },
-          { status: 402 }
-        );
-      }
-    }
 
     return NextResponse.json({
       success: true,

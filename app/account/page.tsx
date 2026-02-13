@@ -21,7 +21,18 @@ import {
   Trash2,
   HelpCircle,
 } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@/components/ui";
 
 interface LedgerEntry {
   id: string;
@@ -76,6 +87,7 @@ export default function AccountPage() {
   const [accountData, setAccountData] = useState<AccountData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showDeleteAccountDialog, setShowDeleteAccountDialog] = useState(false);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -459,25 +471,7 @@ export default function AccountPage() {
                 </p>
               </div>
               <button
-                onClick={() => {
-                  if (
-                    window.confirm(
-                      "Are you sure you want to delete your account? This action cannot be undone."
-                    )
-                  ) {
-                    fetch("/api/account", { method: "DELETE" })
-                      .then((res) => {
-                        if (res.ok) {
-                          router.push("/auth/signin?deleted=true");
-                        } else {
-                          alert("Failed to delete account. Please contact support.");
-                        }
-                      })
-                      .catch(() => {
-                        alert("Failed to delete account. Please try again.");
-                      });
-                  }
-                }}
+                onClick={() => setShowDeleteAccountDialog(true)}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors shrink-0"
               >
                 <Trash2 className="w-4 h-4" />
@@ -487,6 +481,40 @@ export default function AccountPage() {
           </div>
         </section>
       </main>
+
+      {/* Delete Account Confirmation */}
+      <AlertDialog open={showDeleteAccountDialog} onOpenChange={setShowDeleteAccountDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete your account?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete your account and all associated data. This action cannot
+              be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                fetch("/api/account", { method: "DELETE" })
+                  .then((res) => {
+                    if (res.ok) {
+                      router.push("/auth/signin?deleted=true");
+                    } else {
+                      toast.error("Failed to delete account. Please contact support.");
+                    }
+                  })
+                  .catch(() => {
+                    toast.error("Failed to delete account. Please try again.");
+                  });
+              }}
+            >
+              Delete Account
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -25,6 +25,7 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogAction,
+  AlertDialogCancel,
 } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import {
@@ -98,6 +99,10 @@ function DashboardContent() {
   const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null);
   const [renamingValue, setRenamingValue] = useState("");
   const [showTutorial, setShowTutorial] = useState(false);
+  const [deleteFolderTarget, setDeleteFolderTarget] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
 
   const isAuthenticated = status === "authenticated";
 
@@ -159,10 +164,6 @@ function DashboardContent() {
   };
 
   const handleDeleteFolder = async (folderId: string, folderName: string) => {
-    if (!confirm(`Delete folder "${folderName}"? Groups inside will be moved to Uncategorized.`)) {
-      return;
-    }
-
     try {
       const res = await fetch(`/api/projects/${folderId}`, { method: "DELETE" });
       const data = await res.json();
@@ -306,15 +307,15 @@ function DashboardContent() {
                 <ChevronLeft className="h-4 w-4" />
                 Back to Folders
               </button>
-              <h1 className="text-2xl font-bold text-slate-900 mt-2 flex items-center gap-3">
+              <h1 className="text-3xl font-bold text-slate-900 mt-2 flex items-center gap-3">
                 {activeFolderId === "__uncategorized__" ? (
                   <>
-                    <Images className="h-6 w-6 text-slate-500" />
+                    <Images className="h-7 w-7 text-slate-500" />
                     Uncategorized
                   </>
                 ) : activeFolder ? (
                   <>
-                    <FolderOpen className="h-6 w-6 text-blue-600" />
+                    <FolderOpen className="h-7 w-7 text-blue-600" />
                     <span className="max-w-[30ch] break-words">{activeFolder.name}</span>
                   </>
                 ) : null}
@@ -558,7 +559,10 @@ function DashboardContent() {
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleDeleteFolder(folder.id, folder.name);
+                                setDeleteFolderTarget({
+                                  id: folder.id,
+                                  name: folder.name,
+                                });
                               }}
                               className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
                               title="Delete folder"
@@ -686,6 +690,36 @@ function DashboardContent() {
           </div>
           <AlertDialogFooter>
             <AlertDialogAction>Got it</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Folder Confirmation */}
+      <AlertDialog
+        open={!!deleteFolderTarget}
+        onOpenChange={(open) => !open && setDeleteFolderTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete folder?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Delete folder "{deleteFolderTarget?.name}"? Groups inside will be moved to
+              Uncategorized.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                if (deleteFolderTarget) {
+                  handleDeleteFolder(deleteFolderTarget.id, deleteFolderTarget.name);
+                  setDeleteFolderTarget(null);
+                }
+              }}
+            >
+              Delete
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

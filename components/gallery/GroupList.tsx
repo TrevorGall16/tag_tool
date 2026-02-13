@@ -26,7 +26,17 @@ import { DraggableImage, DroppableGroup } from "@/components/dnd";
 import { ImageLightbox } from "./ImageLightbox";
 import { deleteImageData, deleteGroupData } from "@/lib/persistence";
 import { markExplicitClear } from "@/hooks/usePersistence";
-import { Select } from "@/components/ui";
+import {
+  Select,
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@/components/ui";
 import type { VisionTagsResponse } from "@/types";
 
 const SORT_OPTIONS = [
@@ -74,6 +84,7 @@ export function GroupList({
     addGroup,
   } = useBatchStore();
   const [selectedGroup, setSelectedGroup] = useState<LocalGroup | null>(null);
+  const [showClearAllDialog, setShowClearAllDialog] = useState(false);
   const [lightboxState, setLightboxState] = useState<LightboxState>({
     image: null,
     groupId: "",
@@ -170,6 +181,31 @@ export function GroupList({
             Upload images using the dropzone above. Images will be automatically clustered into
             groups for batch tagging.
           </p>
+          <button
+            onClick={() => {
+              const maxGroupNumber = groups.reduce(
+                (max, g) => (g.groupNumber > max ? g.groupNumber : max),
+                0
+              );
+              addGroup({
+                id: crypto.randomUUID(),
+                groupNumber: maxGroupNumber + 1,
+                images: [],
+                sharedTags: [],
+                isVerified: false,
+                createdAt: Date.now(),
+              });
+              toast.success("Empty group created — drag images into it");
+            }}
+            className={cn(
+              "inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium",
+              "text-blue-600 hover:text-blue-700 hover:bg-blue-50",
+              "border border-blue-200 rounded-lg transition-colors"
+            )}
+          >
+            <Plus className="h-4 w-4" />
+            New Group
+          </button>
         </div>
       </div>
     );
@@ -216,12 +252,7 @@ export function GroupList({
           />
           {clusteredGroups.length > 0 && (
             <button
-              onClick={() => {
-                if (confirm("Clear all groups? This cannot be undone.")) {
-                  clearAllGroups();
-                  toast.success("All groups cleared");
-                }
-              }}
+              onClick={() => setShowClearAllDialog(true)}
               className={cn(
                 "inline-flex items-center gap-1.5 px-3 py-2 text-sm",
                 "text-red-600 hover:text-red-700 hover:bg-red-50",
@@ -271,6 +302,30 @@ export function GroupList({
         hasNext={hasNext}
         onSaveComplete={onLightboxSave}
       />
+
+      {/* Clear All Groups Confirmation */}
+      <AlertDialog open={showClearAllDialog} onOpenChange={setShowClearAllDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear all groups?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove all {clusteredGroups.length} groups. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                clearAllGroups();
+                toast.success("All groups cleared");
+              }}
+            >
+              Clear All
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -302,6 +357,9 @@ function CollapsibleGroupCard({
   const [showSuccess, setShowSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showFolderMenu, setShowFolderMenu] = useState(false);
+  const [showRegenDialog, setShowRegenDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [pendingGenerateEvent, setPendingGenerateEvent] = useState<React.MouseEvent | null>(null);
   const folderMenuRef = useRef<HTMLDivElement>(null);
 
   const { marketplace, strategy, maxTags, updateGroupTags, toggleGroupCollapse } = useBatchStore();
@@ -326,15 +384,19 @@ function CollapsibleGroupCard({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showFolderMenu]);
 
-  const handleGenerateTags = async (e: React.MouseEvent) => {
+  const handleGenerateTags = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (group.images.length === 0) return;
 
     if (isTagged) {
-      const confirmed = window.confirm("Regenerate tags? This will use 1 credit.");
-      if (!confirmed) return;
+      setShowRegenDialog(true);
+      return;
     }
 
+    doGenerateTags();
+  };
+
+  const doGenerateTags = async () => {
     setIsLoading(true);
     setError(null);
     setShowSuccess(false);
@@ -626,13 +688,7 @@ function CollapsibleGroupCard({
           <button
             onClick={(e) => {
               e.stopPropagation();
-              if (
-                confirm(
-                  `Delete "${group.sharedTitle || `Group ${group.groupNumber}`}" and all ${group.images.length} images?`
-                )
-              ) {
-                onDeleteGroup();
-              }
+              setShowDeleteDialog(true);
             }}
             className="p-2 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors"
             title="Delete group"
@@ -707,6 +763,47 @@ function CollapsibleGroupCard({
           )}
         </div>
       )}
+
+      {/* Regenerate Tags Confirmation */}
+      <AlertDialog open={showRegenDialog} onOpenChange={setShowRegenDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Generate tags for {group.images.length} images?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will use {group.images.length} credit{group.images.length !== 1 ? "s" : ""}.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                doGenerateTags();
+              }}
+            >
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Group Confirmation */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete group?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Delete "{group.sharedTitle || `Group ${group.groupNumber}`}" and all{" "}
+              {group.images.length} images? This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={onDeleteGroup}>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

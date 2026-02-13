@@ -4,6 +4,7 @@ import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 import type { ExportSettings } from "@/lib/export";
 import { DEFAULT_EXPORT_SETTINGS } from "@/lib/export";
+import type { ClusterSettings } from "@/types";
 
 // Types for the store
 export interface LocalImageItem {
@@ -71,6 +72,9 @@ interface BatchState {
   // Export settings
   exportSettings: ExportSettings;
 
+  // Naming settings (global, persisted)
+  namingSettings: ClusterSettings;
+
   // UI preferences
   groupSortOption: GroupSortOption;
 
@@ -126,6 +130,7 @@ interface BatchState {
   setClusteringProgress: (
     progress: { currentBatch: number; totalBatches: number; totalImages: number } | null
   ) => void;
+  setNamingSettings: (settings: ClusterSettings) => void;
   setGroupSortOption: (option: GroupSortOption) => void;
   getSortedGroups: () => LocalGroup[];
   appendGroups: (newGroups: LocalGroup[]) => void;
@@ -151,6 +156,7 @@ export const useBatchStore = create<BatchState>()(
         clusteringProgress: null,
         error: null,
         exportSettings: DEFAULT_EXPORT_SETTINGS,
+        namingSettings: {} as ClusterSettings,
         groupSortOption: "date",
 
         // Actions
@@ -532,6 +538,10 @@ export const useBatchStore = create<BatchState>()(
           set({ clusteringProgress: progress });
         },
 
+        setNamingSettings: (settings) => {
+          set({ namingSettings: settings });
+        },
+
         setGroupSortOption: (option) => {
           set({ groupSortOption: option });
         },
@@ -603,6 +613,7 @@ export const useBatchStore = create<BatchState>()(
           maxTags: state.maxTags,
           currentGroupIndex: state.currentGroupIndex,
           exportSettings: state.exportSettings,
+          namingSettings: state.namingSettings,
           groupSortOption: state.groupSortOption,
         }),
       }

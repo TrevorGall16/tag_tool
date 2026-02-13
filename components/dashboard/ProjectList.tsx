@@ -5,6 +5,16 @@ import { useSession } from "next-auth/react";
 import { FolderOpen, FolderPlus, Trash2, ChevronRight, Loader2, Archive } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@/components/ui";
 import { SidebarSearch } from "./SidebarSearch";
 
 // Helper component to highlight matching text
@@ -60,6 +70,10 @@ export function ProjectList({
   const [newProjectName, setNewProjectName] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
 
   const isAuthenticated = status === "authenticated";
 
@@ -121,8 +135,6 @@ export function ProjectList({
   };
 
   const handleDeleteProject = async (projectId: string, projectName: string) => {
-    if (!confirm(`Delete "${projectName}" and unlink all its batches?`)) return;
-
     try {
       const res = await fetch(`/api/projects/${projectId}`, { method: "DELETE" });
       const data = await res.json();
@@ -263,7 +275,7 @@ export function ProjectList({
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleDeleteProject(project.id, project.name);
+                    setDeleteTarget({ id: project.id, name: project.name });
                   }}
                   className="opacity-0 group-hover:opacity-100 p-1 rounded text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all"
                 >
@@ -280,6 +292,32 @@ export function ProjectList({
           </div>
         )}
       </div>
+
+      {/* Delete Project Confirmation */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete project?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Delete "{deleteTarget?.name}" and unlink all its batches?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                if (deleteTarget) {
+                  handleDeleteProject(deleteTarget.id, deleteTarget.name);
+                  setDeleteTarget(null);
+                }
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* New Project Modal */}
       {showNewModal && (
