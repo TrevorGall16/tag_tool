@@ -9,7 +9,6 @@ import { prisma } from "@/lib/prisma";
  * Supports Google OAuth and Magic Link (Email) authentication
  */
 export const authOptions: NextAuthOptions = {
-  debug: true, // <-- ADD THIS LINE
   adapter: PrismaAdapter(prisma) as Adapter,
 
   providers: [
@@ -41,44 +40,49 @@ export const authOptions: NextAuthOptions = {
       if (!user.id) return true;
 
       try {
-        // Get the tagarchitect_session cookie value from the request
-        // This is set during anonymous usage and contains the local sessionId
         const { cookies } = await import("next/headers");
         const cookieStore = await cookies();
         const anonymousSessionId = cookieStore.get("tagarchitect_session")?.value;
 
         if (anonymousSessionId) {
-          // Promote all batches from this anonymous session to the authenticated user
-          const result = await prisma.batch.updateMany({
+          await prisma.batch.updateMany({
             where: {
               sessionId: anonymousSessionId,
-              userId: null, // Only promote batches that aren't already claimed
+              userId: null,
             },
             data: {
               userId: user.id,
             },
           });
-
-          // Batch promotion logged server-side only if needed for debugging
         }
       } catch (error) {
         console.error("[Auth] Failed to promote anonymous batches:", error);
-        // Don't block sign-in on promotion failure
       }
 
       return true;
     },
 
     /**
-     * Session callback - adds user ID and subscription info to session
+     * JWT Callback - required when using strategy: "jwt"
+     * Transfers user ID from the database profile into the token
      */
-    async session({ session, user }) {
-      if (session.user && user) {
-        session.user.id = user.id;
+    async jwt({ token, user }) {
+      if (user) {
+        token.id = user.id;
+      }
+      return token;
+    },
+
+    /**
+     * Session callback - extracts ID from token and fetches fresh DB data
+     */
+    async session({ session, token }) {
+      if (session.user && token && token.id) {
+        session.user.id = token.id as string;
 
         // Fetch additional user data for the session
         const dbUser = await prisma.user.findUnique({
-          where: { id: user.id },
+          where: { id: session.user.id },
           select: {
             creditsBalance: true,
             subscriptionTier: true,
@@ -101,8 +105,6 @@ export const authOptions: NextAuthOptions = {
      * Create user event - initialize new users with default credits
      */
     async createUser({ user }) {
-      // User already has default credits from schema (50)
-      // Add welcome bonus to ledger
       await prisma.creditsLedger.create({
         data: {
           userId: user.id,
