@@ -9,6 +9,7 @@ import { prisma } from "@/lib/prisma";
  * Supports Google OAuth and Magic Link (Email) authentication
  */
 export const authOptions: NextAuthOptions = {
+  debug: true, // <-- ADD THIS LINE
   adapter: PrismaAdapter(prisma) as Adapter,
 
   providers: [
