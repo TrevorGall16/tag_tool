@@ -514,11 +514,11 @@ function CollapsibleGroupCard({
 
         {/* Tag Summary (collapsed only) */}
         {isCollapsed && isTagged && group.sharedTags.length > 0 && (
-          <div className="hidden md:flex flex-wrap items-center gap-1">
+          <div className="hidden md:flex flex-wrap items-center gap-1 max-h-[3.5rem] overflow-hidden shrink min-w-0">
             {group.sharedTags.map((tag, i) => (
               <span
                 key={i}
-                className="px-2 py-0.5 bg-slate-100 text-slate-600 text-xs rounded-full"
+                className="px-2 py-0.5 bg-slate-100 text-slate-600 text-xs rounded-full whitespace-nowrap"
               >
                 {tag}
               </span>
@@ -550,7 +550,7 @@ function CollapsibleGroupCard({
                   <button
                     onClick={() => handleMoveToFolder(null)}
                     className={cn(
-                      "w-full text-left px-3 py-2 text-sm hover:bg-slate-50 transition-colors",
+                      "w-full text-left px-3 py-2 text-sm text-slate-900 hover:bg-slate-50 transition-colors",
                       !group.folderId && "bg-blue-50 text-blue-700"
                     )}
                   >
@@ -561,7 +561,7 @@ function CollapsibleGroupCard({
                       key={folder.id}
                       onClick={() => handleMoveToFolder(folder.id)}
                       className={cn(
-                        "w-full text-left px-3 py-2 text-sm hover:bg-slate-50 transition-colors flex items-center gap-2",
+                        "w-full text-left px-3 py-2 text-sm text-slate-900 hover:bg-slate-50 transition-colors flex items-center gap-2",
                         group.folderId === folder.id && "bg-blue-50 text-blue-700"
                       )}
                     >
@@ -639,8 +639,8 @@ function CollapsibleGroupCard({
         </div>
       </div>
 
-      {/* Expanded Content */}
-      {!isCollapsed && (
+      {/* Expanded Content — always show for empty groups so drop target is visible */}
+      {(!isCollapsed || group.images.length === 0) && (
         <div className="p-4">
           {/* Error Message */}
           {error && (
@@ -680,18 +680,28 @@ function CollapsibleGroupCard({
             </div>
           )}
 
-          {/* Image Grid */}
-          <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
-            {group.images.map((image) => (
-              <DraggableImage
-                key={image.id}
-                image={image}
-                groupId={group.id}
-                onImageClick={(img) => onImageClick(img, group.id)}
-                onDeleteImage={onDeleteImage}
-              />
-            ))}
-          </div>
+          {/* Empty group drop target */}
+          {group.images.length === 0 ? (
+            <div className="min-h-[120px] flex items-center justify-center border-2 border-dashed border-slate-300 rounded-xl bg-slate-50/50">
+              <div className="text-center">
+                <ImagePlus className="h-8 w-8 text-slate-300 mx-auto mb-2" />
+                <p className="text-sm text-slate-400">Drag images here</p>
+              </div>
+            </div>
+          ) : (
+            /* Image Grid */
+            <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
+              {group.images.map((image) => (
+                <DraggableImage
+                  key={image.id}
+                  image={image}
+                  groupId={group.id}
+                  onImageClick={(img) => onImageClick(img, group.id)}
+                  onDeleteImage={onDeleteImage}
+                />
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
