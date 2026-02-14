@@ -5,12 +5,12 @@ import { ShoppingBag, Camera, Sparkles, ChevronDown, Tag } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useBatchStore, type StrategyType } from "@/store/useBatchStore";
+import { getDefaultTagCount, getStrategyDescription } from "@/lib/vision/prompts/index";
 
 interface StrategyOption {
   value: StrategyType;
   label: string;
   shortDescription: string;
-  fullDescription: string;
   icon: React.ReactNode;
 }
 
@@ -19,21 +19,18 @@ const strategies: StrategyOption[] = [
     value: "etsy",
     label: "Etsy Optimized",
     shortDescription: "Creative & emotional keywords",
-    fullDescription: "Optimized for Etsy Search. 13 long-tail descriptive phrases.",
     icon: <ShoppingBag className="h-4 w-4" />,
   },
   {
     value: "stock",
     label: "Adobe Stock Expert",
     shortDescription: "Technical & objective tags",
-    fullDescription: "Optimized for Adobe Stock. 49 single keywords. Visual priority.",
     icon: <Camera className="h-4 w-4" />,
   },
   {
     value: "standard",
     label: "Standard SEO",
     shortDescription: "Balanced for general use",
-    fullDescription: "Standard SEO tagging for general use. 30–50 balanced keywords.",
     icon: <Sparkles className="h-4 w-4" />,
   },
 ];
@@ -51,13 +48,9 @@ export function StrategySelector({ className }: StrategySelectorProps) {
     strategies.find((s) => s.value === strategy) || (strategies[0] as StrategyOption);
 
   const handleStrategyChange = (newStrategy: StrategyType) => {
-    // Auto-set maxTags to 13 when switching to Etsy strategy
-    if (newStrategy === "etsy" && maxTags > 13) {
-      setMaxTags(13);
-    }
-
     if (newStrategy !== strategy) {
       setStrategy(newStrategy);
+      setMaxTags(getDefaultTagCount(newStrategy));
       const selectedOption = strategies.find((s) => s.value === newStrategy);
       if (selectedOption) {
         toast.success(`Strategy updated to ${selectedOption.label}`);
@@ -81,6 +74,9 @@ export function StrategySelector({ className }: StrategySelectorProps) {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isOpen]);
+
+  // Dynamic description based on current slider value
+  const dynamicDescription = getStrategyDescription(strategy, maxTags);
 
   return (
     <div className={cn("flex flex-col gap-2", className)}>
@@ -111,48 +107,52 @@ export function StrategySelector({ className }: StrategySelectorProps) {
           {/* Dropdown Menu */}
           {isOpen && (
             <div className="absolute top-full left-0 mt-1 w-72 bg-white rounded-xl shadow-lg border border-slate-200 py-1 z-50">
-              {strategies.map((option) => (
-                <button
-                  key={option.value}
-                  onClick={() => handleStrategyChange(option.value)}
-                  className={cn(
-                    "w-full flex items-start gap-3 px-4 py-3 text-left",
-                    "hover:bg-slate-50 transition-colors",
-                    strategy === option.value && "bg-blue-50"
-                  )}
-                >
-                  <div
+              {strategies.map((option) => {
+                const optionTagCount = getDefaultTagCount(option.value);
+                const optionDescription = getStrategyDescription(option.value, optionTagCount);
+                return (
+                  <button
+                    key={option.value}
+                    onClick={() => handleStrategyChange(option.value)}
                     className={cn(
-                      "mt-0.5",
-                      strategy === option.value ? "text-blue-600" : "text-slate-500"
+                      "w-full flex items-start gap-3 px-4 py-3 text-left",
+                      "hover:bg-slate-50 transition-colors",
+                      strategy === option.value && "bg-blue-50"
                     )}
                   >
-                    {option.icon}
-                  </div>
-                  <div className="flex-1 min-w-0">
                     <div
                       className={cn(
-                        "font-medium text-sm",
-                        strategy === option.value ? "text-blue-600" : "text-gray-900"
+                        "mt-0.5",
+                        strategy === option.value ? "text-blue-600" : "text-slate-500"
                       )}
                     >
-                      {option.label}
+                      {option.icon}
                     </div>
-                    <div className="text-xs text-gray-500 mt-0.5">{option.fullDescription}</div>
-                  </div>
-                  {strategy === option.value && (
-                    <div className="text-blue-600 mt-0.5">
-                      <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-                        <path
-                          fillRule="evenodd"
-                          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
+                    <div className="flex-1 min-w-0">
+                      <div
+                        className={cn(
+                          "font-medium text-sm",
+                          strategy === option.value ? "text-blue-600" : "text-gray-900"
+                        )}
+                      >
+                        {option.label}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-0.5">{optionDescription}</div>
                     </div>
-                  )}
-                </button>
-              ))}
+                    {strategy === option.value && (
+                      <div className="text-blue-600 mt-0.5">
+                        <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                          <path
+                            fillRule="evenodd"
+                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
@@ -180,8 +180,8 @@ export function StrategySelector({ className }: StrategySelectorProps) {
         </div>
       </div>
 
-      {/* Strategy Description — always visible */}
-      <p className="text-xs text-gray-500 pl-1">{selectedOption.fullDescription}</p>
+      {/* Strategy Description — dynamic, always visible */}
+      <p className="text-xs text-gray-500 pl-1">{dynamicDescription}</p>
     </div>
   );
 }

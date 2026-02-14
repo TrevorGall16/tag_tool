@@ -9,7 +9,7 @@ import type {
   StrategyType,
 } from "../types";
 import type { PlatformType } from "@/types";
-import { getPlatformConfig } from "../prompts";
+import { getPlatformConfig } from "../prompts/index";
 
 export interface OpenAIProviderConfig {
   apiKey?: string;

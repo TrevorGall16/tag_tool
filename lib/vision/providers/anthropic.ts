@@ -11,7 +11,7 @@ import type {
 } from "../types";
 import type { PlatformType } from "@/types";
 import { getMediaType, extractBase64Data, extractJsonFromResponse } from "../utils";
-import { buildClusteringPrompt, buildPlatformTagPrompt, getPlatformConfig } from "../prompts";
+import { buildClusteringPrompt, buildPlatformTagPrompt, getPlatformConfig } from "../prompts/index";
 
 export interface AnthropicProviderConfig {
   apiKey?: string;

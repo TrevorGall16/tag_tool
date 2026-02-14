@@ -543,32 +543,42 @@ export const useBatchStore = create<BatchState>()(
         },
 
         setGroupSortOption: (option) => {
-          set({ groupSortOption: option });
+          set((state) => {
+            const unclustered = state.groups.filter((g) => g.id === "unclustered");
+            const clustered = state.groups.filter((g) => g.id !== "unclustered");
+
+            const tiebreak = (a: LocalGroup, b: LocalGroup) =>
+              (a.createdAt || 0) - (b.createdAt || 0) || a.groupNumber - b.groupNumber;
+
+            let sorted: LocalGroup[];
+            switch (option) {
+              case "name":
+                sorted = [...clustered].sort((a, b) => {
+                  const nameA = a.sharedTitle || `Group ${a.groupNumber}`;
+                  const nameB = b.sharedTitle || `Group ${b.groupNumber}`;
+                  return nameA.localeCompare(nameB) || tiebreak(a, b);
+                });
+                break;
+              case "imageCount":
+                sorted = [...clustered].sort(
+                  (a, b) => b.images.length - a.images.length || tiebreak(a, b)
+                );
+                break;
+              case "date":
+              default:
+                sorted = [...clustered].sort(tiebreak);
+                break;
+            }
+
+            return { groupSortOption: option, groups: [...unclustered, ...sorted] };
+          });
         },
 
         getSortedGroups: () => {
           const state = get();
-          const clusteredGroups = state.groups.filter((g) => g.id !== "unclustered");
-
-          // Stable tiebreaker: always fall back to createdAt → groupNumber
-          const tiebreak = (a: LocalGroup, b: LocalGroup) =>
-            (a.createdAt || 0) - (b.createdAt || 0) || a.groupNumber - b.groupNumber;
-
-          switch (state.groupSortOption) {
-            case "name":
-              return [...clusteredGroups].sort((a, b) => {
-                const nameA = a.sharedTitle || `Group ${a.groupNumber}`;
-                const nameB = b.sharedTitle || `Group ${b.groupNumber}`;
-                return nameA.localeCompare(nameB) || tiebreak(a, b);
-              });
-            case "imageCount":
-              return [...clusteredGroups].sort(
-                (a, b) => b.images.length - a.images.length || tiebreak(a, b)
-              );
-            case "date":
-            default:
-              return [...clusteredGroups].sort(tiebreak);
-          }
+          // Return groups in their current array order (stable, insertion-based).
+          // Sorting is applied eagerly in setGroupSortOption, not here.
+          return state.groups.filter((g) => g.id !== "unclustered");
         },
 
         appendGroups: (newGroups) => {
