@@ -145,7 +145,7 @@ export function BatchToolbar({ className, selectedProjectId, folderName }: Batch
       {/* Left: Strategy Selector + Project Assignment */}
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-3">
-          <span className="text-sm font-medium text-slate-500">Strategy:</span>
+          <span className="text-sm font-medium text-slate-500">Platform Strategy:</span>
           <StrategySelector />
         </div>
 

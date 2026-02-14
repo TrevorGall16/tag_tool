@@ -362,7 +362,8 @@ function CollapsibleGroupCard({
   const [pendingGenerateEvent, setPendingGenerateEvent] = useState<React.MouseEvent | null>(null);
   const folderMenuRef = useRef<HTMLDivElement>(null);
 
-  const { marketplace, strategy, maxTags, updateGroupTags, toggleGroupCollapse } = useBatchStore();
+  const { marketplace, strategy, maxTags, namingSettings, updateGroupTags, toggleGroupCollapse } =
+    useBatchStore();
 
   const isCollapsed = group.isCollapsed ?? false;
   // Check for any tags: AI-generated, shared (manual), or user-edited
@@ -418,6 +419,7 @@ function CollapsibleGroupCard({
           marketplace,
           strategy,
           maxTags,
+          platform: namingSettings.platform || "GENERIC",
         }),
       });
 

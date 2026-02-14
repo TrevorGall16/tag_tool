@@ -97,16 +97,20 @@ export function ImageGallery({ className }: ImageGalleryProps) {
 
   const confirmGroupAll = () => {
     setShowGroupAllConfirm(false);
+    const prefix = namingSettings.prefix;
+    const groupNum = namingSettings.startNumber ?? 1;
+    const groupTitle = prefix ? `${prefix} ${groupNum}` : undefined;
     const newGroup: LocalGroup = {
       id: crypto.randomUUID(),
-      groupNumber: 1,
+      groupNumber: groupNum,
       images: [...images],
+      sharedTitle: groupTitle,
       sharedTags: [],
       isVerified: false,
       createdAt: Date.now(),
     };
     appendGroups([newGroup]);
-    toast.success(`Grouped all ${images.length} images together`);
+    toast.success(`Grouped all ${images.length} images${groupTitle ? ` as "${groupTitle}"` : ""}`);
   };
 
   const handleManualMode = () => {

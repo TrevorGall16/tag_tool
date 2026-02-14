@@ -170,6 +170,9 @@ export function NamingSettings() {
           {/* Platform Select */}
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-slate-700">Platform Optimizer</label>
+            <p className="text-xs text-slate-500">
+              This sets your default strategy. You can override this before generating.
+            </p>
             <div className="space-y-1.5">
               {PLATFORM_OPTIONS.map((option) => (
                 <label
@@ -211,6 +214,7 @@ export function NamingSettings() {
               placeholder="e.g., Summer Shoot, Paris Trip"
               className={cn(
                 "w-full px-3 py-2 text-sm rounded-lg border border-slate-200",
+                "bg-white text-gray-900",
                 "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
                 "placeholder:text-slate-400"
               )}
@@ -234,6 +238,7 @@ export function NamingSettings() {
               onChange={(e) => update({ startNumber: Math.max(1, parseInt(e.target.value) || 1) })}
               className={cn(
                 "w-24 px-3 py-2 text-sm rounded-lg border border-slate-200",
+                "bg-white text-gray-900",
                 "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               )}
             />
@@ -284,6 +289,7 @@ export function NamingSettings() {
                 maxLength={100}
                 className={cn(
                   "flex-1 px-3 py-1.5 text-sm rounded-lg border border-slate-200",
+                  "bg-white text-gray-900",
                   "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
                   "placeholder:text-slate-400"
                 )}
