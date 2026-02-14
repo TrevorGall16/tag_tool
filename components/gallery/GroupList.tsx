@@ -17,10 +17,14 @@ import {
   Folder,
   XCircle,
   Plus,
+  Coins,
+  AlertTriangle,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { cn, copyToClipboard } from "@/lib/utils";
 import { useBatchStore, LocalGroup, LocalImageItem, GroupSortOption } from "@/store/useBatchStore";
+import { useCredits, triggerCreditsRefresh } from "@/hooks/useCredits";
 import { TagEditor } from "@/components/editor";
 import { DraggableImage, DroppableGroup } from "@/components/dnd";
 import { ImageLightbox } from "./ImageLightbox";
@@ -357,13 +361,18 @@ function CollapsibleGroupCard({
   const [showSuccess, setShowSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showFolderMenu, setShowFolderMenu] = useState(false);
-  const [showRegenDialog, setShowRegenDialog] = useState(false);
+  const [showGenerateDialog, setShowGenerateDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [pendingGenerateEvent, setPendingGenerateEvent] = useState<React.MouseEvent | null>(null);
   const folderMenuRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+  const { balance: creditsBalance, isAuthenticated } = useCredits({ enablePolling: false });
 
   const { marketplace, strategy, maxTags, namingSettings, updateGroupTags, toggleGroupCollapse } =
     useBatchStore();
+
+  // Cost calculation: 1 credit per image
+  const batchCost = group.images.length;
+  const hasEnoughCredits = !isAuthenticated || creditsBalance >= batchCost;
 
   const isCollapsed = group.isCollapsed ?? false;
   // Check for any tags: AI-generated, shared (manual), or user-edited
@@ -388,13 +397,7 @@ function CollapsibleGroupCard({
   const handleGenerateTags = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (group.images.length === 0) return;
-
-    if (isTagged) {
-      setShowRegenDialog(true);
-      return;
-    }
-
-    doGenerateTags();
+    setShowGenerateDialog(true);
   };
 
   const doGenerateTags = async () => {
@@ -438,6 +441,14 @@ function CollapsibleGroupCard({
         updateGroupTags(group.id, tagResult.title, tagResult.tags, tagResult.confidence);
         setShowSuccess(true);
         setTimeout(() => setShowSuccess(false), 3000);
+        triggerCreditsRefresh();
+
+        // ROI "Time Saved" toast
+        const imageCount = group.images.length;
+        const minutesSaved = imageCount * 2;
+        toast.success(
+          `${imageCount} image${imageCount !== 1 ? "s" : ""} tagged. You saved ~${minutesSaved} minutes of work.`
+        );
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Tag generation failed";
@@ -770,25 +781,62 @@ function CollapsibleGroupCard({
         </div>
       )}
 
-      {/* Regenerate Tags Confirmation */}
-      <AlertDialog open={showRegenDialog} onOpenChange={setShowRegenDialog}>
+      {/* Generate Tags — Smart Cost + Low Balance Guard */}
+      <AlertDialog open={showGenerateDialog} onOpenChange={setShowGenerateDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Generate tags for {group.images.length} images?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {isTagged ? "Regenerate" : "Generate"} tags for {group.images.length} image
+              {group.images.length !== 1 ? "s" : ""}?
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              This will use {group.images.length} credit{group.images.length !== 1 ? "s" : ""}.
+              <span className="flex items-center gap-2 mt-1">
+                <Coins className="h-4 w-4 text-amber-500 shrink-0" />
+                <span className="font-semibold text-slate-800">
+                  Cost: {batchCost} Credit{batchCost !== 1 ? "s" : ""}
+                </span>
+              </span>
             </AlertDialogDescription>
           </AlertDialogHeader>
+
+          {/* Low Balance Warning */}
+          {isAuthenticated && !hasEnoughCredits && (
+            <div className="mt-3 flex items-start gap-2 rounded-lg bg-red-50 border border-red-200 px-3 py-2.5">
+              <AlertTriangle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
+              <div className="text-sm">
+                <p className="font-medium text-red-700">Insufficient Balance</p>
+                <p className="text-red-600 mt-0.5">
+                  You have <span className="font-bold">{creditsBalance}</span> credit
+                  {creditsBalance !== 1 ? "s" : ""}, but need{" "}
+                  <span className="font-bold">{batchCost}</span>.
+                </p>
+              </div>
+            </div>
+          )}
+
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                setShowRegenDialog(false);
-                doGenerateTags();
-              }}
-            >
-              Confirm
-            </AlertDialogAction>
+            {hasEnoughCredits ? (
+              <AlertDialogAction
+                onClick={() => {
+                  setShowGenerateDialog(false);
+                  doGenerateTags();
+                }}
+              >
+                Confirm
+              </AlertDialogAction>
+            ) : (
+              <AlertDialogAction
+                onClick={() => {
+                  setShowGenerateDialog(false);
+                  router.push("/pricing");
+                }}
+                className="bg-amber-600 hover:bg-amber-700"
+              >
+                <Coins className="h-4 w-4 mr-1.5" />
+                Get Credits
+              </AlertDialogAction>
+            )}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
