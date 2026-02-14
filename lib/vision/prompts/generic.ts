@@ -23,6 +23,8 @@ RULES:
 2. Tags can be single words OR short phrases (1–3 words). Mix both freely.
    Example mix: ["sunset", "beach vacation", "ocean", "tropical paradise", "sand", "golden hour", "waves"]
 3. Aim for a balanced mix: ~60% single keywords + ~40% two-word phrases.
+4. DO NOT use CamelCase (e.g., "BeachVacation", "GoldenHour"). ALWAYS use spaces between words (e.g., "beach vacation", "golden hour").
+5. DO NOT use hashtag format (#tag). Output must be strictly comma-separated.
 
 TAG STRATEGY — Optimize for Google Image Search and social media discovery:
 - Primary (40%): Specific objects, subjects, and scenes visible in the image.

@@ -20,6 +20,8 @@ ABSOLUTE RULES — VIOLATIONS MEAN FAILURE:
    WRONG:   "ceramic", "mug", "rustic", "kitchen"
 3. If any tag is a single word, you have FAILED the task.
 4. Each tag must be max 20 characters. All lowercase.
+5. DO NOT use CamelCase (e.g., "AsianDesserts", "TraditionalSweets"). ALWAYS use spaces between words (e.g., "asian desserts", "traditional sweets").
+6. DO NOT use hashtag format (#tag). Output must be strictly comma-separated.
 
 TAG STRATEGY — Think like a shopper typing into Etsy search:
 - 4 tags: Material + object phrases ("handmade ceramic mug", "stoneware coffee cup")

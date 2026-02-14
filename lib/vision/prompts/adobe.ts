@@ -23,7 +23,10 @@ STRICTLY SINGLE WORDS ONLY. Every tag must be exactly ONE word with ZERO spaces.
 RULES:
 1. Output EXACTLY ${tagLimit} tags. No more, no less.
 2. EVERY tag = ONE word. No exceptions. No hyphens. No compound words joined by spaces.
-3. Order by visual importance: most prominent subject first.
+3. DO NOT use CamelCase (e.g., "AsianDesserts", "StreetFood"). Write each word as its own tag: "asian", "desserts", "street", "food".
+4. DO NOT use hashtag format (#tag). Output must be strictly comma-separated.
+5. All tags must be lowercase.
+6. Order by visual importance: most prominent subject first.
 
 SELF-CHECK BEFORE RESPONDING:
 - Scan every tag in your output. Does ANY tag have a space? If yes, split it.
