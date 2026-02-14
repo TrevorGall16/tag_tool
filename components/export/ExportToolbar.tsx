@@ -193,7 +193,8 @@ export function ExportToolbar({ className, projectName }: ExportToolbarProps) {
           title="Copy all tags to clipboard"
           disabled={exportableGroups.length === 0}
         >
-          <Copy className="h-4 w-4" />
+          <Copy className="h-4 w-4 mr-1.5" />
+          <span className="text-sm">Copy Tags</span>
         </Button>
 
         <Button
@@ -203,7 +204,8 @@ export function ExportToolbar({ className, projectName }: ExportToolbarProps) {
           title="Preview Metadata"
           disabled={exportableGroups.length === 0}
         >
-          <Eye className="h-4 w-4" />
+          <Eye className="h-4 w-4 mr-1.5" />
+          <span className="text-sm">Preview Data</span>
         </Button>
 
         <Button
@@ -212,7 +214,8 @@ export function ExportToolbar({ className, projectName }: ExportToolbarProps) {
           size="md"
           title="Export Settings"
         >
-          <Settings2 className="h-4 w-4" />
+          <Settings2 className="h-4 w-4 mr-1.5" />
+          <span className="text-sm">Settings</span>
         </Button>
       </div>
 

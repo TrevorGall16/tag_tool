@@ -188,7 +188,7 @@ const PLATFORM_CONFIGS: Record<PlatformType, PlatformConfig> = {
   ADOBE: {
     maxTags: 49,
     systemInstruction:
-      "Order by visual importance. Most relevant tags first. Use objective, literal descriptors.",
+      "Strictly output single keywords only. Max 49. No phrases or multi-word tags. Order by visual importance. Example: 'concert, crowd, music, stage, lights', not 'live concert performance'.",
   },
   SHUTTERSTOCK: {
     maxTags: 50,

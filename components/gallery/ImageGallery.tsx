@@ -417,7 +417,9 @@ export function ImageGallery({ className }: ImageGalleryProps) {
             </button>
           </div>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setShowOrganizeModal(false)}>
+              Cancel
+            </AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -441,7 +443,9 @@ export function ImageGallery({ className }: ImageGalleryProps) {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setShowGroupAllConfirm(false)}>
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction onClick={confirmGroupAll}>Group All</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

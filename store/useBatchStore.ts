@@ -550,18 +550,24 @@ export const useBatchStore = create<BatchState>()(
           const state = get();
           const clusteredGroups = state.groups.filter((g) => g.id !== "unclustered");
 
+          // Stable tiebreaker: always fall back to createdAt → groupNumber
+          const tiebreak = (a: LocalGroup, b: LocalGroup) =>
+            (a.createdAt || 0) - (b.createdAt || 0) || a.groupNumber - b.groupNumber;
+
           switch (state.groupSortOption) {
             case "name":
               return [...clusteredGroups].sort((a, b) => {
                 const nameA = a.sharedTitle || `Group ${a.groupNumber}`;
                 const nameB = b.sharedTitle || `Group ${b.groupNumber}`;
-                return nameA.localeCompare(nameB);
+                return nameA.localeCompare(nameB) || tiebreak(a, b);
               });
             case "imageCount":
-              return [...clusteredGroups].sort((a, b) => b.images.length - a.images.length);
+              return [...clusteredGroups].sort(
+                (a, b) => b.images.length - a.images.length || tiebreak(a, b)
+              );
             case "date":
             default:
-              return [...clusteredGroups].sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+              return [...clusteredGroups].sort(tiebreak);
           }
         },
 
