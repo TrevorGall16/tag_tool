@@ -84,77 +84,56 @@ export class AnthropicVisionProvider implements IVisionProvider {
     maxTags: number = 25,
     platform?: PlatformType
   ): Promise<ImageTagResult[]> {
-    const results: ImageTagResult[] = [];
+    if (images.length === 0) return [];
 
-    for (const image of images) {
-      try {
-        const result = await this.generateTagsForImage(
-          image,
-          marketplace,
-          strategy,
-          maxTags,
-          platform
-        );
-        results.push(result);
-      } catch (error) {
-        console.error(`Failed to generate tags for image ${image.id}:`, error);
-        results.push({
-          imageId: image.id,
-          title: "Error",
-          description: "Failed to generate tags for this image",
-          tags: [],
-          confidence: 0,
-        });
-      }
-    }
-
-    return results;
-  }
-
-  private async generateTagsForImage(
-    image: TagImageInput,
-    marketplace: MarketplaceType,
-    strategy: StrategyType,
-    maxTags: number = 25,
-    platform?: PlatformType
-  ): Promise<ImageTagResult> {
-    // User's slider value (maxTags) always wins. Only fall back to platform default if not provided.
+    // Send up to 4 images in a single API call for batch analysis
+    const sampleImages = images.slice(0, 4);
     const effectiveMaxTags = maxTags || (platform ? getPlatformConfig(platform).maxTags : 25);
     const prompt = buildPlatformTagPrompt({
       marketplace,
       strategy,
       maxTags: effectiveMaxTags,
       platform,
+      imageCount: sampleImages.length,
     });
 
-    const message = await this.client.messages.create({
-      model: this.model,
-      max_tokens: 1500,
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "image",
-              source: {
-                type: "base64",
-                media_type: getMediaType(image.dataUrl),
-                data: extractBase64Data(image.dataUrl),
-              },
-            },
-            {
-              type: "text",
-              text: prompt,
-            },
-          ],
+    try {
+      const imageBlocks: Anthropic.ImageBlockParam[] = sampleImages.map((img) => ({
+        type: "image" as const,
+        source: {
+          type: "base64" as const,
+          media_type: getMediaType(img.dataUrl),
+          data: extractBase64Data(img.dataUrl),
         },
-      ],
-    });
+      }));
 
-    const firstContent = message.content[0];
-    const responseText = firstContent?.type === "text" ? firstContent.text : "";
+      const message = await this.client.messages.create({
+        model: this.model,
+        max_tokens: 1500,
+        messages: [
+          {
+            role: "user",
+            content: [...imageBlocks, { type: "text", text: prompt }],
+          },
+        ],
+      });
 
-    return this.parseTagResponse(responseText, image.id);
+      const firstContent = message.content[0];
+      const responseText = firstContent?.type === "text" ? firstContent.text : "";
+      const result = this.parseTagResponse(responseText, sampleImages[0]!.id);
+
+      // Apply the same tags to all images in the batch
+      return images.map((img) => ({ ...result, imageId: img.id }));
+    } catch (error) {
+      console.error("Failed to generate tags for batch:", error);
+      return images.map((img) => ({
+        imageId: img.id,
+        title: "Error",
+        description: "Failed to generate tags for this image",
+        tags: [],
+        confidence: 0,
+      }));
+    }
   }
 
   private parseClusterResponse(

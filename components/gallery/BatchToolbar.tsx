@@ -9,12 +9,15 @@ import {
   ChevronDown,
   Archive,
   ArchiveRestore,
+  ShieldBan,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { StrategySelector } from "@/components/dashboard";
 import { ExportToolbar } from "@/components/export";
 import { useBatchStore } from "@/store/useBatchStore";
+import { DEFAULT_TAG_BLACKLIST } from "@/lib/utils/tag-processing";
 
 interface Project {
   id: string;
@@ -30,7 +33,7 @@ export interface BatchToolbarProps {
 
 export function BatchToolbar({ className, selectedProjectId, folderName }: BatchToolbarProps) {
   const { status } = useSession();
-  const { groups } = useBatchStore();
+  const { groups, tagBlacklist, setTagBlacklist } = useBatchStore();
   const [projects, setProjects] = useState<Project[]>([]);
   const [isProjectMenuOpen, setIsProjectMenuOpen] = useState(false);
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
@@ -40,6 +43,9 @@ export function BatchToolbar({ className, selectedProjectId, folderName }: Batch
   const [isCreatingProject, setIsCreatingProject] = useState(false);
   const projectMenuRef = useRef<HTMLDivElement>(null);
   const newProjectInputRef = useRef<HTMLInputElement>(null);
+  const [isBlacklistOpen, setIsBlacklistOpen] = useState(false);
+  const [blacklistInput, setBlacklistInput] = useState("");
+  const blacklistRef = useRef<HTMLDivElement>(null);
 
   const isAuthenticated = status === "authenticated";
   const hasContent = groups.some((g) => g.id !== "unclustered" && g.images.length > 0);
@@ -125,6 +131,19 @@ export function BatchToolbar({ className, selectedProjectId, folderName }: Batch
     }
   }, [showNewProjectInput]);
 
+  // Close blacklist popover on outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (blacklistRef.current && !blacklistRef.current.contains(event.target as Node)) {
+        setIsBlacklistOpen(false);
+      }
+    };
+    if (isBlacklistOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isBlacklistOpen]);
+
   if (!hasContent) {
     return null;
   }
@@ -140,8 +159,110 @@ export function BatchToolbar({ className, selectedProjectId, folderName }: Batch
             <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
               Platform Strategy
             </span>
-            <div className="mt-2">
+            <div className="mt-2 flex items-center gap-2">
               <StrategySelector />
+
+              {/* Tag Blacklist Popover */}
+              <div className="relative" ref={blacklistRef}>
+                <button
+                  onClick={() => {
+                    setIsBlacklistOpen(!isBlacklistOpen);
+                    setBlacklistInput("");
+                  }}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium",
+                    "border transition-colors",
+                    tagBlacklist.length > 0
+                      ? "border-red-300 text-red-700 bg-red-50 hover:bg-red-100"
+                      : "border-slate-300 text-slate-600 hover:bg-slate-50"
+                  )}
+                  title="Tag blacklist"
+                >
+                  <ShieldBan className="h-4 w-4" />
+                  Filter
+                  {tagBlacklist.length > 0 && (
+                    <span className="ml-0.5 px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-red-200 text-red-800">
+                      {tagBlacklist.length}
+                    </span>
+                  )}
+                </button>
+
+                {isBlacklistOpen && (
+                  <div className="absolute left-0 top-full mt-2 w-80 bg-white rounded-xl shadow-xl border border-slate-200 p-4 z-50 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-semibold text-gray-900 text-sm">Tag Blacklist</h4>
+                      <button
+                        type="button"
+                        onClick={() => setTagBlacklist(DEFAULT_TAG_BLACKLIST)}
+                        className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                      >
+                        Reset defaults
+                      </button>
+                    </div>
+
+                    {/* Chips */}
+                    {tagBlacklist.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {tagBlacklist.map((word, i) => (
+                          <span
+                            key={i}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-700 border border-red-200"
+                          >
+                            {word}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setTagBlacklist(tagBlacklist.filter((_, idx) => idx !== i))
+                              }
+                              className="ml-0.5 p-0.5 rounded-full hover:bg-red-200 transition-colors"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Input */}
+                    <input
+                      type="text"
+                      value={blacklistInput}
+                      onChange={(e) => setBlacklistInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === ",") {
+                          e.preventDefault();
+                          const value = blacklistInput.trim().toLowerCase();
+                          if (value && !tagBlacklist.includes(value)) {
+                            setTagBlacklist([...tagBlacklist, value]);
+                          }
+                          setBlacklistInput("");
+                        }
+                        if (
+                          e.key === "Backspace" &&
+                          blacklistInput === "" &&
+                          tagBlacklist.length > 0
+                        ) {
+                          setTagBlacklist(tagBlacklist.slice(0, -1));
+                        }
+                      }}
+                      placeholder={
+                        tagBlacklist.length === 0
+                          ? "Type a banned word and press Enter"
+                          : "Add more..."
+                      }
+                      className={cn(
+                        "w-full px-3 py-1.5 text-sm rounded-lg border border-slate-200",
+                        "bg-white text-gray-900",
+                        "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
+                        "placeholder:text-gray-400"
+                      )}
+                    />
+                    <p className="text-xs text-gray-500">
+                      Type a word or phrase, then press Enter. Matching tags are auto-removed.
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

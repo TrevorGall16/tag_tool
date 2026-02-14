@@ -248,37 +248,42 @@ export class OpenAIVisionProvider implements IVisionProvider {
     maxTags: number = 25,
     platform?: PlatformType
   ): Promise<ImageTagResult[]> {
-    const image = images[0];
-
-    // SAFETY CHECK: Prevents crash if image list is empty
-    if (!image) {
+    if (images.length === 0) {
       console.warn("No images provided to generateTags");
       return [];
     }
 
-    // User's slider value (maxTags) always wins. Only fall back to platform default if not provided.
+    // Send up to 4 images in a single API call for batch analysis
+    const sampleImages = images.slice(0, 4);
     const effectiveMaxTags = maxTags || (platform ? getPlatformConfig(platform).maxTags : 25);
     const platformInstruction =
       platform && platform !== "GENERIC"
         ? `\n    PLATFORM OPTIMIZATION (${platform}): ${getPlatformConfig(platform).systemInstruction}\n`
         : "";
-    const prompt = platformInstruction + buildTagPrompt(marketplace, strategy, effectiveMaxTags);
+
+    // Build batch guard for multi-image
+    const batchGuard =
+      sampleImages.length > 1
+        ? `BATCH ANALYSIS — You are viewing ${sampleImages.length} images from the SAME group.\n1. Identify the COMMON THEMES shared across ALL images.\n2. Tags, title, and description must describe what the images have IN COMMON.\n3. AVOID tags that only apply to a single image.\n\n`
+        : "";
+
+    const prompt =
+      batchGuard + platformInstruction + buildTagPrompt(marketplace, strategy, effectiveMaxTags);
+
+    const imageContentParts = sampleImages.map((img) => ({
+      type: "image_url" as const,
+      image_url: {
+        url: img.dataUrl,
+        detail: "high" as const,
+      },
+    }));
 
     const response = (await this.client.chat.completions.create({
       model: this.model,
       messages: [
         {
           role: "user",
-          content: [
-            {
-              type: "image_url",
-              image_url: {
-                url: image.dataUrl,
-                detail: "high", // High detail needed for reading text/texture
-              },
-            },
-            { type: "text", text: prompt },
-          ],
+          content: [...imageContentParts, { type: "text" as const, text: prompt }],
         },
       ],
       response_format: { type: "json_object" },
@@ -288,14 +293,14 @@ export class OpenAIVisionProvider implements IVisionProvider {
     const text = response.choices[0].message.content || "{}";
     const result = extractJsonFromResponse(text);
 
-    return [
-      {
-        imageId: image.id,
-        title: result.title || "",
-        description: result.description || "",
-        tags: result.tags || [],
-        confidence: result.confidence || 0.0,
-      },
-    ];
+    const tagResult = {
+      title: result.title || "",
+      description: result.description || "",
+      tags: result.tags || [],
+      confidence: result.confidence || 0.0,
+    };
+
+    // Apply the same tags to all images in the batch
+    return images.map((img) => ({ ...tagResult, imageId: img.id }));
   }
 }

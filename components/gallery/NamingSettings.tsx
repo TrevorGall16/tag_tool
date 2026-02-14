@@ -1,11 +1,10 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Settings2, Save, Loader2, Trash2, X } from "lucide-react";
+import { Settings2, Save, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useBatchStore } from "@/store/useBatchStore";
-import { DEFAULT_TAG_BLACKLIST } from "@/lib/utils/tag-processing";
 import type { ClusterSettings } from "@/types";
 
 interface NamingPreset {
@@ -16,10 +15,9 @@ interface NamingPreset {
 }
 
 export function NamingSettings() {
-  const { namingSettings, setNamingSettings, tagBlacklist, setTagBlacklist } = useBatchStore();
+  const { namingSettings, setNamingSettings } = useBatchStore();
   const [open, setOpen] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
-  const [blacklistInput, setBlacklistInput] = useState("");
 
   // Preset state
   const [presets, setPresets] = useState<NamingPreset[]>([]);
@@ -70,7 +68,6 @@ export function NamingSettings() {
   useEffect(() => {
     if (open) {
       loadPresets();
-      setBlacklistInput("");
     }
   }, [open, loadPresets]);
 
@@ -192,76 +189,6 @@ export function NamingSettings() {
                 "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               )}
             />
-          </div>
-
-          {/* Tag Blacklist — Chip Input */}
-          <div className="border-t border-slate-200 pt-3 space-y-1.5">
-            <div className="flex items-center justify-between">
-              <label htmlFor="tag-blacklist" className="text-sm font-medium text-gray-700">
-                Tag Blacklist
-              </label>
-              <button
-                type="button"
-                onClick={() => setTagBlacklist(DEFAULT_TAG_BLACKLIST)}
-                className="text-xs text-blue-600 hover:text-blue-700 font-medium"
-              >
-                Reset defaults
-              </button>
-            </div>
-
-            {/* Chips */}
-            {tagBlacklist.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {tagBlacklist.map((word, i) => (
-                  <span
-                    key={i}
-                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-700 border border-red-200"
-                  >
-                    {word}
-                    <button
-                      type="button"
-                      onClick={() => setTagBlacklist(tagBlacklist.filter((_, idx) => idx !== i))}
-                      className="ml-0.5 p-0.5 rounded-full hover:bg-red-200 transition-colors"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-
-            {/* Input */}
-            <input
-              id="tag-blacklist"
-              type="text"
-              value={blacklistInput}
-              onChange={(e) => setBlacklistInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === ",") {
-                  e.preventDefault();
-                  const value = blacklistInput.trim().toLowerCase();
-                  if (value && !tagBlacklist.includes(value)) {
-                    setTagBlacklist([...tagBlacklist, value]);
-                  }
-                  setBlacklistInput("");
-                }
-                if (e.key === "Backspace" && blacklistInput === "" && tagBlacklist.length > 0) {
-                  setTagBlacklist(tagBlacklist.slice(0, -1));
-                }
-              }}
-              placeholder={
-                tagBlacklist.length === 0 ? "Type a banned word and press Enter" : "Add more..."
-              }
-              className={cn(
-                "w-full px-3 py-1.5 text-sm rounded-lg border border-slate-200",
-                "bg-white text-gray-900",
-                "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
-                "placeholder:text-gray-400"
-              )}
-            />
-            <p className="text-xs text-gray-500">
-              Type a word or phrase, then press Enter. Matching tags are auto-removed.
-            </p>
           </div>
 
           {/* Divider */}

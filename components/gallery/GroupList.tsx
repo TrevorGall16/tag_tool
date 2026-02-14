@@ -415,19 +415,18 @@ function CollapsibleGroupCard({
     setShowSuccess(false);
 
     try {
-      const representativeImage = group.images[0];
-      if (!representativeImage) return;
+      // Send up to 4 representative images for multi-view batch analysis
+      const sampleImages = group.images.slice(0, 4).map((img) => ({
+        id: img.id,
+        dataUrl: img.thumbnailDataUrl,
+      }));
+      if (sampleImages.length === 0) return;
 
       const response = await fetch("/api/vision/tags", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          images: [
-            {
-              id: representativeImage.id,
-              dataUrl: representativeImage.thumbnailDataUrl,
-            },
-          ],
+          images: sampleImages,
           marketplace,
           strategy,
           maxTags,

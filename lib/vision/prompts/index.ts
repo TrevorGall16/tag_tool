@@ -67,6 +67,7 @@ export interface TagPromptOptions {
   marketplace: MarketplaceType;
   strategy?: StrategyType;
   maxTags?: number;
+  imageCount?: number;
 }
 
 export function buildTagPrompt(options: TagPromptOptions): string;
@@ -103,17 +104,35 @@ export function buildTagPrompt(
   return buildGenericTagPrompt(strategy, maxTags);
 }
 
+/**
+ * Build the batch-analysis guard for multi-image requests.
+ * Injected before the main prompt when imageCount > 1.
+ */
+function buildBatchGuard(imageCount: number): string {
+  if (imageCount <= 1) return "";
+
+  return `BATCH ANALYSIS — You are viewing ${imageCount} images from the SAME group.
+1. Identify the COMMON THEMES, subjects, and visual elements shared across ALL images.
+2. Your tags, title, and description must describe what the images have IN COMMON.
+3. If the images differ significantly, strictly prioritize tags that apply to ALL of them.
+4. AVOID tags that only apply to a single image in the batch.
+5. The title should summarize the shared subject/scene, not describe one specific image.
+
+`;
+}
+
 export function buildPlatformTagPrompt(
   options: TagPromptOptions & { platform?: PlatformType }
 ): string {
   const basePrompt = buildTagPrompt(options);
+  const batchGuard = buildBatchGuard(options.imageCount || 1);
 
   if (!options.platform || options.platform === "GENERIC") {
-    return basePrompt;
+    return batchGuard + basePrompt;
   }
 
   const platformPrefix = getPlatformPrompt(options.platform, options.maxTags || 25);
-  return platformPrefix + basePrompt;
+  return batchGuard + platformPrefix + basePrompt;
 }
 
 export function getStrategyDescription(strategy: StrategyType, tagCount: number): string {
