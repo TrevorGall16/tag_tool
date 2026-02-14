@@ -779,6 +779,7 @@ function CollapsibleGroupCard({
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
+                setShowRegenDialog(false);
                 doGenerateTags();
               }}
             >

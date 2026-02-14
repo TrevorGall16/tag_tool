@@ -198,7 +198,7 @@ const PLATFORM_CONFIGS: Record<PlatformType, PlatformConfig> = {
   ETSY: {
     maxTags: 13,
     systemInstruction:
-      "Focus on multi-word long-tail phrases describing aesthetic and use-case. Prioritize buyer intent and emotional appeal.",
+      "Generate 13 highly descriptive, long-tail phrases (3-5 words each). Do NOT use single words. Example: 'rustic wooden table decor', not 'table'. Prioritize buyer intent and emotional appeal.",
   },
   GENERIC: {
     maxTags: 40,

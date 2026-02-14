@@ -5,29 +5,14 @@ import { Settings2, Save, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useBatchStore } from "@/store/useBatchStore";
-import type { ClusterSettings, ClusterContext, PlatformType } from "@/types";
+import type { ClusterSettings } from "@/types";
 
 interface NamingPreset {
   id: string;
   name: string;
   prefix: string | null;
   startNumber: number;
-  context: string;
-  platform: PlatformType;
 }
-
-const CONTEXT_OPTIONS: { value: ClusterContext; label: string; description: string }[] = [
-  { value: "general", label: "General", description: "Standard categorization" },
-  { value: "stock", label: "Stock Photography", description: "Industry-standard stock categories" },
-  { value: "ecommerce", label: "E-commerce", description: "Product-focused categories" },
-];
-
-const PLATFORM_OPTIONS: { value: PlatformType; label: string; description: string }[] = [
-  { value: "GENERIC", label: "Generic", description: "Standard 30–50 tags" },
-  { value: "ADOBE", label: "Adobe Stock", description: "49 keywords, visual importance order" },
-  { value: "SHUTTERSTOCK", label: "Shutterstock", description: "50 keywords, no duplicates" },
-  { value: "ETSY", label: "Etsy", description: "13 long-tail phrases" },
-];
 
 export function NamingSettings() {
   const { namingSettings, setNamingSettings } = useBatchStore();
@@ -43,9 +28,6 @@ export function NamingSettings() {
 
   const prefix = namingSettings.prefix ?? "";
   const startNumber = namingSettings.startNumber ?? 1;
-  const context = namingSettings.context ?? "general";
-  const platform =
-    (namingSettings as ClusterSettings & { platform?: PlatformType }).platform ?? "GENERIC";
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -59,7 +41,7 @@ export function NamingSettings() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [open]);
 
-  const update = (partial: Partial<ClusterSettings & { platform?: PlatformType }>) => {
+  const update = (partial: Partial<ClusterSettings>) => {
     setNamingSettings({ ...namingSettings, ...partial });
   };
 
@@ -103,8 +85,6 @@ export function NamingSettings() {
           name: presetName.trim(),
           prefix: prefix || undefined,
           startNumber,
-          context,
-          platform,
         }),
       });
       const json = await res.json();
@@ -124,11 +104,10 @@ export function NamingSettings() {
 
   const handleLoadPreset = (preset: NamingPreset) => {
     setNamingSettings({
+      ...namingSettings,
       prefix: preset.prefix || undefined,
       startNumber: preset.startNumber,
-      context: (preset.context as ClusterContext) || "general",
-      platform: preset.platform || "GENERIC",
-    } as ClusterSettings & { platform?: PlatformType });
+    });
     toast.success(`Loaded preset "${preset.name}"`);
   };
 
@@ -165,46 +144,12 @@ export function NamingSettings() {
 
       {open && (
         <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl shadow-xl border border-slate-200 p-4 z-50 space-y-4 max-h-[80vh] overflow-y-auto">
-          <h4 className="font-semibold text-slate-900 text-sm">Naming Settings</h4>
-
-          {/* Platform Select */}
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-slate-700">Platform Optimizer</label>
-            <p className="text-xs text-slate-500">
-              This sets your default strategy. You can override this before generating.
-            </p>
-            <div className="space-y-1.5">
-              {PLATFORM_OPTIONS.map((option) => (
-                <label
-                  key={option.value}
-                  className={cn(
-                    "flex items-start gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-colors",
-                    platform === option.value
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-slate-200 hover:border-slate-300"
-                  )}
-                >
-                  <input
-                    type="radio"
-                    name="naming-platform"
-                    value={option.value}
-                    checked={platform === option.value}
-                    onChange={() => update({ platform: option.value })}
-                    className="mt-0.5"
-                  />
-                  <div>
-                    <div className="font-medium text-xs text-slate-900">{option.label}</div>
-                    <div className="text-xs text-slate-500">{option.description}</div>
-                  </div>
-                </label>
-              ))}
-            </div>
-          </div>
+          <h4 className="font-semibold text-gray-900 text-sm">Naming Settings</h4>
 
           {/* Prefix Input */}
           <div className="space-y-1.5">
-            <label htmlFor="naming-prefix" className="text-sm font-medium text-slate-700">
-              Group Prefix <span className="text-slate-400 font-normal">(optional)</span>
+            <label htmlFor="naming-prefix" className="text-sm font-medium text-gray-700">
+              Group Prefix <span className="text-gray-400 font-normal">(optional)</span>
             </label>
             <input
               id="naming-prefix"
@@ -216,17 +161,18 @@ export function NamingSettings() {
                 "w-full px-3 py-2 text-sm rounded-lg border border-slate-200",
                 "bg-white text-gray-900",
                 "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
-                "placeholder:text-slate-400"
+                "placeholder:text-gray-400"
               )}
             />
-            <p className="text-xs text-slate-500">
-              Groups will be named: {prefix ? `"${prefix} - Category"` : '"Category"'}
+            <p className="text-xs text-gray-500">
+              Groups will be named:{" "}
+              {prefix ? `"${prefix} ${startNumber}"` : `"Group ${startNumber}"`}
             </p>
           </div>
 
           {/* Start Number */}
           <div className="space-y-1.5">
-            <label htmlFor="naming-start" className="text-sm font-medium text-slate-700">
+            <label htmlFor="naming-start" className="text-sm font-medium text-gray-700">
               Start Numbering From
             </label>
             <input
@@ -244,40 +190,9 @@ export function NamingSettings() {
             />
           </div>
 
-          {/* Context Select */}
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-slate-700">Categorization Style</label>
-            <div className="space-y-1.5">
-              {CONTEXT_OPTIONS.map((option) => (
-                <label
-                  key={option.value}
-                  className={cn(
-                    "flex items-start gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-colors",
-                    context === option.value
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-slate-200 hover:border-slate-300"
-                  )}
-                >
-                  <input
-                    type="radio"
-                    name="naming-context"
-                    value={option.value}
-                    checked={context === option.value}
-                    onChange={() => update({ context: option.value })}
-                    className="mt-0.5"
-                  />
-                  <div>
-                    <div className="font-medium text-xs text-slate-900">{option.label}</div>
-                    <div className="text-xs text-slate-500">{option.description}</div>
-                  </div>
-                </label>
-              ))}
-            </div>
-          </div>
-
           {/* Divider */}
           <div className="border-t border-slate-200 pt-3">
-            <h4 className="font-semibold text-slate-900 text-sm mb-2">Presets</h4>
+            <h4 className="font-semibold text-gray-900 text-sm mb-2">Presets</h4>
 
             {/* Save Preset */}
             <div className="flex gap-2 mb-3">
@@ -291,7 +206,7 @@ export function NamingSettings() {
                   "flex-1 px-3 py-1.5 text-sm rounded-lg border border-slate-200",
                   "bg-white text-gray-900",
                   "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
-                  "placeholder:text-slate-400"
+                  "placeholder:text-gray-400"
                 )}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") handleSavePreset();
@@ -317,7 +232,7 @@ export function NamingSettings() {
 
             {/* Load Presets */}
             {isLoadingPresets ? (
-              <div className="flex items-center justify-center py-3 text-sm text-slate-400">
+              <div className="flex items-center justify-center py-3 text-sm text-gray-400">
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
                 Loading presets...
               </div>
@@ -333,15 +248,17 @@ export function NamingSettings() {
                     )}
                   >
                     <div className="min-w-0">
-                      <div className="text-xs font-medium text-slate-900 truncate">
+                      <div className="text-xs font-medium text-gray-900 truncate">
                         {preset.name}
                       </div>
-                      <div className="text-[10px] text-slate-500">
-                        {preset.platform !== "GENERIC" && (
-                          <span className="mr-1.5">{preset.platform}</span>
+                      <div className="text-[10px] text-gray-500">
+                        {preset.prefix ? (
+                          <span>
+                            "{preset.prefix}" starting at #{preset.startNumber}
+                          </span>
+                        ) : (
+                          <span>Start at #{preset.startNumber}</span>
                         )}
-                        {preset.prefix && <span>"{preset.prefix}"</span>}
-                        {!preset.prefix && preset.platform === "GENERIC" && "Default settings"}
                       </div>
                     </div>
                     <button
@@ -355,7 +272,7 @@ export function NamingSettings() {
                 ))}
               </div>
             ) : presetsLoaded ? (
-              <p className="text-xs text-slate-400 text-center py-2">
+              <p className="text-xs text-gray-400 text-center py-2">
                 No saved presets yet. Save your current settings above.
               </p>
             ) : null}

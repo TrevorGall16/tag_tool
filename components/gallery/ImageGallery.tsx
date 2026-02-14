@@ -97,12 +97,12 @@ export function ImageGallery({ className }: ImageGalleryProps) {
 
   const confirmGroupAll = () => {
     setShowGroupAllConfirm(false);
-    const prefix = namingSettings.prefix;
-    const groupNum = namingSettings.startNumber ?? 1;
-    const groupTitle = prefix ? `${prefix} ${groupNum}` : undefined;
+    const baseName = namingSettings.prefix || "Group";
+    const number = namingSettings.startNumber || 1;
+    const groupTitle = `${baseName} ${number}`;
     const newGroup: LocalGroup = {
       id: crypto.randomUUID(),
-      groupNumber: groupNum,
+      groupNumber: number,
       images: [...images],
       sharedTitle: groupTitle,
       sharedTags: [],
@@ -110,7 +110,7 @@ export function ImageGallery({ className }: ImageGalleryProps) {
       createdAt: Date.now(),
     };
     appendGroups([newGroup]);
-    toast.success(`Grouped all ${images.length} images${groupTitle ? ` as "${groupTitle}"` : ""}`);
+    toast.success(`Grouped all ${images.length} images as "${groupTitle}"`);
   };
 
   const handleManualMode = () => {
