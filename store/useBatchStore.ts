@@ -4,6 +4,7 @@ import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 import type { ExportSettings } from "@/lib/export";
 import { DEFAULT_EXPORT_SETTINGS } from "@/lib/export";
+import { DEFAULT_TAG_BLACKLIST } from "@/lib/utils/tag-processing";
 import type { ClusterSettings } from "@/types";
 
 // Types for the store
@@ -75,6 +76,9 @@ interface BatchState {
   // Naming settings (global, persisted)
   namingSettings: ClusterSettings;
 
+  // Tag filtering
+  tagBlacklist: string[];
+
   // UI preferences
   groupSortOption: GroupSortOption;
 
@@ -130,6 +134,7 @@ interface BatchState {
   setClusteringProgress: (
     progress: { currentBatch: number; totalBatches: number; totalImages: number } | null
   ) => void;
+  setTagBlacklist: (blacklist: string[]) => void;
   setNamingSettings: (settings: ClusterSettings) => void;
   setGroupSortOption: (option: GroupSortOption) => void;
   getSortedGroups: () => LocalGroup[];
@@ -156,6 +161,7 @@ export const useBatchStore = create<BatchState>()(
         clusteringProgress: null,
         error: null,
         exportSettings: DEFAULT_EXPORT_SETTINGS,
+        tagBlacklist: DEFAULT_TAG_BLACKLIST,
         namingSettings: {} as ClusterSettings,
         groupSortOption: "date",
 
@@ -538,6 +544,10 @@ export const useBatchStore = create<BatchState>()(
           set({ clusteringProgress: progress });
         },
 
+        setTagBlacklist: (blacklist) => {
+          set({ tagBlacklist: blacklist });
+        },
+
         setNamingSettings: (settings) => {
           set({ namingSettings: settings });
         },
@@ -629,6 +639,7 @@ export const useBatchStore = create<BatchState>()(
           maxTags: state.maxTags,
           currentGroupIndex: state.currentGroupIndex,
           exportSettings: state.exportSettings,
+          tagBlacklist: state.tagBlacklist,
           namingSettings: state.namingSettings,
           groupSortOption: state.groupSortOption,
         }),

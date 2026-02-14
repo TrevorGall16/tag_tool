@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { cn, copyToClipboard } from "@/lib/utils";
+import { cn, copyToClipboard, processTags } from "@/lib/utils";
 import { useBatchStore, LocalGroup, LocalImageItem, GroupSortOption } from "@/store/useBatchStore";
 import { useCredits, triggerCreditsRefresh } from "@/hooks/useCredits";
 import { TagEditor } from "@/components/editor";
@@ -317,7 +317,9 @@ export function GroupList({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setShowClearAllDialog(false)}>
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
               onClick={() => {
@@ -367,8 +369,15 @@ function CollapsibleGroupCard({
   const router = useRouter();
   const { balance: creditsBalance, isAuthenticated } = useCredits({ enablePolling: false });
 
-  const { marketplace, strategy, maxTags, namingSettings, updateGroupTags, toggleGroupCollapse } =
-    useBatchStore();
+  const {
+    marketplace,
+    strategy,
+    maxTags,
+    namingSettings,
+    tagBlacklist,
+    updateGroupTags,
+    toggleGroupCollapse,
+  } = useBatchStore();
 
   // Cost calculation: 1 credit per image
   const batchCost = group.images.length;
@@ -438,7 +447,8 @@ function CollapsibleGroupCard({
 
       const tagResult = result.data.results[0];
       if (tagResult) {
-        updateGroupTags(group.id, tagResult.title, tagResult.tags, tagResult.confidence);
+        const cleanedTags = processTags(tagResult.tags, tagBlacklist);
+        updateGroupTags(group.id, tagResult.title, cleanedTags, tagResult.confidence);
         setShowSuccess(true);
         setTimeout(() => setShowSuccess(false), 3000);
         triggerCreditsRefresh();
@@ -815,7 +825,9 @@ function CollapsibleGroupCard({
           )}
 
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setShowGenerateDialog(false)}>
+              Cancel
+            </AlertDialogCancel>
             {hasEnoughCredits ? (
               <AlertDialogAction
                 onClick={() => {
@@ -852,7 +864,7 @@ function CollapsibleGroupCard({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setShowDeleteDialog(false)}>Cancel</AlertDialogCancel>
             <AlertDialogAction variant="destructive" onClick={onDeleteGroup}>
               Delete
             </AlertDialogAction>

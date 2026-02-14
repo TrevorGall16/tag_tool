@@ -5,6 +5,7 @@ import { Settings2, Save, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useBatchStore } from "@/store/useBatchStore";
+import { DEFAULT_TAG_BLACKLIST } from "@/lib/utils/tag-processing";
 import type { ClusterSettings } from "@/types";
 
 interface NamingPreset {
@@ -15,9 +16,10 @@ interface NamingPreset {
 }
 
 export function NamingSettings() {
-  const { namingSettings, setNamingSettings } = useBatchStore();
+  const { namingSettings, setNamingSettings, tagBlacklist, setTagBlacklist } = useBatchStore();
   const [open, setOpen] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
+  const [blacklistText, setBlacklistText] = useState("");
 
   // Preset state
   const [presets, setPresets] = useState<NamingPreset[]>([]);
@@ -68,8 +70,9 @@ export function NamingSettings() {
   useEffect(() => {
     if (open) {
       loadPresets();
+      setBlacklistText(tagBlacklist.join(", "));
     }
-  }, [open, loadPresets]);
+  }, [open, loadPresets, tagBlacklist]);
 
   const handleSavePreset = async () => {
     if (!presetName.trim()) {
@@ -189,6 +192,48 @@ export function NamingSettings() {
                 "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               )}
             />
+          </div>
+
+          {/* Tag Blacklist */}
+          <div className="border-t border-slate-200 pt-3 space-y-1.5">
+            <label htmlFor="tag-blacklist" className="text-sm font-medium text-gray-700">
+              Tag Blacklist
+            </label>
+            <textarea
+              id="tag-blacklist"
+              value={blacklistText}
+              onChange={(e) => setBlacklistText(e.target.value)}
+              onBlur={() => {
+                const newList = blacklistText
+                  .split(",")
+                  .map((s) => s.trim())
+                  .filter(Boolean);
+                setTagBlacklist(newList);
+              }}
+              placeholder="ai generated, render, illustration"
+              rows={2}
+              className={cn(
+                "w-full px-3 py-2 text-sm rounded-lg border border-slate-200 resize-none",
+                "bg-white text-gray-900",
+                "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
+                "placeholder:text-gray-400"
+              )}
+            />
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-gray-500">
+                Comma-separated. Matched tags are auto-removed.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setTagBlacklist(DEFAULT_TAG_BLACKLIST);
+                  setBlacklistText(DEFAULT_TAG_BLACKLIST.join(", "));
+                }}
+                className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+              >
+                Reset defaults
+              </button>
+            </div>
           </div>
 
           {/* Divider */}
