@@ -16,7 +16,7 @@ import { cn, collectAllTags, copyToClipboard, downloadString } from "@/lib/utils
 import { useBatchStore } from "@/store/useBatchStore";
 import { ExportEngine, generateStockCSV } from "@/lib/export";
 import { ExportSettings } from "./ExportSettings";
-import { CSVPreviewModal } from "./CSVPreviewModal";
+import { MetadataPreviewModal } from "@/components/gallery/MetadataPreviewModal";
 import type {
   ExportProgress,
   ExportResult,
@@ -277,11 +277,10 @@ export function ExportToolbar({ className, projectName }: ExportToolbarProps) {
         onClose={() => setShowSettings(false)}
       />
 
-      <CSVPreviewModal
+      <MetadataPreviewModal
         isOpen={showPreview}
         onClose={() => setShowPreview(false)}
         groups={groupsToExport}
-        exportSettings={exportSettings}
       />
     </div>
   );
