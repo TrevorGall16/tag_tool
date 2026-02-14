@@ -1,12 +1,23 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { X, Eye, Code2, AlertTriangle, CheckCircle2, Download, Copy, Check } from "lucide-react";
+import {
+  X,
+  Eye,
+  Code2,
+  AlertTriangle,
+  CheckCircle2,
+  Download,
+  Copy,
+  Check,
+  ChevronDown,
+} from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { copyToClipboard, downloadString } from "@/lib/utils";
 import { useBatchStore, type LocalGroup } from "@/store/useBatchStore";
-import { generateStockCSV } from "@/lib/export";
+import { generateStockCSV, CSV_PRESETS, formatPreviewCsv } from "@/lib/export";
+import type { CsvFormatPreset } from "@/lib/export";
 
 export interface MetadataPreviewModalProps {
   isOpen: boolean;
@@ -37,19 +48,6 @@ function getGroupMetadata(group: LocalGroup) {
   const description = group.sharedDescription || "";
   const tags = firstImage?.userTags || group.sharedTags || firstImage?.aiTags || [];
   return { title, description, tags };
-}
-
-function buildSampleCsvRow(group: LocalGroup) {
-  const { title, description, tags } = getGroupMetadata(group);
-  const filename = group.images[0]?.originalFilename || "image.jpg";
-  const escapeCsv = (v: string) =>
-    v.includes(",") || v.includes('"') || v.includes("\n") ? `"${v.replace(/"/g, '""')}"` : v;
-  return [
-    escapeCsv(filename),
-    escapeCsv(title),
-    escapeCsv(description),
-    escapeCsv(tags.join(", ")),
-  ].join(",");
 }
 
 // ─── Character Counter ───────────────────────────────────────
@@ -90,6 +88,9 @@ export function MetadataPreviewModal({ isOpen, onClose, groups }: MetadataPrevie
   const [activeTab, setActiveTab] = useState<"inspector" | "raw">("inspector");
   const [activeGroupIndex, setActiveGroupIndex] = useState(0);
   const [copiedCsv, setCopiedCsv] = useState(false);
+  const [keepExtraTags, setKeepExtraTags] = useState(false);
+  const [csvPreset, setCsvPreset] = useState<CsvFormatPreset>(CSV_PRESETS[0]!);
+  const [showPresetMenu, setShowPresetMenu] = useState(false);
 
   const limits: PlatformLimits = PLATFORM_LIMITS[strategy] ?? PLATFORM_LIMITS.standard!;
 
@@ -100,18 +101,26 @@ export function MetadataPreviewModal({ isOpen, onClose, groups }: MetadataPrevie
     [activeGroup]
   );
 
-  const csvHeader = "Filename,Title,Description,Tags";
-  const csvSampleRows = useMemo(() => groups.map((g) => buildSampleCsvRow(g)).join("\n"), [groups]);
-  const fullCsv = `${csvHeader}\n${csvSampleRows}`;
+  // CSV preview driven by formatter engine
+  const csvPreview = useMemo(
+    () =>
+      formatPreviewCsv(groups, {
+        preset: csvPreset,
+        includeExtraTags: keepExtraTags,
+        tagsMax: limits.tagsMax,
+      }),
+    [groups, csvPreset, keepExtraTags, limits.tagsMax]
+  );
 
   // Validation checks
   const titleOk = metadata.title.length > 0 && metadata.title.length <= limits.titleMax;
   const descOk = metadata.description.length <= limits.descriptionMax;
-  const tagsOk = metadata.tags.length > 0 && metadata.tags.length <= limits.tagsMax;
+  const tagsOk =
+    metadata.tags.length > 0 && (keepExtraTags || metadata.tags.length <= limits.tagsMax);
   const allOk = titleOk && descOk && tagsOk;
 
   const handleCopyCsv = async () => {
-    const ok = await copyToClipboard(fullCsv);
+    const ok = await copyToClipboard(csvPreview.full);
     if (ok) {
       setCopiedCsv(true);
       setTimeout(() => setCopiedCsv(false), 2000);
@@ -305,18 +314,42 @@ export function MetadataPreviewModal({ isOpen, onClose, groups }: MetadataPrevie
                   <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">
                     Keywords
                   </h3>
-                  <span
-                    className={cn(
-                      "text-xs font-medium px-2 py-0.5 rounded-full",
-                      metadata.tags.length > limits.tagsMax
-                        ? "bg-red-100 text-red-700"
-                        : metadata.tags.length === 0
-                          ? "bg-slate-100 text-slate-400"
-                          : "bg-emerald-100 text-emerald-700"
+                  <div className="flex items-center gap-3">
+                    {/* Keep Extra Tags Toggle */}
+                    {metadata.tags.length > limits.tagsMax && (
+                      <label className="flex items-center gap-2 cursor-pointer select-none">
+                        <span className="text-xs text-slate-500">Export all tags</span>
+                        <button
+                          role="switch"
+                          aria-checked={keepExtraTags}
+                          onClick={() => setKeepExtraTags(!keepExtraTags)}
+                          className={cn(
+                            "relative inline-flex h-5 w-9 items-center rounded-full transition-colors",
+                            keepExtraTags ? "bg-blue-600" : "bg-slate-300"
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              "inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform shadow-sm",
+                              keepExtraTags ? "translate-x-[18px]" : "translate-x-[3px]"
+                            )}
+                          />
+                        </button>
+                      </label>
                     )}
-                  >
-                    {metadata.tags.length} / {limits.tagsMax} tags
-                  </span>
+                    <span
+                      className={cn(
+                        "text-xs font-medium px-2 py-0.5 rounded-full",
+                        metadata.tags.length > limits.tagsMax && !keepExtraTags
+                          ? "bg-red-100 text-red-700"
+                          : metadata.tags.length === 0
+                            ? "bg-slate-100 text-slate-400"
+                            : "bg-emerald-100 text-emerald-700"
+                      )}
+                    >
+                      {metadata.tags.length} / {limits.tagsMax} tags
+                    </span>
+                  </div>
                 </div>
 
                 {metadata.tags.length > 0 && (
@@ -342,7 +375,9 @@ export function MetadataPreviewModal({ isOpen, onClose, groups }: MetadataPrevie
                           i < 10
                             ? "bg-blue-50 text-blue-700 border-blue-200"
                             : i >= limits.tagsMax
-                              ? "bg-red-50 text-red-600 border-red-200 line-through"
+                              ? keepExtraTags
+                                ? "bg-amber-50 text-amber-700 border-amber-200"
+                                : "bg-red-50 text-red-600 border-red-200 line-through"
                               : "bg-slate-100 text-slate-600 border-slate-200"
                         )}
                       >
@@ -357,11 +392,18 @@ export function MetadataPreviewModal({ isOpen, onClose, groups }: MetadataPrevie
                   )}
                 </div>
 
-                {metadata.tags.length > limits.tagsMax && (
+                {metadata.tags.length > limits.tagsMax && !keepExtraTags && (
                   <p className="text-xs text-red-600">
                     {metadata.tags.length - limits.tagsMax} tag
                     {metadata.tags.length - limits.tagsMax !== 1 ? "s" : ""} over limit — extras
                     will be dropped on export.
+                  </p>
+                )}
+                {metadata.tags.length > limits.tagsMax && keepExtraTags && (
+                  <p className="text-xs text-amber-600">
+                    {metadata.tags.length - limits.tagsMax} tag
+                    {metadata.tags.length - limits.tagsMax !== 1 ? "s" : ""} over the{" "}
+                    {limits.tagsMax}-tag recommendation — all will be exported.
                   </p>
                 )}
               </div>
@@ -369,35 +411,99 @@ export function MetadataPreviewModal({ isOpen, onClose, groups }: MetadataPrevie
           ) : (
             /* Raw CSV Tab */
             <div className="p-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-slate-500">
-                  Raw CSV output for {groups.reduce((s, g) => s + g.images.length, 0)} images
-                </p>
-                <button
-                  onClick={handleCopyCsv}
-                  className={cn(
-                    "inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg",
-                    "border border-slate-300 text-slate-700 hover:bg-slate-50 transition-colors"
+              {/* Toolbar: Preset selector + Copy */}
+              <div className="flex items-center justify-between gap-3">
+                {/* Export Preset Dropdown */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowPresetMenu(!showPresetMenu)}
+                    className={cn(
+                      "flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-300 bg-white",
+                      "text-sm font-medium text-slate-700",
+                      "hover:border-slate-400 hover:bg-slate-50 transition-all"
+                    )}
+                  >
+                    <span className="max-w-[180px] truncate">{csvPreset.label}</span>
+                    <ChevronDown
+                      className={cn(
+                        "h-4 w-4 text-slate-400 transition-transform",
+                        showPresetMenu && "rotate-180"
+                      )}
+                    />
+                  </button>
+                  {showPresetMenu && (
+                    <div className="absolute left-0 top-full mt-1 w-72 bg-white rounded-xl shadow-lg border border-slate-200 py-1 z-50">
+                      {CSV_PRESETS.map((preset) => (
+                        <button
+                          key={preset.id}
+                          onClick={() => {
+                            setCsvPreset(preset);
+                            setShowPresetMenu(false);
+                          }}
+                          className={cn(
+                            "w-full text-left px-4 py-2.5 transition-colors",
+                            csvPreset.id === preset.id
+                              ? "bg-blue-50 text-blue-700"
+                              : "text-slate-700 hover:bg-slate-50"
+                          )}
+                        >
+                          <div className="text-sm font-medium">{preset.label}</div>
+                          <div className="text-[11px] text-slate-400 mt-0.5">
+                            {preset.description}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
                   )}
-                >
-                  {copiedCsv ? (
-                    <>
-                      <Check className="h-4 w-4 text-emerald-600" />
-                      <span className="text-emerald-600">Copied!</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="h-4 w-4" />
-                      Copy CSV
-                    </>
-                  )}
-                </button>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <p className="text-xs text-slate-400">
+                    {groups.reduce((s, g) => s + g.images.length, 0)} images
+                  </p>
+                  <button
+                    onClick={handleCopyCsv}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg",
+                      "border border-slate-300 text-slate-700 hover:bg-slate-50 transition-colors"
+                    )}
+                  >
+                    {copiedCsv ? (
+                      <>
+                        <Check className="h-4 w-4 text-emerald-600" />
+                        <span className="text-emerald-600">Copied!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-4 w-4" />
+                        Copy CSV
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
 
+              {/* Preset info pills */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-500 text-xs font-medium border border-slate-200">
+                  Separator: {csvPreset.separator === "," ? "Comma (,)" : "Semicolon (;)"}
+                </span>
+                <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-500 text-xs font-medium border border-slate-200">
+                  Headers: {csvPreset.headers.title}, {csvPreset.headers.description},{" "}
+                  {csvPreset.headers.tags}
+                </span>
+                {keepExtraTags && (
+                  <span className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-600 text-xs font-medium border border-amber-200">
+                    All tags included
+                  </span>
+                )}
+              </div>
+
+              {/* CSV Preview */}
               <pre className="p-4 bg-slate-900 text-slate-100 rounded-xl text-xs font-mono leading-relaxed overflow-x-auto max-h-[400px] overflow-y-auto whitespace-pre">
-                <span className="text-emerald-400">{csvHeader}</span>
+                <span className="text-emerald-400">{csvPreview.header}</span>
                 {"\n"}
-                {csvSampleRows}
+                {csvPreview.rows}
               </pre>
 
               <p className="text-xs text-slate-400">
