@@ -9,8 +9,9 @@ import type {
   MarketplaceType,
   StrategyType,
 } from "../types";
+import type { PlatformType } from "@/types";
 import { getMediaType, extractBase64Data, extractJsonFromResponse } from "../utils";
-import { buildClusteringPrompt, buildTagPrompt } from "../prompts";
+import { buildClusteringPrompt, buildPlatformTagPrompt, getPlatformConfig } from "../prompts";
 
 export interface AnthropicProviderConfig {
   apiKey?: string;
@@ -80,13 +81,20 @@ export class AnthropicVisionProvider implements IVisionProvider {
     images: TagImageInput[],
     marketplace: MarketplaceType,
     strategy: StrategyType = "standard",
-    maxTags: number = 25
+    maxTags: number = 25,
+    platform?: PlatformType
   ): Promise<ImageTagResult[]> {
     const results: ImageTagResult[] = [];
 
     for (const image of images) {
       try {
-        const result = await this.generateTagsForImage(image, marketplace, strategy, maxTags);
+        const result = await this.generateTagsForImage(
+          image,
+          marketplace,
+          strategy,
+          maxTags,
+          platform
+        );
         results.push(result);
       } catch (error) {
         console.error(`Failed to generate tags for image ${image.id}:`, error);
@@ -107,9 +115,17 @@ export class AnthropicVisionProvider implements IVisionProvider {
     image: TagImageInput,
     marketplace: MarketplaceType,
     strategy: StrategyType,
-    maxTags: number = 25
+    maxTags: number = 25,
+    platform?: PlatformType
   ): Promise<ImageTagResult> {
-    const prompt = buildTagPrompt(marketplace, strategy, maxTags);
+    // When a platform is specified, override maxTags with platform limit
+    const effectiveMaxTags = platform ? getPlatformConfig(platform).maxTags : maxTags;
+    const prompt = buildPlatformTagPrompt({
+      marketplace,
+      strategy,
+      maxTags: effectiveMaxTags,
+      platform,
+    });
 
     const message = await this.client.messages.create({
       model: this.model,

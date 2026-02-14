@@ -44,6 +44,7 @@ export function ImageGallery({ className }: ImageGalleryProps) {
   const [showOrganizeModal, setShowOrganizeModal] = useState(false);
   const [showClusterDialog, setShowClusterDialog] = useState(false);
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
+  const [showGroupAllConfirm, setShowGroupAllConfirm] = useState(false);
   const [clusterMode, setClusterMode] = useState<"append" | "clear" | null>(null);
   const [pendingSettings, setPendingSettings] = useState<ClusterSettings | undefined>(undefined);
 
@@ -91,6 +92,11 @@ export function ImageGallery({ className }: ImageGalleryProps) {
 
   const handleGroupAllTogether = () => {
     setShowOrganizeModal(false);
+    setShowGroupAllConfirm(true);
+  };
+
+  const confirmGroupAll = () => {
+    setShowGroupAllConfirm(false);
     const newGroup: LocalGroup = {
       id: crypto.randomUUID(),
       groupNumber: 1,
@@ -419,6 +425,23 @@ export function ImageGallery({ className }: ImageGalleryProps) {
         onConfirm={handleSettingsConfirm}
         imageCount={images.length}
       />
+
+      {/* Group All Confirmation Dialog */}
+      <AlertDialog open={showGroupAllConfirm} onOpenChange={setShowGroupAllConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will move all {images.length} unclustered image
+              {images.length !== 1 ? "s" : ""} into a single group.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmGroupAll}>Group All</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Existing Groups Dialog */}
       <AlertDialog open={showClusterDialog} onOpenChange={setShowClusterDialog}>

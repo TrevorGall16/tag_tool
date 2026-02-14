@@ -1,4 +1,5 @@
 import type { MarketplaceType, StrategyType } from "./types";
+import type { PlatformType } from "@/types";
 
 // Strategy-based personas for AI prompting
 const STRATEGY_PERSONAS: Record<StrategyType, string> = {
@@ -172,4 +173,64 @@ RESPOND ONLY with valid JSON:
   "tags": ["keyword1", "keyword2", "keyword3", ...up to ${tagLimit} tags],
   "confidence": 0.90
 }`;
+}
+
+// ============================================
+// PLATFORM OPTIMIZER (Agency Mode)
+// ============================================
+
+interface PlatformConfig {
+  maxTags: number;
+  systemInstruction: string;
+}
+
+const PLATFORM_CONFIGS: Record<PlatformType, PlatformConfig> = {
+  ADOBE: {
+    maxTags: 49,
+    systemInstruction:
+      "Order by visual importance. Most relevant tags first. Use objective, literal descriptors.",
+  },
+  SHUTTERSTOCK: {
+    maxTags: 50,
+    systemInstruction:
+      "Strictly avoid duplicate concepts. No spamming. Each keyword must represent a unique concept.",
+  },
+  ETSY: {
+    maxTags: 13,
+    systemInstruction:
+      "Focus on multi-word long-tail phrases describing aesthetic and use-case. Prioritize buyer intent and emotional appeal.",
+  },
+  GENERIC: {
+    maxTags: 40,
+    systemInstruction: "",
+  },
+};
+
+/**
+ * Get platform-specific tag limit and system instruction overlay.
+ * When a platform is specified, it overrides the marketplace-based defaults.
+ */
+export function getPlatformConfig(platform: PlatformType): PlatformConfig {
+  return PLATFORM_CONFIGS[platform] || PLATFORM_CONFIGS.GENERIC;
+}
+
+/**
+ * Build a platform-aware tag prompt by injecting platform rules into the base prompt.
+ */
+export function buildPlatformTagPrompt(
+  options: TagPromptOptions & { platform?: PlatformType }
+): string {
+  const basePrompt = buildTagPrompt(options);
+
+  if (!options.platform || options.platform === "GENERIC") {
+    return basePrompt;
+  }
+
+  const config = getPlatformConfig(options.platform);
+
+  // Inject platform-specific instruction at the top of the prompt
+  return `PLATFORM OPTIMIZATION (${options.platform}): ${config.systemInstruction}
+Tag limit for this platform: ${config.maxTags} keywords maximum.
+
+${basePrompt}`;
 }

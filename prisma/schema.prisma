@@ -61,6 +61,13 @@ enum LedgerReason {
   ADMIN_ADJUST
 }
 
+enum Platform {
+  GENERIC
+  ADOBE
+  SHUTTERSTOCK
+  ETSY
+}
+
 // ============================================
 // MODELS
 // ============================================
@@ -85,9 +92,10 @@ model User {
   sessions Session[]
 
   // Relations (App)
-  projects      Project[]
-  batches       Batch[]
-  creditsLedger CreditsLedger[]
+  projects       Project[]
+  batches        Batch[]
+  creditsLedger  CreditsLedger[]
+  namingPresets  NamingPreset[]
 
   @@index([email])
   @@index([stripeCustomerId])
@@ -235,4 +243,21 @@ model CreditsLedger {
   @@index([userId])
   @@index([projectId])
   @@index([createdAt])
+}
+
+model NamingPreset {
+  id          String   @id @default(cuid())
+  name        String   @db.VarChar(100)
+  userId      String
+  prefix      String?  @db.VarChar(255)
+  startNumber Int      @default(1)
+  context     String   @default("general") @db.VarChar(50)
+  platform    Platform @default(GENERIC)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

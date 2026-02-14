@@ -8,6 +8,8 @@ import type {
   MarketplaceType,
   StrategyType,
 } from "../types";
+import type { PlatformType } from "@/types";
+import { getPlatformConfig } from "../prompts";
 
 export interface OpenAIProviderConfig {
   apiKey?: string;
@@ -243,7 +245,8 @@ export class OpenAIVisionProvider implements IVisionProvider {
     images: TagImageInput[],
     marketplace: MarketplaceType,
     strategy: StrategyType = "standard",
-    maxTags: number = 25
+    maxTags: number = 25,
+    platform?: PlatformType
   ): Promise<ImageTagResult[]> {
     const image = images[0];
 
@@ -253,7 +256,13 @@ export class OpenAIVisionProvider implements IVisionProvider {
       return [];
     }
 
-    const prompt = buildTagPrompt(marketplace, strategy, maxTags);
+    // When a platform is specified, override maxTags with platform limit
+    const effectiveMaxTags = platform ? getPlatformConfig(platform).maxTags : maxTags;
+    const platformInstruction =
+      platform && platform !== "GENERIC"
+        ? `\n    PLATFORM OPTIMIZATION (${platform}): ${getPlatformConfig(platform).systemInstruction}\n`
+        : "";
+    const prompt = platformInstruction + buildTagPrompt(marketplace, strategy, effectiveMaxTags);
 
     const response = (await this.client.chat.completions.create({
       model: this.model,

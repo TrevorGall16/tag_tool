@@ -95,6 +95,9 @@ function validateRequest(body: VisionTagsRequest): string | null {
   if (!body.marketplace || !["ETSY", "ADOBE_STOCK"].includes(body.marketplace)) {
     return "Invalid marketplace. Must be ETSY or ADOBE_STOCK";
   }
+  if (body.platform && !["GENERIC", "ADOBE", "SHUTTERSTOCK", "ETSY"].includes(body.platform)) {
+    return "Invalid platform. Must be GENERIC, ADOBE, SHUTTERSTOCK, or ETSY";
+  }
   return null;
 }
 
@@ -120,7 +123,7 @@ export async function POST(
       return NextResponse.json({ success: false, error: validationError }, { status: 400 });
     }
 
-    const { images, marketplace, strategy = "standard", maxTags = 25 } = body;
+    const { images, marketplace, strategy = "standard", maxTags = 25, platform } = body;
 
     if (images.length > MAX_IMAGES_PER_REQUEST) {
       return NextResponse.json(
@@ -160,7 +163,7 @@ export async function POST(
       await new Promise((resolve) => setTimeout(resolve, 300 + Math.random() * 700));
       results = generateMockTagResults(images, maxTags);
     } else {
-      results = await generateTagsForImages(images, marketplace, strategy, maxTags);
+      results = await generateTagsForImages(images, marketplace, strategy, maxTags, platform);
     }
 
     // Deduct credits for authenticated users (skip in mock mode)

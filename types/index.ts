@@ -98,6 +98,7 @@ export interface ClusterSettings {
   prefix?: string; // Optional prefix for group names (e.g., "Summer Shoot")
   startNumber?: number; // Starting number for groups (default: 1)
   context?: ClusterContext; // Context for clustering (affects AI categorization)
+  platform?: PlatformType; // Platform optimizer for tag generation
 }
 
 export interface VisionClusterRequest {
@@ -128,12 +129,16 @@ export interface ImageClusterGroup {
   confidence: number;
 }
 
+// Platform type for Agency Optimizer
+export type PlatformType = "GENERIC" | "ADOBE" | "SHUTTERSTOCK" | "ETSY";
+
 // Vision Tags types
 export interface VisionTagsRequest {
   images: TagImageInput[];
   marketplace: "ETSY" | "ADOBE_STOCK";
   strategy?: "standard" | "etsy" | "stock";
   maxTags?: number;
+  platform?: PlatformType;
 }
 
 export interface TagImageInput {

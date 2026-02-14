@@ -1,4 +1,10 @@
-import type { ClusterImageInput, ImageClusterGroup, TagImageInput, ImageTagResult } from "@/types";
+import type {
+  ClusterImageInput,
+  ImageClusterGroup,
+  TagImageInput,
+  ImageTagResult,
+  PlatformType,
+} from "@/types";
 
 export type VisionProviderType = "anthropic" | "openai";
 export type MarketplaceType = "ETSY" | "ADOBE_STOCK";
@@ -26,7 +32,8 @@ export interface IVisionProvider {
     images: TagImageInput[],
     marketplace: MarketplaceType,
     strategy?: StrategyType,
-    maxTags?: number
+    maxTags?: number,
+    platform?: PlatformType
   ): Promise<ImageTagResult[]>;
 }
 

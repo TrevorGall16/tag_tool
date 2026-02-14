@@ -9,6 +9,7 @@ import type {
   MarketplaceType,
   StrategyType,
 } from "./types";
+import type { PlatformType } from "@/types";
 import { AnthropicVisionProvider, type AnthropicProviderConfig } from "./providers/anthropic";
 import { OpenAIVisionProvider, type OpenAIProviderConfig } from "./providers/openai";
 
@@ -78,12 +79,14 @@ export async function generateTagsForImages(
   images: TagImageInput[],
   marketplace: string,
   strategy: string = "standard",
-  maxTags: number = 25
+  maxTags: number = 25,
+  platform?: PlatformType
 ): Promise<ImageTagResult[]> {
   return VisionFactory.getProvider().generateTags(
     images,
     marketplace as MarketplaceType,
     strategy as StrategyType,
-    maxTags
+    maxTags,
+    platform
   );
 }
