@@ -181,14 +181,15 @@ export function BatchToolbar({ className, selectedProjectId, folderName }: Batch
               <div className="absolute top-full left-0 mt-1 w-64 bg-white rounded-xl shadow-lg border border-slate-200 py-1 z-50">
                 {showNewProjectInput ? (
                   <div className="px-3 py-2 border-b border-slate-100">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 w-full">
                       <input
                         ref={newProjectInputRef}
                         type="text"
                         value={newProjectName}
                         onChange={(e) => setNewProjectName(e.target.value)}
+                        maxLength={50}
                         placeholder="Folder name..."
-                        className="flex-1 px-2 py-1.5 text-sm text-gray-900 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="flex-1 min-w-0 px-2 py-1.5 text-sm text-gray-900 bg-white border border-slate-200 rounded-lg truncate focus:outline-none focus:ring-2 focus:ring-blue-500"
                         onKeyDown={(e) => {
                           if (e.key === "Enter") handleCreateProject();
                           if (e.key === "Escape") {
@@ -201,7 +202,7 @@ export function BatchToolbar({ className, selectedProjectId, folderName }: Batch
                       <button
                         onClick={handleCreateProject}
                         disabled={!newProjectName.trim() || isCreatingProject}
-                        className="px-2 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="flex-shrink-0 px-2 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {isCreatingProject ? "..." : "Add"}
                       </button>

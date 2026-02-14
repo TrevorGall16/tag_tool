@@ -320,10 +320,16 @@ export function MetadataPreviewModal({ isOpen, onClose, groups }: MetadataPrevie
                 </div>
 
                 {metadata.tags.length > 0 && (
-                  <p className="text-xs text-slate-400">
-                    Expected format: <span className="font-medium">{limits.tagFormat}</span>. Tags
-                    #1–10 have highest SEO priority.
-                  </p>
+                  <div className="space-y-1">
+                    <p className="text-xs text-slate-400">
+                      Expected format: <span className="font-medium">{limits.tagFormat}</span>. Tags
+                      #1–10 have highest SEO priority.
+                    </p>
+                    <p className="text-xs text-blue-600 bg-blue-50 border border-blue-100 rounded-md px-2.5 py-1.5">
+                      <span className="font-semibold">Blue tags</span> are High Priority (First 10).
+                      Stock agencies weigh these heavily for SEO.
+                    </p>
+                  </div>
                 )}
 
                 <div className="flex flex-wrap gap-1.5 p-3 bg-slate-50 rounded-lg border border-slate-200 min-h-[60px]">

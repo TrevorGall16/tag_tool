@@ -497,11 +497,11 @@ function CollapsibleGroupCard({
 
         {/* Title & Info */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <h3 className="font-medium text-slate-900 truncate">
+          <div className="flex items-center gap-2 min-w-0">
+            <h3 className="font-medium text-slate-900 truncate max-w-[200px] lg:max-w-[300px]">
               {group.sharedTitle || `Group ${group.groupNumber}`}
             </h3>
-            {/* Semantic Tags Badges - fallback to sharedTitle if tags empty */}
+            {/* Semantic Tags Badges — hidden when identical to group title */}
             {(() => {
               // Approved categories get special styling
               const APPROVED = [
@@ -517,16 +517,20 @@ function CollapsibleGroupCard({
                 "objects",
               ];
 
+              const displayedTitle = group.sharedTitle || `Group ${group.groupNumber}`;
+
+              // Only show semanticTags as badges; suppress sharedTitle fallback
+              // since it's already the displayed title
               const badges =
                 group.semanticTags && group.semanticTags.length > 0
-                  ? group.semanticTags
-                  : group.sharedTitle
-                    ? [group.sharedTitle]
-                    : null;
+                  ? group.semanticTags.filter(
+                      (tag) => tag.toLowerCase() !== displayedTitle.toLowerCase()
+                    )
+                  : null;
 
               if (badges && badges.length > 0) {
                 return (
-                  <div className="ml-2 flex items-center gap-1">
+                  <div className="ml-2 flex items-center gap-1 shrink-0">
                     {badges.slice(0, 3).map((tag, idx) => {
                       const isApproved = APPROVED.includes(tag.toLowerCase());
                       return (
@@ -548,7 +552,7 @@ function CollapsibleGroupCard({
               }
 
               return (
-                <span className="ml-2 px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-500 text-xs font-medium border border-slate-200">
+                <span className="ml-2 px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-500 text-xs font-medium border border-slate-200 shrink-0">
                   Unlabeled
                 </span>
               );

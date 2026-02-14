@@ -156,9 +156,10 @@ export function NamingSettings() {
               type="text"
               value={prefix}
               onChange={(e) => update({ prefix: e.target.value || undefined })}
+              maxLength={50}
               placeholder="e.g., Summer Shoot, Paris Trip"
               className={cn(
-                "w-full px-3 py-2 text-sm rounded-lg border border-slate-200",
+                "w-full px-3 py-2 text-sm rounded-lg border border-slate-200 truncate",
                 "bg-white text-gray-900",
                 "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
                 "placeholder:text-gray-400"

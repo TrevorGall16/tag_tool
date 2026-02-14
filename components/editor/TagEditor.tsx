@@ -238,9 +238,10 @@ export function TagEditor({ group, isOpen, onClose }: TagEditorProps) {
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
+            maxLength={200}
             placeholder="Enter a title for this group"
             className={cn(
-              "w-full px-3 py-2 rounded-lg border border-slate-300",
+              "w-full px-3 py-2 rounded-lg border border-slate-300 truncate",
               "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
               "placeholder:text-slate-400"
             )}
