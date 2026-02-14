@@ -9,33 +9,40 @@ export const GENERIC_DEFAULTS = {
 export const SHUTTERSTOCK_DEFAULTS = {
   maxTags: 50,
   systemInstruction:
-    "Strictly avoid duplicate concepts. No spamming. Each keyword must represent a unique concept.",
+    "You are a General Stock Photography Expert. 1) Output EXACTLY the requested number of keywords. 2) FORMAT: Mix of single words and 2-word phrases. 3) CONTENT: Standard descriptive tags (e.g., 'guitar', 'acoustic guitar', 'music', 'concert', 'live performance'). Each keyword must represent a unique concept.",
 };
 
 export function buildGenericTagPrompt(strategy: StrategyType, tagCount: number): string {
   const persona = getStrategyPersona(strategy);
   const tagLimit = Math.max(5, Math.min(50, tagCount));
 
-  return `${persona}Generate high-quality SEO metadata for this image.
+  return `${persona}You are a versatile SEO metadata specialist for web, social media, and general e-commerce.
 
 RULES:
-- Title: Clear, descriptive, Google-friendly (60-70 chars ideal).
-- Tags: Generate exactly ${tagLimit} highly relevant keywords. Never exceed ${tagLimit} tags.
-- Description: Standard eCommerce or Alt-Text style description.
+1. Output EXACTLY ${tagLimit} tags. No more, no less.
+2. Tags can be single words OR short phrases (1–3 words). Mix both freely.
+   Example mix: ["sunset", "beach vacation", "ocean", "tropical paradise", "sand", "golden hour", "waves"]
+3. Aim for a balanced mix: ~60% single keywords + ~40% two-word phrases.
 
-SAFETY FOR UNKNOWN ITEMS:
-- If the exact object is unknown, describe its physical appearance: Shape, Color, Material, Texture.
-- Use broad categories (e.g., "Machinery", "Tool", "Artifact") if specific identification is impossible.
+TAG STRATEGY — Optimize for Google Image Search and social media discovery:
+- Primary (40%): Specific objects, subjects, and scenes visible in the image.
+- Secondary (30%): Context, setting, mood, season, time of day.
+- Tertiary (30%): Related search terms a user might type to find this image (think Google, Pinterest, Instagram).
+
+TITLE: 60–70 characters. Google-friendly, descriptive. Write it like an image alt-text that ranks.
+  Pattern: [Subject] [Action/State] [Setting] — e.g., "Golden retriever running on sandy beach at sunset"
+
+DESCRIPTION: 1–2 sentences. Describe the image for someone who cannot see it (accessibility-grade alt-text). Include colors, composition, and emotional tone.
 
 RESPOND ONLY with valid JSON:
 {
-  "title": "Descriptive Product Title for SEO",
-  "description": "A clear, detailed description of the product or image.",
-  "tags": ["keyword1", "keyword2", "keyword3", ...up to ${tagLimit} tags],
+  "title": "Golden retriever running on sandy beach at sunset",
+  "description": "A happy golden retriever sprints along a sandy shoreline as warm golden light from the setting sun reflects off the ocean waves behind it.",
+  "tags": ["golden retriever", "dog", "beach", "sunset", "running", "ocean", "sand", "pet", "animal", "golden hour", "waves", "shore", "happy", "playful", "summer", "outdoors", "nature", "warm light", "water", "coastal", "companion", "freedom", "joy", "tropical", "vacation", "lifestyle", "active", "beautiful", "scenic", "horizon"],
   "confidence": 0.90
 }`;
 }
 
 export function getGenericDescription(tagCount: number): string {
-  return `Standard SEO tagging for general use. ${tagCount} balanced keywords.`;
+  return `General SEO mode. ${tagCount} mixed keywords and short phrases.`;
 }
