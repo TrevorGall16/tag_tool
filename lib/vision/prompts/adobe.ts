@@ -4,7 +4,7 @@ import { getStrategyPersona } from "./shared";
 export const ADOBE_DEFAULTS = {
   maxTags: 49,
   systemInstruction:
-    "You are an Adobe Stock Metadata Expert. 1) Output EXACTLY the requested number of keywords. 2) FORMAT: Single words only. NO PHRASES. Any tag with a space is a FAILURE. (e.g., 'guitar, music' NOT 'acoustic guitar'). 3) CONTENT: Focus on visual elements, objects, and concepts visible in the image. 4) Order by visual importance.",
+    "STRICTLY SINGLE WORDS ONLY. Forbidden: 'urban fashion', 'blue sky'. Allowed: 'urban, fashion, blue, sky'. If you see a concept like 'urban fashion', SPLIT IT into two separate tags. Output EXACTLY the requested number of comma-separated single-word keywords.",
 };
 
 export function buildAdobeTagPrompt(strategy: StrategyType, tagCount: number): string {
@@ -13,27 +13,35 @@ export function buildAdobeTagPrompt(strategy: StrategyType, tagCount: number): s
 
   return `${persona}You are an Adobe Stock Metadata Expert.
 
-ABSOLUTE RULES — VIOLATIONS MEAN FAILURE:
+CRITICAL FORMAT RULE — THIS IS THE MOST IMPORTANT RULE:
+STRICTLY SINGLE WORDS ONLY. Every tag must be exactly ONE word with ZERO spaces.
+- Forbidden: "urban fashion", "blue sky", "coffee cup", "young woman"
+- Correct:   "urban", "fashion", "blue", "sky", "coffee", "cup", "young", "woman"
+- If a concept is two words, SPLIT IT into two separate single-word tags.
+- ANY tag containing a space means you have COMPLETELY FAILED.
+
+RULES:
 1. Output EXACTLY ${tagLimit} tags. No more, no less.
-2. Every tag MUST be a SINGLE WORD. No spaces allowed inside any tag.
-   CORRECT: "guitar", "music", "wooden", "instrument", "acoustic"
-   WRONG:   "acoustic guitar", "musical instrument", "wooden body"
-3. If a tag contains a space, you have FAILED the task.
-4. Order tags by visual importance: what is most prominent in the image comes first.
+2. EVERY tag = ONE word. No exceptions. No hyphens. No compound words joined by spaces.
+3. Order by visual importance: most prominent subject first.
 
-TAG STRATEGY (in this priority order):
-- Layer 1 (tags 1–15): Literal objects visible in the image (nouns).
-- Layer 2 (tags 16–30): Materials, colors, textures, lighting, composition.
-- Layer 3 (tags 31–${tagLimit}): Abstract concepts, emotions, moods, themes.
+SELF-CHECK BEFORE RESPONDING:
+- Scan every tag in your output. Does ANY tag have a space? If yes, split it.
+- Count your tags. Is the count exactly ${tagLimit}? If not, add or remove.
 
-TITLE: 200 chars max. Literal, factual description of the scene. No marketing language.
-DESCRIPTION: 1–2 sentences. Objective description of what is depicted. No adjectives like "beautiful" or "amazing".
+TAG PRIORITY:
+- First third: Nouns of objects/subjects visible in the image.
+- Second third: Materials, colors, textures, lighting.
+- Final third: Moods, concepts, abstract themes.
+
+TITLE: 200 chars max. Factual description. No marketing fluff.
+DESCRIPTION: 1–2 objective sentences describing what is depicted.
 
 RESPOND ONLY with valid JSON:
 {
   "title": "Woman typing on laptop at wooden desk in sunlit office",
   "description": "A professional woman works on a silver laptop at a wooden desk near a window with natural light.",
-  "tags": ["woman", "laptop", "desk", "office", "typing", "professional", "computer", "work", "wooden", "window", "sunlight", "indoor", "technology", "business", "career", "modern", "concentrated", "adult", "sitting", "workspace", "bright", "productivity", "corporate", "lifestyle", "caucasian"],
+  "tags": ["woman", "laptop", "desk", "office", "typing", "professional", "computer", "work", "wooden", "window", "sunlight", "indoor", "technology", "business", "career", "modern", "adult", "sitting", "workspace", "bright", "productivity", "corporate", "lifestyle", "focused", "caucasian"],
   "confidence": 0.95
 }`;
 }

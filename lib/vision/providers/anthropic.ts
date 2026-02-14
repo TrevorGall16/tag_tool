@@ -118,8 +118,8 @@ export class AnthropicVisionProvider implements IVisionProvider {
     maxTags: number = 25,
     platform?: PlatformType
   ): Promise<ImageTagResult> {
-    // When a platform is specified, override maxTags with platform limit
-    const effectiveMaxTags = platform ? getPlatformConfig(platform).maxTags : maxTags;
+    // User's slider value (maxTags) always wins. Only fall back to platform default if not provided.
+    const effectiveMaxTags = maxTags || (platform ? getPlatformConfig(platform).maxTags : 25);
     const prompt = buildPlatformTagPrompt({
       marketplace,
       strategy,

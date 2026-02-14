@@ -256,8 +256,8 @@ export class OpenAIVisionProvider implements IVisionProvider {
       return [];
     }
 
-    // When a platform is specified, override maxTags with platform limit
-    const effectiveMaxTags = platform ? getPlatformConfig(platform).maxTags : maxTags;
+    // User's slider value (maxTags) always wins. Only fall back to platform default if not provided.
+    const effectiveMaxTags = maxTags || (platform ? getPlatformConfig(platform).maxTags : 25);
     const platformInstruction =
       platform && platform !== "GENERIC"
         ? `\n    PLATFORM OPTIMIZATION (${platform}): ${getPlatformConfig(platform).systemInstruction}\n`
