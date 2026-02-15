@@ -49,7 +49,6 @@ export function BatchDndContext({ children }: BatchDndContextProps) {
     if (result) {
       setActiveImage(result.image);
       setActiveGroupId(result.groupId);
-      console.log(`[DnD] Drag started: image ${active.id} from group ${result.groupId}`);
     }
   };
 
@@ -62,7 +61,6 @@ export function BatchDndContext({ children }: BatchDndContextProps) {
     setActiveGroupId(null);
 
     if (!over || !fromGroupId) {
-      console.log("[DnD] Drag cancelled: no drop target");
       return;
     }
 
@@ -71,11 +69,8 @@ export function BatchDndContext({ children }: BatchDndContextProps) {
 
     // Don't do anything if dropping on the same group
     if (fromGroupId === toGroupId) {
-      console.log("[DnD] Dropped on same group, no change");
       return;
     }
-
-    console.log(`[DnD] Moving image ${imageId} from ${fromGroupId} to ${toGroupId}`);
 
     // Ensure unclustered group exists when dragging back to pool
     if (toGroupId === "unclustered") {
@@ -91,7 +86,6 @@ export function BatchDndContext({ children }: BatchDndContextProps) {
         const updatedState = useBatchStore.getState();
         await saveBatch(sessionId, marketplace);
         await saveGroups(sessionId, updatedState.groups);
-        console.log("[DnD] Persisted move to IndexedDB");
       } catch (err) {
         console.error("[DnD] Failed to persist move:", err);
       }

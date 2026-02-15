@@ -70,12 +70,7 @@ function DashboardContent() {
   const searchParams = useSearchParams();
   const { sessionId, initSession, isClustering, clearBatch, groups, moveGroupToFolder } =
     useBatchStore();
-  const {
-    isRestoring,
-    error: persistenceError,
-    restoredImageCount,
-    triggerSync,
-  } = usePersistence();
+  const { isRestoring, triggerSync } = usePersistence();
 
   const [isResetting, setIsResetting] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
@@ -274,14 +269,6 @@ function DashboardContent() {
         </div>
       </div>
     );
-  }
-
-  if (persistenceError) {
-    console.error("Persistence error:", persistenceError);
-  }
-
-  if (restoredImageCount > 0) {
-    console.log(`[Session] Restored ${restoredImageCount} images from previous session`);
   }
 
   return (

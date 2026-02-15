@@ -187,10 +187,6 @@ export function ImageGallery({ className }: ImageGalleryProps) {
             totalImages: images.length,
           });
 
-          console.log(
-            `[Clustering] Processing batch ${i + 1}/${totalBatches} (${batchImages.length} images)`
-          );
-
           const response = await fetch("/api/vision/cluster", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -253,10 +249,6 @@ export function ImageGallery({ className }: ImageGalleryProps) {
       const baseTimestamp = Date.now();
       const newGroups: LocalGroup[] = allGroups.map((cluster, index) => {
         const groupId = crypto.randomUUID(); // Always use UUID, ignore API's groupId
-        console.log(
-          `[Clustering] Created group "${cluster.title}" with ${cluster.imageIds.length} images, ${cluster.semanticTags?.length || 0} tags:`,
-          cluster.semanticTags
-        );
         return {
           id: groupId,
           groupNumber: index + 1,
@@ -271,7 +263,6 @@ export function ImageGallery({ className }: ImageGalleryProps) {
         };
       });
 
-      console.log(`[Clustering] Created ${newGroups.length} groups with UUIDs`);
       appendGroups(newGroups);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Clustering failed";

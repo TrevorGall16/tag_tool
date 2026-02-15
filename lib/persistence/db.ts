@@ -8,32 +8,24 @@ let dbInstance: IDBPDatabase<TagArchitectDB> | null = null;
 
 export async function getDB(): Promise<IDBPDatabase<TagArchitectDB>> {
   if (dbInstance) {
-    console.log("[DB] Returning cached DB instance");
     return dbInstance;
   }
 
-  console.log(`[DB] Opening database: ${DB_NAME} v${DB_VERSION}`);
-
   dbInstance = await openDB<TagArchitectDB>(DB_NAME, DB_VERSION, {
-    upgrade(db, oldVersion, newVersion) {
-      console.log(`[DB] UPGRADE: v${oldVersion} -> v${newVersion}`);
-
+    upgrade(db) {
       // Batches store
       if (!db.objectStoreNames.contains("batches")) {
-        console.log("[DB] Creating 'batches' store");
         db.createObjectStore("batches", { keyPath: "sessionId" });
       }
 
       // Groups store with session index
       if (!db.objectStoreNames.contains("groups")) {
-        console.log("[DB] Creating 'groups' store with bySession index");
         const groupStore = db.createObjectStore("groups", { keyPath: "id" });
         groupStore.createIndex("bySession", "sessionId");
       }
 
       // Images store with indexes
       if (!db.objectStoreNames.contains("images")) {
-        console.log("[DB] Creating 'images' store with byGroup and bySession indexes");
         const imageStore = db.createObjectStore("images", { keyPath: "id" });
         imageStore.createIndex("byGroup", "groupId");
         imageStore.createIndex("bySession", "sessionId");
@@ -41,13 +33,11 @@ export async function getDB(): Promise<IDBPDatabase<TagArchitectDB>> {
 
       // Blobs store
       if (!db.objectStoreNames.contains("blobs")) {
-        console.log("[DB] Creating 'blobs' store");
         db.createObjectStore("blobs", { keyPath: "id" });
       }
     },
   });
 
-  console.log("[DB] Database opened successfully");
   return dbInstance;
 }
 
@@ -90,7 +80,6 @@ export async function clearSessionData(sessionId: string): Promise<void> {
  * Use this to fix corrupted database state.
  */
 export async function nukeAllData(): Promise<void> {
-  console.log("[DB] ====== NUKING ALL DATA ======");
   const db = await getDB();
   const tx = db.transaction(["batches", "groups", "images", "blobs"], "readwrite");
 
@@ -101,27 +90,23 @@ export async function nukeAllData(): Promise<void> {
   await tx.objectStore("blobs").clear();
 
   await tx.done;
-  console.log("[DB] ====== ALL DATA NUKED ======");
 }
 
 /**
  * Delete a single image and its blob from IndexedDB
  */
 export async function deleteImageData(imageId: string): Promise<void> {
-  console.log(`[DB] Deleting image and blob for: ${imageId}`);
   const db = await getDB();
   const tx = db.transaction(["images", "blobs"], "readwrite");
   await tx.objectStore("images").delete(imageId);
   await tx.objectStore("blobs").delete(imageId);
   await tx.done;
-  console.log(`[DB] Deleted image and blob for: ${imageId}`);
 }
 
 /**
  * Delete a group and all its images/blobs from IndexedDB
  */
 export async function deleteGroupData(groupId: string): Promise<void> {
-  console.log(`[DB] Deleting group and all images for: ${groupId}`);
   const db = await getDB();
   const tx = db.transaction(["groups", "images", "blobs"], "readwrite");
 
@@ -141,7 +126,6 @@ export async function deleteGroupData(groupId: string): Promise<void> {
   await tx.objectStore("groups").delete(groupId);
 
   await tx.done;
-  console.log(`[DB] Deleted group ${groupId} with ${imageIds.length} images`);
 }
 
 /**
@@ -159,6 +143,5 @@ export async function getDBStats(): Promise<{
   const images = await db.count("images");
   const blobs = await db.count("blobs");
 
-  console.log(`[DB] Stats: batches=${batches}, groups=${groups}, images=${images}, blobs=${blobs}`);
   return { batches, groups, images, blobs };
 }

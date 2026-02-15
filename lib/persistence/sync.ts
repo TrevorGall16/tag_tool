@@ -28,17 +28,9 @@ export async function saveSessionAtomic(
   marketplace: MarketplaceType,
   groups: LocalGroup[]
 ): Promise<{ savedGroups: number; savedImages: number }> {
-  const totalImages = groups.reduce((acc, g) => acc + g.images.length, 0);
-  console.log(`[SAVE] ====== ATOMIC SAVE START ======`);
-  console.log(`[SAVE] Session: "${sessionId}"`);
-  console.log(`[SAVE] Marketplace: ${marketplace}`);
-  console.log(`[SAVE] Groups to save: ${groups.length}`);
-  console.log(`[SAVE] Total images to save: ${totalImages}`);
-
   // ============================================================
   // PHASE 1: Prepare ALL data BEFORE opening transaction
   // ============================================================
-  console.log(`[SAVE] Phase 1: Preparing data (converting Files to ArrayBuffers)...`);
 
   const batchRecord: BatchRecord = {
     sessionId,
@@ -99,9 +91,6 @@ export async function saveSessionAtomic(
             data: arrayBuffer,
             size: image.file.size,
           });
-          console.log(
-            `[SAVE] Prepared blob for "${image.id.slice(0, 8)}" (${image.file.size} bytes)`
-          );
         } catch (err) {
           console.error(`[SAVE] Failed to read File for image "${image.id}":`, err);
         }
@@ -109,14 +98,9 @@ export async function saveSessionAtomic(
     }
   }
 
-  console.log(
-    `[SAVE] Phase 1 complete: ${groupRecords.length} groups, ${imageRecords.length} images, ${blobRecords.length} blobs prepared`
-  );
-
   // ============================================================
   // PHASE 2: Execute ALL writes in a single synchronous transaction
   // ============================================================
-  console.log(`[SAVE] Phase 2: Writing to IndexedDB...`);
 
   const db = await getDB();
   const tx = db.transaction(["batches", "groups", "images", "blobs"], "readwrite");
@@ -177,30 +161,14 @@ export async function saveSessionAtomic(
     }
 
     // Execute ALL operations in parallel within the transaction
-    console.log(`[SAVE] Executing ${writeOps.length} write operations...`);
     await Promise.all(writeOps);
 
     // Commit transaction
     await tx.done;
 
-    console.log(`[SAVE] ====== ATOMIC SAVE COMPLETE ======`);
-    console.log(
-      `[SAVE] Saved: ${groupRecords.length} groups, ${imageRecords.length} images, ${blobRecords.length} blobs`
-    );
-
-    // Verify save by reading back (outside transaction)
-    const verifyBatch = await db.get("batches", sessionId);
-    const verifyGroups = await db.getAllFromIndex("groups", "bySession", sessionId);
-    const verifyImages = await db.getAllFromIndex("images", "bySession", sessionId);
-    const verifyBlobs = await db.getAll("blobs");
-    console.log(
-      `[SAVE] VERIFY: batch=${!!verifyBatch}, groups=${verifyGroups.length}, images=${verifyImages.length}, blobs=${verifyBlobs.length}`
-    );
-
     return { savedGroups: groupRecords.length, savedImages: imageRecords.length };
   } catch (err) {
-    console.error("[SAVE] ====== ATOMIC SAVE FAILED ======");
-    console.error("[SAVE] Error:", err);
+    console.error("[SAVE] Atomic save failed:", err);
     throw err;
   }
 }

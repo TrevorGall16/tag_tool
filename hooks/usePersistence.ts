@@ -21,7 +21,6 @@ let explicitClearRequested = false;
  */
 export function markExplicitClear(): void {
   explicitClearRequested = true;
-  console.log("[Persistence] Explicit clear marked - zero-image save will be allowed");
 }
 
 /**
@@ -77,24 +76,6 @@ export function usePersistence(): UsePersistenceResult {
         setRestoredImageCount(totalImages);
         // Store this count to detect accidental wipes during sync
         hydratedImageCountRef.current = totalImages;
-        console.log(`[Persistence] Hydrated ${totalImages} images from IndexedDB`);
-
-        // Validate that File objects were properly reconstructed
-        let validImages = 0;
-        for (const group of session.groups) {
-          for (const image of group.images) {
-            if (image.file instanceof File && image.file.size > 0) {
-              validImages++;
-            }
-          }
-        }
-
-        if (validImages !== totalImages && totalImages > 0) {
-          console.warn(
-            `[Persistence] Only ${validImages}/${totalImages} images had valid File objects`
-          );
-        }
-
         setGroups(session.groups);
         setMarketplace(session.marketplace);
       }
@@ -146,16 +127,8 @@ export function usePersistence(): UsePersistenceResult {
     if (currentImageCount === 0 && hadImagesBefore) {
       // Check if this is an explicit clear
       if (explicitClearRequested) {
-        console.log("[Persistence] Zero-image save ALLOWED (explicit clear requested)");
         explicitClearRequested = false; // Reset the flag
       } else {
-        console.warn(
-          "[Persistence] ABORT SYNC: Store has 0 images but last known count was",
-          lastKnownImageCountRef.current,
-          "and hydrated count was",
-          hydratedImageCountRef.current,
-          "- This may be a race condition. Use markExplicitClear() to allow."
-        );
         return false;
       }
     }
@@ -165,7 +138,6 @@ export function usePersistence(): UsePersistenceResult {
 
       // Update last known count on successful sync
       lastKnownImageCountRef.current = currentImageCount;
-      console.log(`[Persistence] Sync complete. Last known image count: ${currentImageCount}`);
 
       return true;
     } catch (err) {
@@ -180,8 +152,6 @@ export function usePersistence(): UsePersistenceResult {
     // Block sync until hydration is completely finished
     if (!isHydrated || isRestoring || syncSetupRef.current) return;
     syncSetupRef.current = true;
-
-    console.log("[Persistence] Hydration complete, starting sync subscription");
 
     // Initialize last known count from hydration
     lastKnownImageCountRef.current = hydratedImageCountRef.current;
@@ -211,7 +181,6 @@ export function usePersistence(): UsePersistenceResult {
   // Expose a manual sync trigger for immediate saves (e.g., from Lightbox)
   const triggerSync = useCallback(async (): Promise<void> => {
     if (!isHydrated || isRestoring) {
-      console.warn("[Persistence] Cannot trigger sync - hydration not complete");
       return;
     }
     await performSync();

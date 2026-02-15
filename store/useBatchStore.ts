@@ -173,7 +173,9 @@ export const useBatchStore = create<BatchState>()(
           const existingSessionId = get().sessionId;
           const sessionId = existingSessionId || `session_${crypto.randomUUID()}`;
 
-          console.log(`[Store] initSession called, using ID: "${sessionId}"`);
+          if (process.env.NODE_ENV === "development") {
+            console.log(`[Store] initSession called, using ID: "${sessionId}"`);
+          }
 
           // Set cookie for auth promotion (30 days expiry)
           if (typeof document !== "undefined") {
@@ -216,14 +218,9 @@ export const useBatchStore = create<BatchState>()(
             const newSelected = new Set(state.selectedGroupIds);
             if (newSelected.has(groupId)) {
               newSelected.delete(groupId);
-              console.log(`[Selection] Deselected group: ${groupId}`);
             } else {
               newSelected.add(groupId);
-              console.log(`[Selection] Selected group: ${groupId}`);
             }
-            console.log(
-              `[Selection] Now selected: ${Array.from(newSelected).join(", ") || "none"}`
-            );
             return { selectedGroupIds: newSelected };
           });
         },
@@ -293,7 +290,6 @@ export const useBatchStore = create<BatchState>()(
         },
 
         removeImageFromGroup: (groupId, imageId) => {
-          console.log(`[Store] Removing image ${imageId} from group ${groupId}`);
           set((state) => ({
             groups: state.groups.map((group) =>
               group.id === groupId
@@ -396,13 +392,9 @@ export const useBatchStore = create<BatchState>()(
             console.error("[Tagging] ERROR: Attempted to update tags with undefined groupId");
             return;
           }
-          console.log(
-            `[Tagging] Updating group ${groupId} with title: "${aiTitle}", ${aiTags.length} tags`
-          );
           set((state) => ({
             groups: state.groups.map((group) => {
               if (group.id === groupId) {
-                console.log(`[Tagging] Matched group ${groupId} (${group.images.length} images)`);
                 return {
                   ...group,
                   sharedTags: aiTags,
@@ -527,7 +519,6 @@ export const useBatchStore = create<BatchState>()(
         },
 
         moveGroupToFolder: (groupId, folderId) => {
-          console.log(`[Store] Moving group ${groupId} to folder ${folderId || "Uncategorized"}`);
           set((state) => ({
             groups: state.groups.map((group) =>
               group.id === groupId ? { ...group, folderId: folderId || undefined } : group
@@ -625,14 +616,11 @@ export const useBatchStore = create<BatchState>()(
             const existingGroups = state.groups.filter((g) => g.id !== "unclustered");
             const allGroups = [...groupsWithNumbers, ...existingGroups];
 
-            console.log(`[Store] Appended ${newGroups.length} groups. Total: ${allGroups.length}`);
-
             return { groups: allGroups };
           });
         },
 
         clearAllGroups: () => {
-          console.log("[Store] Clearing all groups");
           set((state) => ({
             groups: state.groups.filter((g) => g.id === "unclustered"),
             selectedGroupIds: new Set(),

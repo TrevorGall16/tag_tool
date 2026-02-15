@@ -248,7 +248,6 @@ export class OpenAIVisionProvider implements IVisionProvider {
     platform?: PlatformType
   ): Promise<ImageTagResult[]> {
     if (images.length === 0) {
-      console.warn("No images provided to generateTags");
       return [];
     }
 
