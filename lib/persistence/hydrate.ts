@@ -90,6 +90,10 @@ export async function hydrateSession(sessionId: string): Promise<HydratedSession
         sharedDescription: groupRecord.sharedDescription,
         sharedTags: groupRecord.sharedTags,
         isVerified: groupRecord.isVerified,
+        folderId: groupRecord.folderId,
+        isCollapsed: groupRecord.isCollapsed,
+        createdAt: groupRecord.createdAt,
+        semanticTags: groupRecord.semanticTags,
       };
     })
   );

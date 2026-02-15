@@ -57,6 +57,10 @@ export async function saveSessionAtomic(
       sharedDescription: group.sharedDescription,
       sharedTags: group.sharedTags,
       isVerified: group.isVerified,
+      folderId: group.folderId,
+      isCollapsed: group.isCollapsed,
+      createdAt: group.createdAt,
+      semanticTags: group.semanticTags,
     });
 
     for (const image of group.images) {
@@ -227,6 +231,10 @@ export async function saveGroups(sessionId: string, groups: LocalGroup[]): Promi
       sharedDescription: group.sharedDescription,
       sharedTags: group.sharedTags,
       isVerified: group.isVerified,
+      folderId: group.folderId,
+      isCollapsed: group.isCollapsed,
+      createdAt: group.createdAt,
+      semanticTags: group.semanticTags,
     };
 
     try {

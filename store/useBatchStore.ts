@@ -337,12 +337,16 @@ export const useBatchStore = create<BatchState>()(
         },
 
         updateImageTags: (groupId, imageId, tags, title) => {
-          set((state) => ({
-            groups: state.groups.map((group) =>
-              group.id === groupId
+          const state = get();
+          const group = state.groups.find((g) => g.id === groupId);
+          const image = group?.images.find((img) => img.id === imageId);
+
+          set((s) => ({
+            groups: s.groups.map((g) =>
+              g.id === groupId
                 ? {
-                    ...group,
-                    images: group.images.map((img) =>
+                    ...g,
+                    images: g.images.map((img) =>
                       img.id === imageId
                         ? {
                             ...img,
@@ -352,14 +356,20 @@ export const useBatchStore = create<BatchState>()(
                         : img
                     ),
                   }
-                : group
+                : g
             ),
           }));
 
-          // Debounced server sync
+          // Debounced server sync with creation metadata for upsert
           syncImageToServer(imageId, {
             userTags: tags,
             ...(title !== undefined && { userTitle: title }),
+            sessionId: state.sessionId || undefined,
+            groupId,
+            originalFilename: image?.originalFilename,
+            sanitizedSlug: image?.sanitizedSlug,
+            fileSize: image?.file?.size,
+            mimeType: image?.file?.type,
           });
         },
 
@@ -435,10 +445,20 @@ export const useBatchStore = create<BatchState>()(
             ),
           }));
 
-          // Debounced server sync for each image in the group
+          // Debounced server sync for each image in the group (with upsert metadata)
           if (group) {
+            const sessionId = state.sessionId || undefined;
             for (const img of group.images) {
-              syncImageToServer(img.id, { userTitle: title, userTags: tags });
+              syncImageToServer(img.id, {
+                userTitle: title,
+                userTags: tags,
+                sessionId,
+                groupId,
+                originalFilename: img.originalFilename,
+                sanitizedSlug: img.sanitizedSlug,
+                fileSize: img.file?.size,
+                mimeType: img.file?.type,
+              });
             }
           }
         },

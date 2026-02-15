@@ -16,6 +16,10 @@ export interface GroupRecord {
   sharedDescription?: string;
   sharedTags: string[];
   isVerified: boolean;
+  folderId?: string;
+  isCollapsed?: boolean;
+  createdAt?: number;
+  semanticTags?: string[];
 }
 
 export interface ImageRecord {
