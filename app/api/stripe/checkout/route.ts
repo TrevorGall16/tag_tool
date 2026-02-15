@@ -5,6 +5,12 @@ import { createCheckoutSession, PRICING, type PlanType } from "@/lib/stripe";
 
 export async function POST(request: NextRequest) {
   try {
+    // Validate Stripe environment
+    if (!process.env.STRIPE_SECRET_KEY) {
+      console.error("STRIPE CHECKOUT ERROR: STRIPE_SECRET_KEY is not configured");
+      return NextResponse.json({ error: "Payment service is not configured" }, { status: 503 });
+    }
+
     // Get authenticated user
     const session = await getServerSession(authOptions);
 
@@ -19,6 +25,17 @@ export async function POST(request: NextRequest) {
     // Validate plan
     if (!plan || !(plan in PRICING)) {
       return NextResponse.json({ error: "Invalid plan. Choose STARTER or PRO." }, { status: 400 });
+    }
+
+    // Validate that the selected plan has a configured price ID
+    const selectedPlan = PRICING[plan as PlanType];
+    if (!selectedPlan.priceId) {
+      console.error(
+        "STRIPE CHECKOUT ERROR: Missing price ID for plan:",
+        plan,
+        "— ensure STRIPE_PRICE_ID_BASIC / STRIPE_PRICE_ID_PRO env vars are set"
+      );
+      return NextResponse.json({ error: "Plan pricing is not configured" }, { status: 503 });
     }
 
     // Build success and cancel URLs
@@ -40,7 +57,8 @@ export async function POST(request: NextRequest) {
       sessionId: checkoutSession.id,
     });
   } catch (error) {
-    console.error("[Stripe Checkout] Error:", error);
-    return NextResponse.json({ error: "Failed to create checkout session" }, { status: 500 });
+    console.error("STRIPE CHECKOUT ERROR:", error);
+    const message = error instanceof Error ? error.message : "Failed to create checkout session";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -89,6 +89,7 @@ export function GroupList({
   } = useBatchStore();
   const [selectedGroup, setSelectedGroup] = useState<LocalGroup | null>(null);
   const [showClearAllDialog, setShowClearAllDialog] = useState(false);
+  const [clearAllConfirmText, setClearAllConfirmText] = useState("");
   const [lightboxState, setLightboxState] = useState<LightboxState>({
     image: null,
     groupId: "",
@@ -307,17 +308,62 @@ export function GroupList({
         onSaveComplete={onLightboxSave}
       />
 
-      {/* Clear All Groups Confirmation */}
-      <AlertDialog open={showClearAllDialog} onOpenChange={setShowClearAllDialog}>
+      {/* Clear All Groups — type DELETE to confirm */}
+      <AlertDialog
+        open={showClearAllDialog}
+        onOpenChange={(open) => {
+          setShowClearAllDialog(open);
+          if (!open) setClearAllConfirmText("");
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Clear all groups?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will remove all {clusteredGroups.length} groups. This action cannot be undone.
+              This will permanently remove all{" "}
+              <span className="font-semibold text-slate-900">{clusteredGroups.length}</span> groups.
+              This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
+
+          <div className="mt-4 space-y-2">
+            <p className="text-sm text-slate-600">
+              To confirm, type <span className="font-mono font-bold text-red-600">DELETE</span>{" "}
+              below:
+            </p>
+            <input
+              type="text"
+              value={clearAllConfirmText}
+              onChange={(e) => setClearAllConfirmText(e.target.value)}
+              placeholder="Type DELETE to confirm"
+              autoFocus
+              className={cn(
+                "w-full px-3 py-2 text-sm rounded-lg border",
+                "focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent",
+                "placeholder:text-slate-400",
+                clearAllConfirmText === "DELETE"
+                  ? "border-red-500 bg-red-50 text-red-900"
+                  : "border-slate-300 bg-white text-slate-900"
+              )}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && clearAllConfirmText === "DELETE") {
+                  markExplicitClear();
+                  clearAllGroups();
+                  setShowClearAllDialog(false);
+                  setClearAllConfirmText("");
+                  toast.success("All groups cleared");
+                }
+              }}
+            />
+          </div>
+
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setShowClearAllDialog(false)}>
+            <AlertDialogCancel
+              onClick={() => {
+                setShowClearAllDialog(false);
+                setClearAllConfirmText("");
+              }}
+            >
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
@@ -325,10 +371,13 @@ export function GroupList({
               onClick={() => {
                 markExplicitClear();
                 clearAllGroups();
+                setShowClearAllDialog(false);
+                setClearAllConfirmText("");
                 toast.success("All groups cleared");
               }}
+              className={cn(clearAllConfirmText !== "DELETE" && "opacity-50 pointer-events-none")}
             >
-              Clear All
+              Clear All Groups
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

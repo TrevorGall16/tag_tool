@@ -183,6 +183,16 @@ function formatFinalTitle(
   }
 
   // Real category: "Prefix - Category"
+  // Guard against duplicate prefix (e.g., AI already returned "Prefix - Something")
+  const normalizedTitle = aiTitle.toLowerCase().trim();
+  const normalizedPrefix = prefix.toLowerCase();
+  if (
+    normalizedTitle.startsWith(normalizedPrefix + " - ") ||
+    normalizedTitle.startsWith(normalizedPrefix + " ")
+  ) {
+    return aiTitle;
+  }
+
   return `${prefix} - ${aiTitle}`;
 }
 
