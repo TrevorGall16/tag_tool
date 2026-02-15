@@ -10,9 +10,11 @@ import type {
 } from "@/types";
 import { clusterImagesWithVision } from "@/lib/vision/cluster";
 import type { ClusterImageInput, ClusterResult, ImageClusterGroup } from "@/lib/vision";
+import { checkRateLimit } from "@/lib/ratelimit";
 
 const BATCH_SIZE = 20;
 const DEFAULT_MAX_GROUPS = 10;
+const MAX_IMAGES_PER_REQUEST = 100;
 const IS_MOCK_MODE = process.env.NODE_ENV === "development" && process.env.MOCK_API === "true";
 
 // Semantic tags for mock mode: [Broad Category, Specific Type, Vibe/Attribute]
@@ -328,6 +330,16 @@ export async function POST(
 
     const { images, marketplace, maxGroups = DEFAULT_MAX_GROUPS, settings } = body;
 
+    if (images.length > MAX_IMAGES_PER_REQUEST) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Batch size limit exceeded. Maximum ${MAX_IMAGES_PER_REQUEST} images per request.`,
+        },
+        { status: 400 }
+      );
+    }
+
     // AUTH CHECK: Always require authentication
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
@@ -336,6 +348,10 @@ export async function POST(
         { status: 401 }
       );
     }
+
+    // RATE LIMIT: 10 requests per minute per user
+    const rateLimitResponse = await checkRateLimit(session.user.id);
+    if (rateLimitResponse) return rateLimitResponse;
 
     let clusterResult: ClusterResult;
 

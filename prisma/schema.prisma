@@ -232,7 +232,7 @@ model CreditsLedger {
   projectId       String?
   amount          Int
   reason          LedgerReason
-  stripeSessionId String?      @db.VarChar(255)
+  stripeSessionId String?      @unique @db.VarChar(255)
   description     String?      @db.Text
   createdAt       DateTime     @default(now())
 

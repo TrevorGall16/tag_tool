@@ -91,7 +91,6 @@ export class OpenAIVisionProvider implements IVisionProvider {
   constructor(config: OpenAIProviderConfig = {}) {
     this.client = new OpenAI({
       apiKey: config.apiKey || process.env.OPENAI_API_KEY || "",
-      dangerouslyAllowBrowser: true,
     });
     this.model = config.model || "gpt-4o";
   }

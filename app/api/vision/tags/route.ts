@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import type { ApiResponse, VisionTagsRequest, VisionTagsResponse, TagImageInput } from "@/types";
 import { generateTagsForImages } from "@/lib/vision/tags";
 import type { ImageTagResult } from "@/lib/vision";
+import { checkRateLimit } from "@/lib/ratelimit";
 
 const STRATEGY_LABELS: Record<string, string> = {
   standard: "Standard",
@@ -115,6 +116,10 @@ export async function POST(
         { status: 401 }
       );
     }
+
+    // RATE LIMIT: 10 requests per minute per user
+    const rateLimitResponse = await checkRateLimit(session.user.id);
+    if (rateLimitResponse) return rateLimitResponse;
 
     const body = (await request.json()) as VisionTagsRequest;
     const validationError = validateRequest(body);

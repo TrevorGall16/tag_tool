@@ -12,6 +12,25 @@ export async function DELETE() {
       return NextResponse.json({ error: "Authentication required" }, { status: 401 });
     }
 
+    // Fetch user to check for active Stripe subscription
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { stripeSubscriptionId: true },
+    });
+
+    // Cancel Stripe subscription before deleting the user to prevent zombie billing
+    if (user?.stripeSubscriptionId) {
+      try {
+        await stripe.subscriptions.cancel(user.stripeSubscriptionId);
+      } catch (stripeError) {
+        console.error("[Account API] Failed to cancel Stripe subscription:", stripeError);
+        return NextResponse.json(
+          { error: "Failed to cancel subscription. Please contact support." },
+          { status: 500 }
+        );
+      }
+    }
+
     // Delete the user - cascades to all related data (sessions, accounts, batches, etc.)
     await prisma.user.delete({
       where: { id: session.user.id },
