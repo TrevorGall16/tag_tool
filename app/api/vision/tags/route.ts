@@ -140,14 +140,30 @@ export async function POST(
       );
     }
 
-    const creditsRequired = images.length;
+    // Billing: charge for total images in the group, not just the sample sent for analysis.
+    // totalImageCount is the real group size; images.length is the sample (up to 4).
+    const creditsRequired = body.totalImageCount ?? images.length;
     const strategyLabel = STRATEGY_LABELS[strategy] || "Standard";
 
-    // DEDUCT CREDITS FIRST (atomic) — prevents race condition where concurrent
-    // requests pass a balance check before any deduction occurs.
+    // Validate: totalImageCount must be >= sample size (can't undercount)
+    if (body.totalImageCount !== undefined) {
+      if (!Number.isInteger(body.totalImageCount) || body.totalImageCount < images.length) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "totalImageCount must be an integer >= the number of sample images",
+          },
+          { status: 400 }
+        );
+      }
+    }
+
+    // ── RESERVE: Deduct credits + create PENDING ledger entry ──
+    let ledgerEntryId: string | null = null;
+
     if (session?.user?.id && !IS_MOCK_MODE) {
       try {
-        await prisma.$transaction(async (tx) => {
+        ledgerEntryId = await prisma.$transaction(async (tx) => {
           const user = await tx.user.update({
             where: { id: session.user.id },
             data: { creditsBalance: { decrement: creditsRequired } },
@@ -157,18 +173,21 @@ export async function POST(
             throw new Error("Insufficient credits");
           }
 
-          await tx.creditsLedger.create({
+          const ledgerEntry = await tx.creditsLedger.create({
             data: {
               userId: session.user.id,
               amount: -creditsRequired,
               reason: "USAGE",
+              status: "PENDING",
               description: `Tag Generation (${strategyLabel}) - ${creditsRequired} image${creditsRequired > 1 ? "s" : ""}`,
             },
           });
+
+          return ledgerEntry.id;
         });
       } catch (creditError) {
         const msg = creditError instanceof Error ? creditError.message : "Unknown";
-        console.error("[Credits] Deduction failed:", msg);
+        console.error("[Credits] Reserve failed:", msg);
         return NextResponse.json(
           {
             success: false,
@@ -181,6 +200,7 @@ export async function POST(
       }
     }
 
+    // ── PROCESS: Call AI ──
     let results: ImageTagResult[];
 
     // Mock mode: bypass real API calls for development/testing
@@ -191,28 +211,40 @@ export async function POST(
       try {
         results = await generateTagsForImages(images, marketplace, strategy, maxTags, platform);
       } catch (aiError) {
-        // AI call failed — refund the credits we already deducted
-        if (session?.user?.id) {
+        // ── FAILED: Mark ledger entry FAILED and refund credits ──
+        if (ledgerEntryId && session?.user?.id) {
           try {
             await prisma.$transaction(async (tx) => {
+              await tx.creditsLedger.update({
+                where: { id: ledgerEntryId },
+                data: { status: "FAILED" },
+              });
               await tx.user.update({
                 where: { id: session.user.id },
                 data: { creditsBalance: { increment: creditsRequired } },
               });
-              await tx.creditsLedger.create({
-                data: {
-                  userId: session.user.id,
-                  amount: creditsRequired,
-                  reason: "REFUND",
-                  description: `Refund: Tag Generation failed (${strategyLabel})`,
-                },
-              });
             });
           } catch (refundError) {
-            console.error("[Credits] Refund failed — requires manual resolution:", refundError);
+            console.error(
+              "[Credits] Refund failed — PENDING entry remains for manual resolution:",
+              refundError
+            );
           }
         }
         throw aiError; // Re-throw to hit the outer catch → 500 response
+      }
+    }
+
+    // ── CAPTURE: Mark ledger entry CONFIRMED ──
+    if (ledgerEntryId) {
+      try {
+        await prisma.creditsLedger.update({
+          where: { id: ledgerEntryId },
+          data: { status: "CONFIRMED" },
+        });
+      } catch (confirmError) {
+        // Non-fatal: credits already deducted, just log the status update failure
+        console.error("[Credits] Failed to confirm ledger entry:", confirmError);
       }
     }
 

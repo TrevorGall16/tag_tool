@@ -68,6 +68,12 @@ enum Platform {
   ETSY
 }
 
+enum LedgerStatus {
+  PENDING
+  CONFIRMED
+  FAILED
+}
+
 // ============================================
 // MODELS
 // ============================================
@@ -232,6 +238,7 @@ model CreditsLedger {
   projectId       String?
   amount          Int
   reason          LedgerReason
+  status          LedgerStatus @default(CONFIRMED)
   stripeSessionId String?      @unique @db.VarChar(255)
   description     String?      @db.Text
   createdAt       DateTime     @default(now())

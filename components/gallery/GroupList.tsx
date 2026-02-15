@@ -323,6 +323,7 @@ export function GroupList({
             <AlertDialogAction
               variant="destructive"
               onClick={() => {
+                markExplicitClear();
                 clearAllGroups();
                 toast.success("All groups cleared");
               }}
@@ -431,6 +432,7 @@ function CollapsibleGroupCard({
           strategy,
           maxTags,
           platform: namingSettings.platform || "GENERIC",
+          totalImageCount: group.images.length,
         }),
       });
 

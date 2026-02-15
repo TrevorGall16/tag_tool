@@ -154,6 +154,7 @@ export function ImageGallery({ className }: ImageGalleryProps) {
 
     // If clearing, do it before clustering
     if (mode === "clear") {
+      markExplicitClear();
       clearAllGroups();
     }
 

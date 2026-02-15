@@ -19,7 +19,10 @@
       "Bash(pnpm exec tsc:*)",
       "Bash(if not exist \"D:\\\\Projects\\\\Tagtool\\\\lib\\\\export\" mkdir \"D:\\\\Projects\\\\Tagtool\\\\lib\\\\export\")",
       "Bash(Remove-Item -Recurse -Force ..next -ErrorAction SilentlyContinue)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(pnpm prisma generate:*)",
+      "Bash(pnpm prisma migrate diff:*)",
+      "Bash(pnpm prisma db push:*)"
     ]
   }
 }

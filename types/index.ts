@@ -139,6 +139,8 @@ export interface VisionTagsRequest {
   strategy?: "standard" | "etsy" | "stock";
   maxTags?: number;
   platform?: PlatformType;
+  /** Total images in the group (for billing). Defaults to images.length if omitted. */
+  totalImageCount?: number;
 }
 
 export interface TagImageInput {
