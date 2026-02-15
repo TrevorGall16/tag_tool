@@ -255,7 +255,7 @@ export function ProjectList({
               <div
                 key={project.id}
                 className={cn(
-                  "group flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors",
+                  "group flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors min-w-0",
                   selectedProjectId === project.id
                     ? "bg-blue-50 text-blue-700"
                     : "hover:bg-slate-100 text-slate-700"
@@ -268,7 +268,7 @@ export function ProjectList({
                     selectedProjectId === project.id ? "text-blue-500" : "text-slate-400"
                   )}
                 />
-                <span className="flex-1 text-sm font-medium truncate">
+                <span className="flex-1 text-sm font-medium truncate min-w-0" title={project.name}>
                   <HighlightedText text={project.name} highlight={searchQuery} />
                 </span>
                 <span className="text-xs text-slate-400">{project.batchCount}</span>

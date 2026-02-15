@@ -6,6 +6,7 @@ import type { ExportSettings } from "@/lib/export";
 import { DEFAULT_EXPORT_SETTINGS } from "@/lib/export";
 import { DEFAULT_TAG_BLACKLIST } from "@/lib/utils/tag-processing";
 import type { ClusterSettings } from "@/types";
+import { syncImageToServer } from "@/lib/persistence/server-sync";
 
 // Types for the store
 export interface LocalImageItem {
@@ -357,6 +358,12 @@ export const useBatchStore = create<BatchState>()(
                 : group
             ),
           }));
+
+          // Debounced server sync
+          syncImageToServer(imageId, {
+            userTags: tags,
+            ...(title !== undefined && { userTitle: title }),
+          });
         },
 
         updateImageStatus: (groupId, imageId, status, errorMessage) => {
@@ -414,23 +421,33 @@ export const useBatchStore = create<BatchState>()(
         },
 
         updateGroupMetadata: (groupId, title, description, tags) => {
-          set((state) => ({
-            groups: state.groups.map((group) =>
-              group.id === groupId
+          const state = get();
+          const group = state.groups.find((g) => g.id === groupId);
+
+          set((s) => ({
+            groups: s.groups.map((g) =>
+              g.id === groupId
                 ? {
-                    ...group,
+                    ...g,
                     sharedTitle: title,
                     sharedDescription: description,
                     sharedTags: tags,
-                    images: group.images.map((img) => ({
+                    images: g.images.map((img) => ({
                       ...img,
                       userTitle: title,
                       userTags: tags,
                     })),
                   }
-                : group
+                : g
             ),
           }));
+
+          // Debounced server sync for each image in the group
+          if (group) {
+            for (const img of group.images) {
+              syncImageToServer(img.id, { userTitle: title, userTags: tags });
+            }
+          }
         },
 
         setProcessingState: (processingState) => {

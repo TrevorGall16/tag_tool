@@ -34,7 +34,7 @@ export interface BatchToolbarProps {
 
 export function BatchToolbar({ className, selectedProjectId, folderName }: BatchToolbarProps) {
   const { status } = useSession();
-  const { groups, tagBlacklist, setTagBlacklist } = useBatchStore();
+  const { groups, tagBlacklist, setTagBlacklist, sessionId } = useBatchStore();
   const [projects, setProjects] = useState<Project[]>([]);
   const [isProjectMenuOpen, setIsProjectMenuOpen] = useState(false);
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
@@ -83,19 +83,59 @@ export function BatchToolbar({ className, selectedProjectId, folderName }: Batch
   };
 
   const handleMoveToProject = async (projectId: string | null) => {
-    setCurrentProjectId(projectId);
     setIsProjectMenuOpen(false);
+
+    if (!sessionId) {
+      toast.error("No active batch to move");
+      return;
+    }
 
     const projectName = projectId
       ? projects.find((p) => p.id === projectId)?.name || "project"
       : "No Project";
 
-    toast.success(`Batch assigned to "${projectName}"`);
+    try {
+      const res = await fetch(`/api/batches/${sessionId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setCurrentProjectId(projectId);
+        toast.success(`Batch assigned to "${projectName}"`);
+      } else {
+        toast.error(data.error || "Failed to move batch");
+      }
+    } catch {
+      toast.error("Failed to move batch");
+    }
   };
 
-  const handleToggleArchive = () => {
-    setIsArchived(!isArchived);
-    toast.success(isArchived ? "Batch restored from archive" : "Batch archived");
+  const handleToggleArchive = async () => {
+    if (!sessionId) {
+      toast.error("No active batch to archive");
+      return;
+    }
+
+    const newArchived = !isArchived;
+
+    try {
+      const res = await fetch(`/api/batches/${sessionId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isArchived: newArchived }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setIsArchived(newArchived);
+        toast.success(newArchived ? "Batch archived" : "Batch restored from archive");
+      } else {
+        toast.error(data.error || "Failed to update batch");
+      }
+    } catch {
+      toast.error("Failed to update batch");
+    }
   };
 
   const handleCreateProject = async () => {
@@ -111,6 +151,14 @@ export function BatchToolbar({ className, selectedProjectId, folderName }: Batch
       const data = await res.json();
       if (data.success) {
         setProjects((prev) => [data.data, ...prev]);
+        // Persist the move to the server
+        if (sessionId) {
+          await fetch(`/api/batches/${sessionId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ projectId: data.data.id }),
+          });
+        }
         setCurrentProjectId(data.data.id);
         toast.success(`Created and moved to "${data.data.name}"`);
         setNewProjectName("");
