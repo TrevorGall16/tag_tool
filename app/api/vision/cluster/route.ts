@@ -321,6 +321,19 @@ export async function POST(
   const startTime = Date.now();
 
   try {
+    // AUTH CHECK: Always require authentication (before parsing body to avoid wasted CPU)
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { success: false, error: "Authentication required" },
+        { status: 401 }
+      );
+    }
+
+    // RATE LIMIT: 10 requests per minute per user
+    const rateLimitResponse = await checkRateLimit(session.user.id);
+    if (rateLimitResponse) return rateLimitResponse;
+
     const body = (await request.json()) as VisionClusterRequest;
     const validationError = validateRequest(body);
 
@@ -339,19 +352,6 @@ export async function POST(
         { status: 400 }
       );
     }
-
-    // AUTH CHECK: Always require authentication
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { success: false, error: "Authentication required" },
-        { status: 401 }
-      );
-    }
-
-    // RATE LIMIT: 10 requests per minute per user
-    const rateLimitResponse = await checkRateLimit(session.user.id);
-    if (rateLimitResponse) return rateLimitResponse;
 
     let clusterResult: ClusterResult;
 

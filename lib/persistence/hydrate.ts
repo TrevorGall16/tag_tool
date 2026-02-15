@@ -103,6 +103,7 @@ export async function hydrateSession(sessionId: string): Promise<HydratedSession
             id: imgRecord.id,
             file,
             originalFilename: imgRecord.originalFilename,
+            sanitizedSlug: imgRecord.sanitizedSlug || "",
             thumbnailDataUrl: imgRecord.thumbnailDataUrl,
             aiTitle: imgRecord.aiTitle,
             aiTags: imgRecord.aiTags,

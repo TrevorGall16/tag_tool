@@ -96,10 +96,19 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error(
-      "[Credits API] Deduction error:",
-      error instanceof Error ? error.message : "Unknown"
+    const msg = error instanceof Error ? error.message : "Unknown";
+    console.error("[Credits API] Deduction error:", msg);
+
+    if (msg.includes("Insufficient credits")) {
+      return NextResponse.json(
+        { success: false, error: "Insufficient credits", code: "INSUFFICIENT_BALANCE" },
+        { status: 402 }
+      );
+    }
+
+    return NextResponse.json(
+      { success: false, error: "Failed to process credit operation" },
+      { status: 500 }
     );
-    return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
   }
 }

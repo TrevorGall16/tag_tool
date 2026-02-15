@@ -102,15 +102,29 @@ export async function POST(request: NextRequest) {
       case "customer.subscription.updated": {
         const subscription = event.data.object as Stripe.Subscription;
         const customerId = subscription.customer as string;
-        const periodEnd = (subscription as unknown as { current_period_end?: number })
-          .current_period_end;
+
+        const user = await prisma.user.findUnique({
+          where: { stripeCustomerId: customerId },
+          select: { id: true },
+        });
+
+        if (!user) {
+          console.warn(`[Stripe Webhook] Subscription updated for unknown customer: ${customerId}`);
+          break;
+        }
 
         await prisma.user.update({
           where: { stripeCustomerId: customerId },
           data: {
             stripeSubscriptionId: subscription.id,
             subscriptionStatus: mapSubscriptionStatus(subscription.status),
-            subscriptionEndsAt: periodEnd ? new Date(periodEnd * 1000) : null,
+            subscriptionEndsAt: (subscription as unknown as { current_period_end?: number })
+              .current_period_end
+              ? new Date(
+                  (subscription as unknown as { current_period_end?: number }).current_period_end! *
+                    1000
+                )
+              : null,
           },
         });
         break;
@@ -119,6 +133,16 @@ export async function POST(request: NextRequest) {
       case "customer.subscription.deleted": {
         const subscription = event.data.object as Stripe.Subscription;
         const customerId = subscription.customer as string;
+
+        const user = await prisma.user.findUnique({
+          where: { stripeCustomerId: customerId },
+          select: { id: true },
+        });
+
+        if (!user) {
+          console.warn(`[Stripe Webhook] Subscription deleted for unknown customer: ${customerId}`);
+          break;
+        }
 
         await prisma.user.update({
           where: { stripeCustomerId: customerId },

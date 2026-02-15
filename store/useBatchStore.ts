@@ -13,6 +13,7 @@ export interface LocalImageItem {
   id: string;
   file: File;
   originalFilename: string;
+  sanitizedSlug: string;
   thumbnailDataUrl: string;
   aiTitle?: string;
   aiTags?: string[];

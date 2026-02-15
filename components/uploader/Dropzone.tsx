@@ -5,6 +5,7 @@ import { Upload, Loader2, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isValidImageType, resizeImageForApi } from "@/lib/image-processing";
 import { useBatchStore, LocalImageItem } from "@/store/useBatchStore";
+import { sanitizeFilename } from "@/lib/utils/slugify";
 
 export interface DropzoneProps {
   maxFiles?: number;
@@ -79,6 +80,7 @@ export function Dropzone({ maxFiles = 50, maxSizeMB = 25, disabled, className }:
               id,
               file,
               originalFilename: file.name,
+              sanitizedSlug: sanitizeFilename(file.name),
               thumbnailDataUrl,
               status: "pending",
             };

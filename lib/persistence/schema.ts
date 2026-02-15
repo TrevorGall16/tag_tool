@@ -23,6 +23,7 @@ export interface ImageRecord {
   sessionId: string;
   groupId: string;
   originalFilename: string;
+  sanitizedSlug: string;
   thumbnailDataUrl: string;
   aiTitle?: string;
   aiTags?: string[];
