@@ -44,48 +44,57 @@ export async function POST(request: NextRequest) {
         const credits = session.metadata?.credits;
         const plan = session.metadata?.plan;
 
-        if (credits && userId) {
-          // Credit purchase completed - use userId from metadata
-          await prisma.$transaction(async (tx) => {
-            await tx.user.update({
-              where: { id: userId },
-              data: { creditsBalance: { increment: parseInt(credits) } },
-            });
-
-            await tx.creditsLedger.create({
-              data: {
-                userId,
-                amount: parseInt(credits),
-                reason: "PURCHASE",
-                stripeSessionId: session.id,
-                description: plan
-                  ? `${plan} plan - ${credits} credits`
-                  : `Purchased ${credits} credits`,
-              },
-            });
+        if (credits && (userId || customerId)) {
+          // Idempotency check: skip if this session was already processed
+          const existing = await prisma.creditsLedger.findFirst({
+            where: { stripeSessionId: session.id },
           });
-        } else if (!credits || !userId) {
+          if (existing) {
+            console.log(`[Stripe Webhook] Duplicate event for session ${session.id}, skipping`);
+            break;
+          }
+
+          if (userId) {
+            // Credit purchase completed - use userId from metadata
+            await prisma.$transaction(async (tx) => {
+              await tx.user.update({
+                where: { id: userId },
+                data: { creditsBalance: { increment: parseInt(credits) } },
+              });
+
+              await tx.creditsLedger.create({
+                data: {
+                  userId,
+                  amount: parseInt(credits),
+                  reason: "PURCHASE",
+                  stripeSessionId: session.id,
+                  description: plan
+                    ? `${plan} plan - ${credits} credits`
+                    : `Purchased ${credits} credits`,
+                },
+              });
+            });
+          } else if (customerId) {
+            // Fallback: use stripeCustomerId
+            await prisma.$transaction(async (tx) => {
+              const user = await tx.user.update({
+                where: { stripeCustomerId: customerId },
+                data: { creditsBalance: { increment: parseInt(credits) } },
+              });
+
+              await tx.creditsLedger.create({
+                data: {
+                  userId: user.id,
+                  amount: parseInt(credits),
+                  reason: "PURCHASE",
+                  stripeSessionId: session.id,
+                  description: `Purchased ${credits} credits`,
+                },
+              });
+            });
+          }
+        } else {
           console.error("[Stripe Webhook] Missing required metadata for credit fulfillment");
-        }
-
-        if (credits && customerId && !userId) {
-          // Fallback: use stripeCustomerId
-          await prisma.$transaction(async (tx) => {
-            const user = await tx.user.update({
-              where: { stripeCustomerId: customerId },
-              data: { creditsBalance: { increment: parseInt(credits) } },
-            });
-
-            await tx.creditsLedger.create({
-              data: {
-                userId: user.id,
-                amount: parseInt(credits),
-                reason: "PURCHASE",
-                stripeSessionId: session.id,
-                description: `Purchased ${credits} credits`,
-              },
-            });
-          });
         }
         break;
       }

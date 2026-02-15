@@ -13,7 +13,7 @@ import type { ClusterImageInput, ClusterResult, ImageClusterGroup } from "@/lib/
 
 const BATCH_SIZE = 20;
 const DEFAULT_MAX_GROUPS = 10;
-const IS_MOCK_MODE = process.env.NEXT_PUBLIC_MOCK_API === "true";
+const IS_MOCK_MODE = process.env.NODE_ENV === "development" && process.env.MOCK_API === "true";
 
 // Semantic tags for mock mode: [Broad Category, Specific Type, Vibe/Attribute]
 const MOCK_SEMANTIC_TAGS: string[][] = [
@@ -328,9 +328,9 @@ export async function POST(
 
     const { images, marketplace, maxGroups = DEFAULT_MAX_GROUPS, settings } = body;
 
-    // AUTH CHECK: Require authentication (skip only in mock mode)
+    // AUTH CHECK: Always require authentication
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id && !IS_MOCK_MODE) {
+    if (!session?.user?.id) {
       return NextResponse.json(
         { success: false, error: "Authentication required" },
         { status: 401 }

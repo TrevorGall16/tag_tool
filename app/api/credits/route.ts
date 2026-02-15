@@ -5,14 +5,9 @@ import prisma from "@/lib/prisma";
 import { LedgerReason } from "@prisma/client";
 import type { ApiResponse, CreditsBalanceResponse } from "@/types";
 
-const VALID_REASONS: LedgerReason[] = [
-  "PURCHASE",
-  "SUBSCRIPTION",
-  "USAGE",
-  "REFUND",
-  "BONUS",
-  "ADMIN_ADJUST",
-];
+// Only reasons a regular user can trigger via this endpoint.
+// ADMIN_ADJUST and PURCHASE are restricted to server-side handlers (webhooks, cron).
+const VALID_REASONS: LedgerReason[] = ["USAGE", "REFUND"];
 
 export async function GET(): Promise<NextResponse<ApiResponse<CreditsBalanceResponse>>> {
   try {

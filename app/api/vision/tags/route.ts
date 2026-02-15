@@ -13,7 +13,7 @@ const STRATEGY_LABELS: Record<string, string> = {
 };
 
 const MAX_IMAGES_PER_REQUEST = 10;
-const IS_MOCK_MODE = process.env.NEXT_PUBLIC_MOCK_API === "true";
+const IS_MOCK_MODE = process.env.NODE_ENV === "development" && process.env.MOCK_API === "true";
 
 // Sample mock tags for realistic testing
 const MOCK_TAGS = [
@@ -107,9 +107,9 @@ export async function POST(
   const startTime = Date.now();
 
   try {
-    // AUTH CHECK: Require authentication (skip only in mock mode)
+    // AUTH CHECK: Always require authentication
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id && !IS_MOCK_MODE) {
+    if (!session?.user?.id) {
       return NextResponse.json(
         { success: false, error: "Authentication required" },
         { status: 401 }
@@ -136,54 +136,22 @@ export async function POST(
     }
 
     const creditsRequired = images.length;
+    const strategyLabel = STRATEGY_LABELS[strategy] || "Standard";
 
-    // CREDIT CHECK: Verify user has sufficient credits BEFORE API call (skip in mock mode)
+    // DEDUCT CREDITS FIRST (atomic) — prevents race condition where concurrent
+    // requests pass a balance check before any deduction occurs.
     if (session?.user?.id && !IS_MOCK_MODE) {
-      const user = await prisma.user.findUnique({
-        where: { id: session.user.id },
-        select: { creditsBalance: true },
-      });
-
-      if (!user || user.creditsBalance < creditsRequired) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: `Insufficient credits. You need ${creditsRequired} credits but have ${user?.creditsBalance ?? 0}.`,
-          },
-          { status: 402 }
-        );
-      }
-    }
-
-    let results: ImageTagResult[];
-
-    // Mock mode: bypass real API calls for development/testing
-    if (IS_MOCK_MODE) {
-      // Simulate network delay
-      await new Promise((resolve) => setTimeout(resolve, 300 + Math.random() * 700));
-      results = generateMockTagResults(images, maxTags);
-    } else {
-      results = await generateTagsForImages(images, marketplace, strategy, maxTags, platform);
-    }
-
-    // Deduct credits for authenticated users (skip in mock mode)
-    if (session?.user?.id && !IS_MOCK_MODE) {
-      const strategyLabel = STRATEGY_LABELS[strategy] || "Standard";
-
       try {
         await prisma.$transaction(async (tx) => {
-          // Deduct credits
           const user = await tx.user.update({
             where: { id: session.user.id },
             data: { creditsBalance: { decrement: creditsRequired } },
           });
 
-          // Check for negative balance (race condition protection)
           if (user.creditsBalance < 0) {
             throw new Error("Insufficient credits");
           }
 
-          // Log to ledger
           await tx.creditsLedger.create({
             data: {
               userId: session.user.id,
@@ -194,14 +162,52 @@ export async function POST(
           });
         });
       } catch (creditError) {
-        console.error(
-          "[Credits] Deduction failed:",
-          creditError instanceof Error ? creditError.message : "Unknown"
-        );
+        const msg = creditError instanceof Error ? creditError.message : "Unknown";
+        console.error("[Credits] Deduction failed:", msg);
         return NextResponse.json(
-          { success: false, error: "Credit deduction failed. Please try again." },
+          {
+            success: false,
+            error: msg.includes("Insufficient credits")
+              ? "Insufficient credits. Please purchase more to continue."
+              : "Credit deduction failed. Please try again.",
+          },
           { status: 402 }
         );
+      }
+    }
+
+    let results: ImageTagResult[];
+
+    // Mock mode: bypass real API calls for development/testing
+    if (IS_MOCK_MODE) {
+      await new Promise((resolve) => setTimeout(resolve, 300 + Math.random() * 700));
+      results = generateMockTagResults(images, maxTags);
+    } else {
+      try {
+        results = await generateTagsForImages(images, marketplace, strategy, maxTags, platform);
+      } catch (aiError) {
+        // AI call failed — refund the credits we already deducted
+        if (session?.user?.id) {
+          try {
+            await prisma.$transaction(async (tx) => {
+              await tx.user.update({
+                where: { id: session.user.id },
+                data: { creditsBalance: { increment: creditsRequired } },
+              });
+              await tx.creditsLedger.create({
+                data: {
+                  userId: session.user.id,
+                  amount: creditsRequired,
+                  reason: "REFUND",
+                  description: `Refund: Tag Generation failed (${strategyLabel})`,
+                },
+              });
+            });
+          } catch (refundError) {
+            console.error("[Credits] Refund failed — requires manual resolution:", refundError);
+          }
+        }
+        throw aiError; // Re-throw to hit the outer catch → 500 response
       }
     }
 
