@@ -240,12 +240,12 @@ export const useBatchStore = create<BatchState>()(
         },
 
         setGroups: (groups) => {
-          // Sort groups by createdAt to maintain stable order
-          // Put "unclustered" group first, then sort by createdAt ascending
+          // Sort groups by createdAt descending (newest first) — LIFO
+          // Put "unclustered" group first, then sort by createdAt descending
           const sortedGroups = [...groups].sort((a, b) => {
             if (a.id === "unclustered") return -1;
             if (b.id === "unclustered") return 1;
-            return (a.createdAt || 0) - (b.createdAt || 0);
+            return (b.createdAt || 0) - (a.createdAt || 0);
           });
           set({ groups: sortedGroups });
         },
@@ -257,13 +257,10 @@ export const useBatchStore = create<BatchState>()(
               ...group,
               createdAt: group.createdAt || Date.now(),
             };
-            // Insert and maintain sort order
-            const newGroups = [...state.groups, newGroup].sort((a, b) => {
-              if (a.id === "unclustered") return -1;
-              if (b.id === "unclustered") return 1;
-              return (a.createdAt || 0) - (b.createdAt || 0);
-            });
-            return { groups: newGroups };
+            // Prepend new group (LIFO — newest first)
+            const unclustered = state.groups.filter((g) => g.id === "unclustered");
+            const rest = state.groups.filter((g) => g.id !== "unclustered");
+            return { groups: [...unclustered, newGroup, ...rest] };
           });
         },
 
@@ -558,7 +555,7 @@ export const useBatchStore = create<BatchState>()(
             const clustered = state.groups.filter((g) => g.id !== "unclustered");
 
             const tiebreak = (a: LocalGroup, b: LocalGroup) =>
-              (a.createdAt || 0) - (b.createdAt || 0) || a.groupNumber - b.groupNumber;
+              (b.createdAt || 0) - (a.createdAt || 0) || b.groupNumber - a.groupNumber;
 
             let sorted: LocalGroup[];
             switch (option) {
@@ -606,18 +603,13 @@ export const useBatchStore = create<BatchState>()(
               createdAt: group.createdAt || Date.now() + index,
             }));
 
-            // Keep existing groups (except unclustered), add new groups
+            // Prepend new groups (LIFO — newest first)
             const existingGroups = state.groups.filter((g) => g.id !== "unclustered");
-            const allGroups = [...existingGroups, ...groupsWithNumbers];
+            const allGroups = [...groupsWithNumbers, ...existingGroups];
 
-            // Sort by createdAt
-            const sortedGroups = allGroups.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+            console.log(`[Store] Appended ${newGroups.length} groups. Total: ${allGroups.length}`);
 
-            console.log(
-              `[Store] Appended ${newGroups.length} groups. Total: ${sortedGroups.length}`
-            );
-
-            return { groups: sortedGroups };
+            return { groups: allGroups };
           });
         },
 
