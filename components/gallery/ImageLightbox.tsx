@@ -151,11 +151,16 @@ export function ImageLightbox({
         </div>
 
         {/* Sidebar */}
-        <div className="w-80 bg-white h-full overflow-y-auto flex flex-col">
+        <div
+          className="w-80 h-full overflow-y-auto flex flex-col"
+          style={{ backgroundColor: "#111827" }}
+        >
           {/* Header */}
-          <div className="p-4 border-b border-slate-200">
-            <h3 className="font-semibold text-slate-900 truncate">{image.originalFilename}</h3>
-            <p className="text-sm text-slate-500">
+          <div className="p-4" style={{ borderBottom: "1px solid #374151" }}>
+            <h3 className="font-semibold truncate" style={{ color: "#ffffff" }}>
+              {image.originalFilename}
+            </h3>
+            <p className="text-sm" style={{ color: "#9ca3af" }}>
               Status:{" "}
               <span
                 className={cn(
@@ -170,20 +175,28 @@ export function ImageLightbox({
           </div>
 
           {/* Title Input */}
-          <div className="p-4 border-b border-slate-200">
-            <label className="block text-sm font-medium text-slate-700 mb-1">Title</label>
+          <div className="p-4" style={{ borderBottom: "1px solid #374151" }}>
+            <label className="block text-sm font-medium mb-1" style={{ color: "#d1d5db" }}>
+              Title
+            </label>
             <input
               type="text"
               value={editedTitle}
               onChange={(e) => handleTitleChange(e.target.value)}
               placeholder="Enter a title..."
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              style={{
+                backgroundColor: "#1f2937",
+                color: "#ffffff",
+                border: "1px solid #4b5563",
+                colorScheme: "dark",
+              }}
+              className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
 
           {/* Tags Section */}
           <div className="flex-1 p-4 overflow-y-auto">
-            <label className="block text-sm font-medium text-slate-700 mb-2">
+            <label className="block text-sm font-medium mb-2" style={{ color: "#d1d5db" }}>
               Tags ({editedTags.length})
             </label>
 
@@ -195,7 +208,13 @@ export function ImageLightbox({
                 onChange={(e) => setNewTag(e.target.value)}
                 onKeyDown={handleTagKeyDown}
                 placeholder="Add a tag..."
-                className="flex-1 px-3 py-1.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                style={{
+                  backgroundColor: "#1f2937",
+                  color: "#ffffff",
+                  border: "1px solid #4b5563",
+                  colorScheme: "dark",
+                }}
+                className="flex-1 px-3 py-1.5 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
               <button
                 onClick={handleAddTag}
@@ -211,7 +230,8 @@ export function ImageLightbox({
               {editedTags.map((tag, i) => (
                 <span
                   key={i}
-                  className="inline-flex items-center gap-1 px-2 py-1 bg-slate-100 text-slate-700 text-sm rounded-full group"
+                  className="inline-flex items-center gap-1 px-2 py-1 text-sm rounded-full group"
+                  style={{ backgroundColor: "#374151", color: "#e5e7eb" }}
                 >
                   {tag}
                   <button
@@ -224,13 +244,18 @@ export function ImageLightbox({
                 </span>
               ))}
               {editedTags.length === 0 && (
-                <p className="text-sm text-slate-400 italic">No tags yet</p>
+                <p className="text-sm italic" style={{ color: "#6b7280" }}>
+                  No tags yet
+                </p>
               )}
             </div>
           </div>
 
           {/* Footer with Save button */}
-          <div className="p-4 border-t border-slate-200 bg-slate-50">
+          <div
+            className="p-4"
+            style={{ borderTop: "1px solid #374151", backgroundColor: "#1a2332" }}
+          >
             {image.errorMessage && (
               <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
                 <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
