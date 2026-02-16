@@ -248,11 +248,13 @@ export function TagEditor({ group, isOpen, onClose }: TagEditorProps) {
             onChange={(e) => setTitle(e.target.value)}
             maxLength={200}
             placeholder="Enter a title for this group"
-            style={{ colorScheme: "dark" }}
+            style={{
+              backgroundColor: "#1f2937",
+              color: "#ffffff",
+              border: "1px solid #4b5563",
+            }}
             className={cn(
-              "w-full px-3 py-2 rounded-lg border border-slate-300 truncate",
-              "bg-transparent text-slate-900",
-              "dark:bg-slate-800 dark:text-white dark:border-gray-600",
+              "w-full px-3 py-2 rounded-lg truncate",
               "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
               "placeholder:text-slate-400 dark:placeholder:text-gray-500"
             )}
@@ -273,11 +275,13 @@ export function TagEditor({ group, isOpen, onClose }: TagEditorProps) {
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Enter a description"
             rows={3}
-            style={{ colorScheme: "dark" }}
+            style={{
+              backgroundColor: "#1f2937",
+              color: "#ffffff",
+              border: "1px solid #4b5563",
+            }}
             className={cn(
-              "w-full px-3 py-2 rounded-lg border border-slate-300",
-              "bg-transparent text-slate-900",
-              "dark:bg-slate-800 dark:text-white dark:border-gray-600",
+              "w-full px-3 py-2 rounded-lg",
               "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
               "placeholder:text-slate-400 dark:placeholder:text-gray-500 resize-none"
             )}
@@ -351,11 +355,13 @@ export function TagEditor({ group, isOpen, onClose }: TagEditorProps) {
               onChange={(e) => setNewTag(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Add a tag..."
-              style={{ colorScheme: "dark" }}
+              style={{
+                backgroundColor: "#1f2937",
+                color: "#ffffff",
+                border: "1px solid #4b5563",
+              }}
               className={cn(
-                "flex-1 px-3 py-2 rounded-lg border border-slate-300",
-                "bg-transparent text-slate-900",
-                "dark:bg-slate-800 dark:text-white dark:border-gray-600",
+                "flex-1 px-3 py-2 rounded-lg",
                 "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
                 "placeholder:text-slate-400 dark:placeholder:text-gray-500"
               )}
