@@ -101,12 +101,13 @@ export function ImageLightbox({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex"
+      className="fixed inset-0 flex h-screen w-screen"
+      style={{ zIndex: 9999, top: 0, left: 0 }}
       role="dialog"
       aria-modal="true"
       aria-label="Image viewer"
     >
-      {/* Backdrop - use onMouseDown to prevent closing when drag ends outside modal */}
+      {/* Backdrop */}
       <div className="absolute inset-0 bg-black/80" onMouseDown={onClose} />
 
       {/* Main Content */}
@@ -150,17 +151,17 @@ export function ImageLightbox({
           />
         </div>
 
-        {/* Sidebar */}
+        {/* Sidebar — Light Mode */}
         <div
           className="w-80 h-full overflow-y-auto flex flex-col"
-          style={{ backgroundColor: "#111827" }}
+          style={{ backgroundColor: "#ffffff" }}
         >
           {/* Header */}
-          <div className="p-4" style={{ borderBottom: "1px solid #374151" }}>
-            <h3 className="font-semibold truncate" style={{ color: "#ffffff" }}>
+          <div className="p-4" style={{ borderBottom: "1px solid #e5e7eb" }}>
+            <h3 className="font-semibold truncate" style={{ color: "#111827" }}>
               {image.originalFilename}
             </h3>
-            <p className="text-sm" style={{ color: "#9ca3af" }}>
+            <p className="text-sm" style={{ color: "#6b7280" }}>
               Status:{" "}
               <span
                 className={cn(
@@ -175,8 +176,8 @@ export function ImageLightbox({
           </div>
 
           {/* Title Input */}
-          <div className="p-4" style={{ borderBottom: "1px solid #374151" }}>
-            <label className="block text-sm font-medium mb-1" style={{ color: "#d1d5db" }}>
+          <div className="p-4" style={{ borderBottom: "1px solid #e5e7eb" }}>
+            <label className="block text-sm font-medium mb-1" style={{ color: "#374151" }}>
               Title
             </label>
             <input
@@ -185,10 +186,9 @@ export function ImageLightbox({
               onChange={(e) => handleTitleChange(e.target.value)}
               placeholder="Enter a title..."
               style={{
-                backgroundColor: "#1f2937",
-                color: "#ffffff",
-                border: "1px solid #4b5563",
-                colorScheme: "dark",
+                backgroundColor: "#ffffff",
+                color: "#000000",
+                border: "1px solid #e5e7eb",
               }}
               className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
@@ -196,7 +196,7 @@ export function ImageLightbox({
 
           {/* Tags Section */}
           <div className="flex-1 p-4 overflow-y-auto">
-            <label className="block text-sm font-medium mb-2" style={{ color: "#d1d5db" }}>
+            <label className="block text-sm font-medium mb-2" style={{ color: "#374151" }}>
               Tags ({editedTags.length})
             </label>
 
@@ -209,10 +209,9 @@ export function ImageLightbox({
                 onKeyDown={handleTagKeyDown}
                 placeholder="Add a tag..."
                 style={{
-                  backgroundColor: "#1f2937",
-                  color: "#ffffff",
-                  border: "1px solid #4b5563",
-                  colorScheme: "dark",
+                  backgroundColor: "#ffffff",
+                  color: "#000000",
+                  border: "1px solid #e5e7eb",
                 }}
                 className="flex-1 px-3 py-1.5 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
@@ -231,12 +230,12 @@ export function ImageLightbox({
                 <span
                   key={i}
                   className="inline-flex items-center gap-1 px-2 py-1 text-sm rounded-full group"
-                  style={{ backgroundColor: "#374151", color: "#e5e7eb" }}
+                  style={{ backgroundColor: "#f3f4f6", color: "#374151" }}
                 >
                   {tag}
                   <button
                     onClick={() => handleRemoveTag(tag)}
-                    className="w-4 h-4 rounded-full hover:bg-slate-200 inline-flex items-center justify-center"
+                    className="w-4 h-4 rounded-full hover:bg-gray-300 inline-flex items-center justify-center"
                     aria-label={`Remove tag ${tag}`}
                   >
                     <X className="w-3 h-3" />
@@ -244,7 +243,7 @@ export function ImageLightbox({
                 </span>
               ))}
               {editedTags.length === 0 && (
-                <p className="text-sm italic" style={{ color: "#6b7280" }}>
+                <p className="text-sm italic" style={{ color: "#9ca3af" }}>
                   No tags yet
                 </p>
               )}
@@ -254,7 +253,7 @@ export function ImageLightbox({
           {/* Footer with Save button */}
           <div
             className="p-4"
-            style={{ borderTop: "1px solid #374151", backgroundColor: "#1a2332" }}
+            style={{ borderTop: "1px solid #e5e7eb", backgroundColor: "#f9fafb" }}
           >
             {image.errorMessage && (
               <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
