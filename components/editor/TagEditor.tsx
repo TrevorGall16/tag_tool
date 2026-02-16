@@ -248,10 +248,11 @@ export function TagEditor({ group, isOpen, onClose }: TagEditorProps) {
             onChange={(e) => setTitle(e.target.value)}
             maxLength={200}
             placeholder="Enter a title for this group"
+            style={{ colorScheme: "dark" }}
             className={cn(
               "w-full px-3 py-2 rounded-lg border border-slate-300 truncate",
-              "bg-white text-slate-900",
-              "dark:bg-gray-800 dark:text-white dark:border-gray-600",
+              "bg-transparent text-slate-900",
+              "dark:bg-slate-800 dark:text-white dark:border-gray-600",
               "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
               "placeholder:text-slate-400 dark:placeholder:text-gray-500"
             )}
@@ -272,10 +273,11 @@ export function TagEditor({ group, isOpen, onClose }: TagEditorProps) {
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Enter a description"
             rows={3}
+            style={{ colorScheme: "dark" }}
             className={cn(
               "w-full px-3 py-2 rounded-lg border border-slate-300",
-              "bg-white text-slate-900",
-              "dark:bg-gray-800 dark:text-white dark:border-gray-600",
+              "bg-transparent text-slate-900",
+              "dark:bg-slate-800 dark:text-white dark:border-gray-600",
               "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
               "placeholder:text-slate-400 dark:placeholder:text-gray-500 resize-none"
             )}
@@ -349,10 +351,11 @@ export function TagEditor({ group, isOpen, onClose }: TagEditorProps) {
               onChange={(e) => setNewTag(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Add a tag..."
+              style={{ colorScheme: "dark" }}
               className={cn(
                 "flex-1 px-3 py-2 rounded-lg border border-slate-300",
-                "bg-white text-slate-900",
-                "dark:bg-gray-800 dark:text-white dark:border-gray-600",
+                "bg-transparent text-slate-900",
+                "dark:bg-slate-800 dark:text-white dark:border-gray-600",
                 "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
                 "placeholder:text-slate-400 dark:placeholder:text-gray-500"
               )}
