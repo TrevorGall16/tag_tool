@@ -39,5 +39,14 @@ export interface IVisionProvider {
 
 export type ImageMediaType = "image/jpeg" | "image/png" | "image/webp" | "image/gif";
 
+export interface ImageDescription {
+  imageId: string;
+  main_subject: string;
+  setting: string;
+  vibe: string;
+  narrative: string;
+  usage_type: string;
+}
+
 // Re-export types for convenience
 export type { ClusterImageInput, ImageClusterGroup, TagImageInput, ImageTagResult };

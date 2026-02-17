@@ -92,12 +92,12 @@ export interface CheckoutSessionResponse {
 }
 
 // Vision Clustering types
-export type ClusterContext = "general" | "stock" | "ecommerce";
+export type ClusterContext = string;
 
 export interface ClusterSettings {
   prefix?: string; // Optional prefix for group names (e.g., "Summer Shoot")
   startNumber?: number; // Starting number for groups (default: 1)
-  context?: ClusterContext; // Context for clustering (affects AI categorization)
+  context?: ClusterContext; // Free-text context for clustering (e.g., "Music festival photos")
   platform?: PlatformType; // Platform optimizer for tag generation
 }
 

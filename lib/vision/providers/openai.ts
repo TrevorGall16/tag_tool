@@ -3,12 +3,13 @@ import type {
   IVisionProvider,
   ClusterResult,
   ClusterImageInput,
+  ImageDescription,
   TagImageInput,
   ImageTagResult,
   MarketplaceType,
   StrategyType,
 } from "../types";
-import type { PlatformType } from "@/types";
+import type { PlatformType, ImageClusterGroup } from "@/types";
 import { getPlatformConfig } from "../prompts/index";
 
 export interface OpenAIProviderConfig {
@@ -17,18 +18,18 @@ export interface OpenAIProviderConfig {
 }
 
 // ==============================================================
-// 2. HELPER FUNCTIONS (Optimized & Self-Contained)
+// HELPER FUNCTIONS
 // ==============================================================
+
+const CONCURRENCY_LIMIT = 10;
 
 function extractJsonFromResponse(text: string): any {
   try {
-    // 1. Remove markdown code blocks (```json ... ``` or ``` ... ```)
     let clean = text
       .replace(/```json\s*/gi, "")
       .replace(/```\s*/g, "")
       .trim();
 
-    // 2. Find the first '{' and last '}' to handle intro/outro text
     const first = clean.indexOf("{");
     const last = clean.lastIndexOf("}");
 
@@ -44,17 +45,62 @@ function extractJsonFromResponse(text: string): any {
   }
 }
 
-function buildClusteringPrompt(ids: string, market: string, max: number) {
-  // OPTIMIZATION: "Minified JSON" saves ~30% tokens
-  return `
-    Analyze these product images (IDs: ${ids}) for a ${market} listing.
-    Group them visually into a maximum of ${max} groups based on color, angle, or variation.
-    
-    CRITICAL OUTPUT RULES:
-    1. Return strictly valid JSON.
-    2. MINIFY your JSON (no line breaks, no indentation, no whitespace).
-    3. Structure: { "groups": [{ "name": "...", "imageIds": ["..."] }] }
-  `.trim();
+/**
+ * Run async tasks with a concurrency limit.
+ */
+async function runWithConcurrency<T>(tasks: (() => Promise<T>)[], limit: number): Promise<T[]> {
+  const results: T[] = new Array(tasks.length);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (nextIndex < tasks.length) {
+      const index = nextIndex++;
+      results[index] = await tasks[index]!();
+    }
+  }
+
+  const workers = Array.from({ length: Math.min(limit, tasks.length) }, () => worker());
+  await Promise.all(workers);
+  return results;
+}
+
+// ==============================================================
+// STEP 1 PROMPT: Visual Analysis ("The Eyes")
+// ==============================================================
+
+const VISION_ANALYSIS_PROMPT = `Analyze this stock photo. Return a valid JSON object (NO markdown) with these fields:
+{"main_subject":"String (e.g. Electric Guitar)","setting":"String (e.g. Concert Stage)","vibe":"String (e.g. Moody, High Contrast, Candid)","narrative":"String (e.g. Musician performing solo)","usage_type":"String (Commercial or Editorial)"}`;
+
+// ==============================================================
+// STEP 2 PROMPT BUILDER: Clustering ("The Archivist")
+// ==============================================================
+
+function buildArchivistPrompt(
+  descriptions: { imageId: string; description: ImageDescription }[],
+  maxGroups: number,
+  context?: string
+): string {
+  const descriptionList = descriptions
+    .map(
+      (d, i) =>
+        `${i + 1}. ID="${d.imageId}" | Subject: ${d.description.main_subject} | Setting: ${d.description.setting} | Vibe: ${d.description.vibe} | Narrative: ${d.description.narrative} | Usage: ${d.description.usage_type}`
+    )
+    .join("\n");
+
+  return `You are a Senior Stock Archivist. Group these image descriptions into cohesive Photoshoot Sets.
+
+RULES:
+1. Context First: If Setting & Vibe match (e.g. "Music Festival"), LUMP diverse subjects (Drummer, Crowd, Guitar) into ONE group.
+2. Mandatory Split: Split if Location, Vibe, or Usage Type are distinctly different.
+3. User Context: ${context || "None"}. If provided, this overrides default grouping logic.
+4. Maximum ${maxGroups} groups.
+5. Every image must be assigned to exactly one group.
+
+DESCRIPTIONS:
+${descriptionList}
+
+Return ONLY valid JSON:
+{"groups":[{"title":"Descriptive Photoshoot Name","semanticTags":["tag1","tag2","tag3"],"imageIds":["id1","id2"],"confidence":0.95}]}`;
 }
 
 const STRATEGY_PERSONAS: Record<StrategyType, string> = {
@@ -68,7 +114,6 @@ function buildTagPrompt(market: string, strategy: StrategyType = "standard", max
   const persona = STRATEGY_PERSONAS[strategy] || "";
   const personaLine = persona ? `\n    PERSONA: ${persona}\n` : "";
   const tagLimit = Math.max(5, Math.min(50, maxTags));
-  // OPTIMIZATION: Minified + Specific Tag Count
   return `${personaLine}
     Generate high-ranking SEO tags for this ${market} product image.
 
@@ -81,7 +126,7 @@ function buildTagPrompt(market: string, strategy: StrategyType = "standard", max
 }
 
 // ==============================================================
-// 3. MAIN CLASS
+// MAIN CLASS
 // ==============================================================
 export class OpenAIVisionProvider implements IVisionProvider {
   readonly name = "openai";
@@ -92,46 +137,129 @@ export class OpenAIVisionProvider implements IVisionProvider {
     this.client = new OpenAI({
       apiKey: config.apiKey || process.env.OPENAI_API_KEY || "",
     });
-    this.model = config.model || "gpt-4o";
+    this.model = config.model || "gpt-4o-mini";
   }
+
+  // ============================================================
+  // 2-STEP CLUSTERING PIPELINE
+  // ============================================================
 
   async clusterImages(
     images: ClusterImageInput[],
-    marketplace: MarketplaceType,
+    _marketplace: MarketplaceType,
     maxGroups: number,
-    _context?: string // Not used by OpenAI provider's simple prompt
+    context?: string
   ): Promise<ClusterResult> {
-    const contentParts = images.map((img) => ({
-      type: "image_url" as const,
-      image_url: {
-        url: img.dataUrl,
-        // OPTIMIZATION: Low detail saves ~85 tokens per image
-        detail: "low" as const,
-      },
-    }));
+    // STEP 1: Visual Analysis — describe each image in parallel
+    const descriptions = await this.analyzeImages(images);
 
-    const imageList = images
-      .map((img) => (img.name ? `${img.id} (${img.name})` : img.id))
-      .join(", ");
-    const prompt = buildClusteringPrompt(imageList, marketplace, maxGroups);
-
-    // 'as any' silences the version conflict errors
-    const response = (await this.client.chat.completions.create({
-      model: this.model,
-      messages: [
-        {
-          role: "user",
-          content: [{ type: "text", text: prompt }, ...contentParts],
-        },
-      ],
-      response_format: { type: "json_object" },
-      max_tokens: 1000,
-    })) as any;
-
-    const text = response.choices[0].message.content || "{}";
-
-    return this.parseClusterResponse(text, images);
+    // STEP 2: Clustering — group text descriptions with the Archivist
+    return this.clusterDescriptions(descriptions, images, maxGroups, context);
   }
+
+  /**
+   * STEP 1: "The Eyes" — Analyze each image individually.
+   * Sends parallel requests (with concurrency limit) to get structured descriptions.
+   */
+  private async analyzeImages(
+    images: ClusterImageInput[]
+  ): Promise<{ imageId: string; description: ImageDescription }[]> {
+    const tasks = images.map((img) => async () => {
+      try {
+        const response = (await this.client.chat.completions.create({
+          model: this.model,
+          messages: [
+            {
+              role: "user",
+              content: [
+                {
+                  type: "image_url",
+                  image_url: { url: img.dataUrl, detail: "low" },
+                },
+                { type: "text", text: VISION_ANALYSIS_PROMPT },
+              ],
+            },
+          ],
+          response_format: { type: "json_object" },
+          max_tokens: 200,
+        })) as any;
+
+        const text = response.choices[0].message.content || "{}";
+        const parsed = extractJsonFromResponse(text);
+
+        return {
+          imageId: img.id,
+          description: {
+            imageId: img.id,
+            main_subject: parsed.main_subject || "Unknown",
+            setting: parsed.setting || "Unknown",
+            vibe: parsed.vibe || "Neutral",
+            narrative: parsed.narrative || "No description",
+            usage_type: parsed.usage_type || "Commercial",
+          } satisfies ImageDescription,
+        };
+      } catch (error) {
+        console.error(`[OpenAI] Step 1 failed for image ${img.id}:`, error);
+        return {
+          imageId: img.id,
+          description: {
+            imageId: img.id,
+            main_subject: img.name || "Unknown",
+            setting: "Unknown",
+            vibe: "Unknown",
+            narrative: "Analysis failed",
+            usage_type: "Commercial",
+          } satisfies ImageDescription,
+        };
+      }
+    });
+
+    return runWithConcurrency(tasks, CONCURRENCY_LIMIT);
+  }
+
+  /**
+   * STEP 2: "The Archivist" — Cluster text descriptions into Photoshoot Sets.
+   * Single API call with low temperature for consistent grouping.
+   */
+  private async clusterDescriptions(
+    descriptions: { imageId: string; description: ImageDescription }[],
+    originalImages: ClusterImageInput[],
+    maxGroups: number,
+    context?: string
+  ): Promise<ClusterResult> {
+    const prompt = buildArchivistPrompt(descriptions, maxGroups, context);
+
+    try {
+      const response = (await this.client.chat.completions.create({
+        model: this.model,
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+        temperature: 0.2,
+        max_tokens: 1500,
+      })) as any;
+
+      const text = response.choices[0].message.content || "{}";
+      return this.parseClusterResponse(text, originalImages);
+    } catch (error) {
+      console.error("[OpenAI] Step 2 clustering failed:", error);
+      return {
+        groups: [
+          {
+            groupId: "group-1",
+            imageIds: originalImages.map((img) => img.id),
+            title: "All Images",
+            suggestedLabel: "All Images",
+            semanticTags: ["All Images"],
+            confidence: 0.5,
+          },
+        ],
+      };
+    }
+  }
+
+  // ============================================================
+  // RESPONSE PARSING
+  // ============================================================
 
   private parseClusterResponse(
     responseText: string,
@@ -144,12 +272,12 @@ export class OpenAIVisionProvider implements IVisionProvider {
           imageIds?: string[];
           image_ids?: string[];
           title?: string;
-          name?: string; // AI sometimes returns 'name' instead of 'title'
+          name?: string;
           category?: string;
           suggestedLabel?: string;
-          semanticTags?: string[] | string; // AI may return array OR comma-separated string
-          keywords?: string[] | string; // AI may return array OR comma-separated string
-          tags?: string[] | string; // AI may return array OR comma-separated string
+          semanticTags?: string[] | string;
+          keywords?: string[] | string;
+          tags?: string[] | string;
           label?: string;
           confidence?: number;
         }>;
@@ -171,7 +299,6 @@ export class OpenAIVisionProvider implements IVisionProvider {
         };
       }
 
-      // Helper: Convert string to array (handles comma-separated strings)
       const toArray = (val: string[] | string | undefined): string[] | undefined => {
         if (Array.isArray(val)) return val;
         if (typeof val === "string" && val.trim()) {
@@ -183,12 +310,10 @@ export class OpenAIVisionProvider implements IVisionProvider {
         return undefined;
       };
 
-      const groups = parsed.groups.map((group, index) => {
-        // Title priority: title > name > category > label
+      const groups: ImageClusterGroup[] = parsed.groups.map((group, index) => {
         const title =
           group.title || group.name || group.category || group.label || `Group ${index + 1}`;
 
-        // SemanticTags priority: semanticTags > keywords > tags > [title]
         const semanticTags =
           toArray(group.semanticTags) ||
           toArray(group.keywords) ||
@@ -240,6 +365,10 @@ export class OpenAIVisionProvider implements IVisionProvider {
     }
   }
 
+  // ============================================================
+  // TAG GENERATION (unchanged)
+  // ============================================================
+
   async generateTags(
     images: TagImageInput[],
     marketplace: MarketplaceType,
@@ -251,7 +380,6 @@ export class OpenAIVisionProvider implements IVisionProvider {
       return [];
     }
 
-    // Send up to 4 images in a single API call for batch analysis
     const sampleImages = images.slice(0, 4);
     const effectiveMaxTags = maxTags || (platform ? getPlatformConfig(platform).maxTags : 25);
     const platformInstruction =
@@ -259,7 +387,6 @@ export class OpenAIVisionProvider implements IVisionProvider {
         ? `\n    PLATFORM OPTIMIZATION (${platform}): ${getPlatformConfig(platform).systemInstruction}\n`
         : "";
 
-    // Build batch guard for multi-image
     const batchGuard =
       sampleImages.length > 1
         ? `BATCH ANALYSIS — You are viewing ${sampleImages.length} images from the SAME group.\n1. Identify the COMMON THEMES shared across ALL images.\n2. Tags, title, and description must describe what the images have IN COMMON.\n3. AVOID tags that only apply to a single image.\n\n`
@@ -298,7 +425,6 @@ export class OpenAIVisionProvider implements IVisionProvider {
       confidence: result.confidence || 0.0,
     };
 
-    // Apply the same tags to all images in the batch
     return images.map((img) => ({ ...tagResult, imageId: img.id }));
   }
 }

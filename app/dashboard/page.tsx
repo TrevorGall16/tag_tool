@@ -7,6 +7,7 @@ import { useBatchStore } from "@/store/useBatchStore";
 import { usePersistence, markExplicitClear } from "@/hooks/usePersistence";
 import { nukeAllData } from "@/lib/persistence";
 import { Dropzone } from "@/components/uploader";
+import { ClusterTool } from "@/components/features/ClusterTool";
 import {
   ImageGallery,
   GroupList,
@@ -330,6 +331,9 @@ function DashboardContent() {
               </div>
               <Dropzone />
 
+              {/* Context input for AI clustering */}
+              <ClusterTool className="mt-4" />
+
               {/* Step 2: Organize */}
               <div className="flex items-center gap-2 mt-12 mb-2">
                 <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold">
@@ -602,6 +606,9 @@ function DashboardContent() {
             <>
               {/* Dropzone inside folder */}
               <Dropzone />
+
+              {/* Context input for AI clustering */}
+              <ClusterTool className="mt-4" />
 
               {/* Image Gallery */}
               <ImageGallery className="mt-12" />
