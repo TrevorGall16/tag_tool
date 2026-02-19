@@ -69,7 +69,14 @@ async function runWithConcurrency<T>(tasks: (() => Promise<T>)[], limit: number)
 // ==============================================================
 
 const VISION_ANALYSIS_PROMPT = `Analyze this stock photo. Return a valid JSON object (NO markdown) with these fields:
-{"main_subject":"String (e.g. Electric Guitar)","setting":"String (e.g. Concert Stage)","vibe":"String (e.g. Moody, High Contrast, Candid)","narrative":"String (e.g. Musician performing solo)","usage_type":"String (Commercial or Editorial)"}`;
+{
+  "main_subject": "String. Format: 'Category - Detail'. Categories MUST be one of: [Gastronomy, Music, People, Nature, Animals, Urban, Technology, Objects]. Example: 'Gastronomy - Burger' or 'Music - Electric Guitar'.",
+  "setting": "String. (e.g. Studio, Outdoor, Concert, Office).",
+  "vibe": "String. Select ONLY from: [Bright, Moody, Minimalist, High-Contrast, Authentic, Corporate].",
+  "shot_context": "String. (e.g. Close-up, Wide angle, Drone shot, Studio setup).",
+  "narrative": "String. (What is happening?).",
+  "usage_type": "String. (Commercial or Editorial)."
+}`;
 
 // ==============================================================
 // STEP 2 PROMPT BUILDER: Clustering ("The Archivist")
@@ -83,20 +90,37 @@ function buildArchivistPrompt(
   const descriptionList = descriptions
     .map(
       (d, i) =>
-        `${i + 1}. ID="${d.imageId}" | Subject: ${d.description.main_subject} | Setting: ${d.description.setting} | Vibe: ${d.description.vibe} | Narrative: ${d.description.narrative} | Usage: ${d.description.usage_type}`
+        `${i + 1}. ID="${d.imageId}" | Subject: ${d.description.main_subject} | Setting: ${d.description.setting} | Vibe: ${d.description.vibe} | Shot: ${d.description.shot_context} | Narrative: ${d.description.narrative} | Usage: ${d.description.usage_type}`
     )
     .join("\n");
 
-  return `You are a Senior Stock Archivist. Group these image descriptions into cohesive Photoshoot Sets.
+  return `You are a Senior Stock Archivist.
 
-RULES:
-1. Context First: If Setting & Vibe match (e.g. "Music Festival"), LUMP diverse subjects (Drummer, Crowd, Guitar) into ONE group.
-2. Mandatory Split: Split if Location, Vibe, or Usage Type are distinctly different.
-3. User Context: ${context || "None"}. If provided, this overrides default grouping logic.
-4. Maximum ${maxGroups} groups.
-5. Every image must be assigned to exactly one group.
+**INPUT:**
+- Context: '${context || "EMPTY"}'
+- Images: [List of structured descriptions]
 
-DESCRIPTIONS:
+**CRITICAL OPERATING MODES:**
+
+**MODE A: THE LIBRARIAN (Trigger: Context is EMPTY or Vague like 'My Photos')**
+- **Logic:** STRICT CATEGORIZATION.
+- **Rule:** You MUST create separate groups based on the 'main_subject' Category.
+- **Constraint:** NEVER lump different Categories (e.g. 'Gastronomy' and 'Music') just because they share a 'Vibe'.
+- **Output Example:** Group 1: Music (Guitars), Group 2: Gastronomy (Burgers).
+
+**MODE B: THE STORYTELLER (Trigger: Context is SPECIFIC like 'Summer Festival')**
+- **Logic:** NARRATIVE GROUPING.
+- **Rule:** You MAY lump diverse subjects (Guitar + Burger) ONLY if they fit the specific Context.
+
+**MANDATORY SPLIT RULES (Always Active):**
+- Split if 'usage_type' differs (Commercial vs Editorial).
+- Split if 'shot_context' clashes (e.g. Drone Shot vs Macro Detail).
+
+**CONSTRAINTS:**
+- Maximum ${maxGroups} groups.
+- Every image must be assigned to exactly one group.
+
+**DESCRIPTIONS:**
 ${descriptionList}
 
 Return ONLY valid JSON:
@@ -194,6 +218,7 @@ export class OpenAIVisionProvider implements IVisionProvider {
             main_subject: parsed.main_subject || "Unknown",
             setting: parsed.setting || "Unknown",
             vibe: parsed.vibe || "Neutral",
+            shot_context: parsed.shot_context || "Unknown",
             narrative: parsed.narrative || "No description",
             usage_type: parsed.usage_type || "Commercial",
           } satisfies ImageDescription,
@@ -207,6 +232,7 @@ export class OpenAIVisionProvider implements IVisionProvider {
             main_subject: img.name || "Unknown",
             setting: "Unknown",
             vibe: "Unknown",
+            shot_context: "Unknown",
             narrative: "Analysis failed",
             usage_type: "Commercial",
           } satisfies ImageDescription,

@@ -44,6 +44,7 @@ export interface ImageDescription {
   main_subject: string;
   setting: string;
   vibe: string;
+  shot_context: string;
   narrative: string;
   usage_type: string;
 }
