@@ -321,9 +321,6 @@ export function ImageGallery({ className }: ImageGalleryProps) {
             )}
             {isClustering ? "Clustering..." : "Organize"}
           </button>
-          <span className="text-[10px] text-purple-700 font-medium bg-purple-50 px-2 py-0.5 rounded-full border border-purple-200">
-            Beta
-          </span>
         </div>
       </div>
 
@@ -357,7 +354,12 @@ export function ImageGallery({ className }: ImageGalleryProps) {
       <AlertDialog open={showOrganizeModal} onOpenChange={setShowOrganizeModal}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>How would you like to organize?</AlertDialogTitle>
+            <AlertDialogTitle className="inline-flex items-center gap-2">
+              How would you like to organize?
+              <span className="text-[10px] text-green-700 font-medium bg-green-50 px-2 py-0.5 rounded-full border border-green-200">
+                Free
+              </span>
+            </AlertDialogTitle>
             <AlertDialogDescription>
               Choose how to group your {images.length} image{images.length !== 1 ? "s" : ""} before
               tagging.
@@ -377,7 +379,7 @@ export function ImageGallery({ className }: ImageGalleryProps) {
               <div>
                 <p className="font-semibold text-slate-900">AI Auto-Cluster</p>
                 <p className="text-sm text-slate-500">
-                  AI groups similar images together automatically
+                  Have the AI attempt to group similar images together
                 </p>
               </div>
             </button>
