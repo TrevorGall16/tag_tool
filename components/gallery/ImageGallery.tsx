@@ -266,7 +266,13 @@ export function ImageGallery({ className }: ImageGalleryProps) {
 
       appendGroups(newGroups);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Clustering failed";
+      const raw = err instanceof Error ? err.message : "Clustering failed";
+      const isOverloaded =
+        /timeout|overloaded|rate.?limit|503|529|too many/i.test(raw) ||
+        raw.includes("fetch failed");
+      const message = isOverloaded
+        ? "The AI is currently overloaded. Please wait a moment and try again."
+        : raw;
       setError(message);
     } finally {
       setProcessingState({ isClustering: false });
@@ -315,8 +321,8 @@ export function ImageGallery({ className }: ImageGalleryProps) {
             )}
             {isClustering ? "Clustering..." : "Organize"}
           </button>
-          <span className="text-[10px] text-green-700 font-medium bg-green-50 px-2 py-0.5 rounded-full border border-green-200">
-            Free
+          <span className="text-[10px] text-purple-700 font-medium bg-purple-50 px-2 py-0.5 rounded-full border border-purple-200">
+            Beta
           </span>
         </div>
       </div>

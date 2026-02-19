@@ -35,41 +35,46 @@ export function ClusterTool({ className }: ClusterToolProps) {
   if (imageCount < 2) return null;
 
   return (
-    <div
-      className={cn(
-        "flex items-center gap-3 px-4 py-3 rounded-xl border transition-colors",
-        isFocused
-          ? "border-purple-300 bg-purple-50/50"
-          : context
-            ? "border-purple-200 bg-purple-50/30"
-            : "border-slate-200 bg-slate-50/50",
-        className
-      )}
-    >
-      <Sparkles
-        className={cn("h-4 w-4 shrink-0", context ? "text-purple-500" : "text-slate-400")}
-      />
-      <input
-        type="text"
-        value={context}
-        onChange={(e) => handleContextChange(e.target.value)}
-        onFocus={() => setIsFocused(true)}
-        onBlur={() => setIsFocused(false)}
-        placeholder="Describe your images for better clustering (e.g., 'Music festival photos')"
-        maxLength={200}
+    <div className={cn("flex flex-col gap-1.5", className)}>
+      <div
         className={cn(
-          "flex-1 bg-transparent text-sm text-gray-900 placeholder:text-gray-400",
-          "focus:outline-none"
+          "flex items-center gap-3 px-4 py-3 rounded-xl border transition-colors",
+          isFocused
+            ? "border-purple-300 bg-purple-50/50"
+            : context
+              ? "border-purple-200 bg-purple-50/30"
+              : "border-slate-200 bg-slate-50/50"
         )}
-      />
-      {context && (
-        <button
-          onClick={() => handleContextChange("")}
-          className="text-xs text-purple-500 hover:text-purple-700 shrink-0"
-        >
-          Clear
-        </button>
-      )}
+      >
+        <Sparkles
+          className={cn("h-4 w-4 shrink-0", context ? "text-purple-500" : "text-slate-400")}
+        />
+        <input
+          type="text"
+          value={context}
+          onChange={(e) => handleContextChange(e.target.value)}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
+          placeholder="Describe your images for better clustering (e.g., 'Music festival photos')"
+          maxLength={200}
+          className={cn(
+            "flex-1 bg-transparent text-sm text-gray-900 placeholder:text-gray-400",
+            "focus:outline-none"
+          )}
+        />
+        {context && (
+          <button
+            onClick={() => handleContextChange("")}
+            className="text-xs text-purple-500 hover:text-purple-700 shrink-0"
+          >
+            Clear
+          </button>
+        )}
+      </div>
+      <p className="text-[11px] text-slate-400 px-1">
+        Hint: Type a specific event (e.g., &ldquo;Summer Festival&rdquo;) or leave blank to
+        auto-sort by category.
+      </p>
     </div>
   );
 }

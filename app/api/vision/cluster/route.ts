@@ -329,11 +329,13 @@ export async function POST(
   request: NextRequest
 ): Promise<NextResponse<ApiResponse<VisionClusterResponse>>> {
   const startTime = Date.now();
+  let sessionUserId: string | undefined;
 
   try {
     // AUTH CHECK: Always require authentication (before parsing body to avoid wasted CPU)
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    sessionUserId = session?.user?.id;
+    if (!sessionUserId) {
       return NextResponse.json(
         { success: false, error: "Authentication required" },
         { status: 401 }
@@ -341,7 +343,7 @@ export async function POST(
     }
 
     // RATE LIMIT: 10 requests per minute per user
-    const rateLimitResponse = await checkRateLimit(session.user.id);
+    const rateLimitResponse = await checkRateLimit(sessionUserId);
     if (rateLimitResponse) return rateLimitResponse;
 
     const body = (await request.json()) as VisionClusterRequest;
@@ -405,15 +407,52 @@ export async function POST(
     const sanitizedResult = ensureLabels(clusterResult, settings);
     const finalResult = mergeDuplicateGroups(sanitizedResult);
 
+    const processingTimeMs = Date.now() - startTime;
+
+    // Structured telemetry — never log base64 image data
+    console.log(
+      JSON.stringify({
+        event: "cluster_complete",
+        userId: sessionUserId,
+        context: settings?.context || "EMPTY",
+        imageCount: images.length,
+        groupCount: finalResult.groups.length,
+        groupNames: finalResult.groups.map((g) => g.title),
+        processingTimeMs,
+        mock: IS_MOCK_MODE,
+      })
+    );
+
     return NextResponse.json({
       success: true,
       data: {
         groups: finalResult.groups,
-        processingTimeMs: Date.now() - startTime,
+        processingTimeMs,
       },
     });
   } catch (error) {
-    console.error("[Cluster API] Error:", error instanceof Error ? error.message : "Unknown");
-    return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : "Unknown";
+    console.error(
+      JSON.stringify({
+        event: "cluster_error",
+        userId: sessionUserId ?? "unknown",
+        error: errorMessage,
+        processingTimeMs: Date.now() - startTime,
+      })
+    );
+
+    const isOverloaded =
+      /timeout|overloaded|rate.?limit|503|529|too many/i.test(errorMessage) ||
+      errorMessage.includes("fetch failed");
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: isOverloaded
+          ? "The AI is currently overloaded. Please try again in a moment."
+          : "Internal server error",
+      },
+      { status: isOverloaded ? 503 : 500 }
+    );
   }
 }
