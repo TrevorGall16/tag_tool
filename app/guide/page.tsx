@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { ArrowLeft, Upload, Layers, Sparkles, FileImage } from "lucide-react";
 
 export default function GuidePage() {
@@ -53,9 +54,13 @@ export default function GuidePage() {
                 analysis.
               </p>
             </div>
-            <div className="w-full md:w-80 h-48 rounded-xl bg-slate-200 flex items-center justify-center text-slate-400 text-sm">
-              Screenshot placeholder
-            </div>
+            <Image
+              src="/screenshots/step-1.png"
+              alt="Step 1: Upload images"
+              width={800}
+              height={450}
+              className="w-full md:w-1/2 h-auto min-h-[280px] rounded-xl object-contain border border-slate-200 bg-slate-50 shadow-md p-2"
+            />
           </section>
 
           {/* Step 2: Organize */}
@@ -78,9 +83,13 @@ export default function GuidePage() {
                 Groups share titles, descriptions, and tags so you can batch-tag efficiently.
               </p>
             </div>
-            <div className="w-full md:w-80 h-48 rounded-xl bg-slate-200 flex items-center justify-center text-slate-400 text-sm">
-              Screenshot placeholder
-            </div>
+            <Image
+              src="/screenshots/step-2.png"
+              alt="Step 2: Organize into Groups"
+              width={800}
+              height={450}
+              className="w-full md:w-1/2 h-auto min-h-[280px] rounded-xl object-contain border border-slate-200 bg-slate-50 shadow-md p-2"
+            />
           </section>
 
           {/* Step 3: Generate Tags */}
@@ -103,9 +112,13 @@ export default function GuidePage() {
                 You can edit, reorder, add, or remove tags before exporting.
               </p>
             </div>
-            <div className="w-full md:w-80 h-48 rounded-xl bg-slate-200 flex items-center justify-center text-slate-400 text-sm">
-              Screenshot placeholder
-            </div>
+            <Image
+              src="/screenshots/step-3.png"
+              alt="Step 3: Generate Tags"
+              width={800}
+              height={450}
+              className="w-full md:w-1/2 h-auto min-h-[280px] rounded-xl object-contain border border-slate-200 bg-slate-50 shadow-md p-2"
+            />
           </section>
 
           {/* Step 4: Export */}
@@ -131,9 +144,13 @@ export default function GuidePage() {
                 as a CSV spreadsheet for bulk upload tools.
               </p>
             </div>
-            <div className="w-full md:w-80 h-48 rounded-xl bg-slate-200 flex items-center justify-center text-slate-400 text-sm">
-              Screenshot placeholder
-            </div>
+            <Image
+              src="/screenshots/step-4.png"
+              alt="Step 4: Export metadata"
+              width={800}
+              height={450}
+              className="w-full md:w-1/2 h-auto min-h-[280px] rounded-xl object-contain border border-slate-200 bg-slate-50 shadow-md p-2"
+            />
           </section>
         </div>
 

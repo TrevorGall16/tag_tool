@@ -85,27 +85,6 @@ export default function FAQPage() {
           </Link>
         </div>
       </main>
-
-      {/* Footer */}
-      <footer className="py-8 px-6 border-t border-slate-200 mt-12">
-        <div className="max-w-3xl mx-auto text-center text-sm text-slate-500">
-          <Link href="/" className="hover:text-slate-700 transition-colors">
-            TagArchitect
-          </Link>
-          {" · "}
-          <Link href="/pricing" className="hover:text-slate-700 transition-colors">
-            Pricing
-          </Link>
-          {" · "}
-          <Link href="/legal/privacy" className="hover:text-slate-700 transition-colors">
-            Privacy
-          </Link>
-          {" · "}
-          <Link href="/legal/terms" className="hover:text-slate-700 transition-colors">
-            Terms
-          </Link>
-        </div>
-      </footer>
     </div>
   );
 }

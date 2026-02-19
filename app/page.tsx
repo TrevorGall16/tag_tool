@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Star, HelpCircle } from "lucide-react";
+import { ArrowRight, Star, HelpCircle, Upload, Layers, Sparkles, FileImage } from "lucide-react";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui";
 
 const faqs = [
@@ -94,6 +94,74 @@ export default function HomePage() {
         <div className="absolute bottom-8 animate-bounce">
           <div className="w-6 h-10 border-2 border-slate-300 rounded-full flex justify-center">
             <div className="w-1.5 h-3 bg-slate-400 rounded-full mt-2" />
+          </div>
+        </div>
+      </section>
+
+      {/* How It Works */}
+      <section className="py-20 px-6 bg-white">
+        <div className="max-w-4xl mx-auto">
+          <h2 className="text-3xl font-bold text-slate-900 text-center mb-12">How It Works</h2>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="text-center">
+              <div className="mx-auto mb-4 w-14 h-14 rounded-2xl bg-blue-100 flex items-center justify-center">
+                <Upload className="h-7 w-7 text-blue-600" />
+              </div>
+              <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
+                Step 1
+              </div>
+              <h3 className="text-lg font-semibold text-slate-900 mb-2">Upload Images</h3>
+              <p className="text-sm text-slate-600 leading-relaxed">
+                Drag & drop your photos. Everything is resized locally before leaving your browser.
+              </p>
+            </div>
+            <div className="text-center">
+              <div className="mx-auto mb-4 w-14 h-14 rounded-2xl bg-emerald-100 flex items-center justify-center">
+                <Layers className="h-7 w-7 text-emerald-600" />
+              </div>
+              <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
+                Step 2
+              </div>
+              <h3 className="text-lg font-semibold text-slate-900 mb-2">Organize into Groups</h3>
+              <p className="text-sm text-slate-600 leading-relaxed">
+                Let AI cluster similar images or manually drag them into groups.
+              </p>
+            </div>
+            <div className="text-center">
+              <div className="mx-auto mb-4 w-14 h-14 rounded-2xl bg-amber-100 flex items-center justify-center">
+                <Sparkles className="h-7 w-7 text-amber-600" />
+              </div>
+              <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
+                Step 3
+              </div>
+              <h3 className="text-lg font-semibold text-slate-900 mb-2">Generate Tags</h3>
+              <p className="text-sm text-slate-600 leading-relaxed">
+                AI generates optimized titles & keywords tailored to Etsy or Adobe Stock.
+              </p>
+            </div>
+            <div className="text-center">
+              <div className="mx-auto mb-4 w-14 h-14 rounded-2xl bg-purple-100 flex items-center justify-center">
+                <FileImage className="h-7 w-7 text-purple-600" />
+              </div>
+              <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
+                Step 4
+              </div>
+              <h3 className="text-lg font-semibold text-slate-900 mb-2">
+                Embed in Image Properties
+              </h3>
+              <p className="text-sm text-slate-600 leading-relaxed">
+                Export with IPTC/XMP metadata baked in, or download a CSV for bulk upload.
+              </p>
+            </div>
+          </div>
+          <div className="text-center mt-10">
+            <Link
+              href="/guide"
+              className="inline-flex items-center gap-2 text-blue-600 font-medium hover:text-blue-700 transition-colors"
+            >
+              Read the Full Guide
+              <ArrowRight className="w-4 h-4" />
+            </Link>
           </div>
         </div>
       </section>
@@ -221,30 +289,6 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-
-      {/* Footer */}
-      <footer className="py-12 px-6 bg-slate-900 text-slate-400">
-        <div className="max-w-5xl mx-auto">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="text-xl font-bold text-white">TagArchitect</div>
-            <div className="flex items-center gap-6 text-sm">
-              <Link href="/pricing" className="hover:text-white transition-colors">
-                Pricing
-              </Link>
-              <Link href="/faq" className="hover:text-white transition-colors">
-                FAQ
-              </Link>
-              <Link href="/legal/privacy" className="hover:text-white transition-colors">
-                Privacy Policy
-              </Link>
-              <Link href="/legal/terms" className="hover:text-white transition-colors">
-                Terms of Service
-              </Link>
-            </div>
-            <div className="text-sm">&copy; {new Date().getFullYear()} TagArchitect</div>
-          </div>
-        </div>
-      </footer>
     </main>
   );
 }

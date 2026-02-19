@@ -3,26 +3,26 @@ import { ArrowLeft, FileText } from "lucide-react";
 
 export default function TermsOfServicePage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100">
       {/* Header */}
-      <header className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border-b border-slate-200 dark:border-slate-800 sticky top-0 z-10">
+      <header className="bg-white/80 backdrop-blur-sm border-b border-slate-200 sticky top-0 z-10">
         <div className="max-w-3xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <Link
               href="/"
-              className="flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+              className="flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors"
             >
               <ArrowLeft className="h-4 w-4" />
               Back to Home
             </Link>
-            <span className="text-sm font-medium text-slate-900 dark:text-white">TagArchitect</span>
+            <span className="text-sm font-medium text-slate-900">TagArchitect</span>
           </div>
         </div>
       </header>
 
       <main className="max-w-3xl mx-auto px-6 py-12">
         {/* Document Card */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl shadow-slate-200/50 dark:shadow-slate-950/50 border border-slate-200 dark:border-slate-800 overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden">
           {/* Card Header */}
           <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-10">
             <div className="flex items-center gap-6">
@@ -31,26 +31,29 @@ export default function TermsOfServicePage() {
               </div>
               <div>
                 <h1 className="text-3xl font-bold text-white tracking-tight">Terms of Service</h1>
-                <p className="text-blue-100 mt-2 font-medium opacity-90">Last updated: January 2026</p>
+                <p className="text-blue-100 mt-2 font-medium opacity-90">
+                  Last updated: January 2026
+                </p>
               </div>
             </div>
           </div>
 
           {/* Card Content */}
           <div className="px-8 py-12 md:px-12">
-             {/* UPDATED STYLING APPLIED:
+            {/* UPDATED STYLING APPLIED:
                - prose-p:leading-relaxed -> Easy to read lines
                - prose-h2:mt-12 -> Big gaps before new sections
                - prose-li:mb-2 -> Spacing for lists
              */}
-            <div className="prose prose-slate dark:prose-invert max-w-none 
-              prose-headings:font-bold prose-headings:tracking-tight 
-              prose-h2:text-2xl prose-h2:mt-12 prose-h2:mb-6 prose-h2:border-b prose-h2:border-slate-100 dark:prose-h2:border-slate-800 prose-h2:pb-4
-              prose-h3:text-lg prose-h3:mt-8 prose-h3:text-slate-700 dark:prose-h3:text-slate-200
-              prose-p:text-slate-600 dark:prose-p:text-slate-400 prose-p:leading-relaxed prose-p:mb-6
-              prose-li:text-slate-600 dark:prose-li:text-slate-400 prose-li:leading-relaxed prose-li:mb-2
-              prose-a:text-blue-600 dark:prose-a:text-blue-400 prose-a:no-underline hover:prose-a:underline">
-              
+            <div
+              className="prose prose-slate max-w-none
+              prose-headings:font-bold prose-headings:tracking-tight
+              prose-h2:text-2xl prose-h2:mt-12 prose-h2:mb-6 prose-h2:border-b prose-h2:border-slate-100 prose-h2:pb-4
+              prose-h3:text-lg prose-h3:mt-8 prose-h3:text-slate-700
+              prose-p:text-slate-600 prose-p:leading-relaxed prose-p:mb-6
+              prose-li:text-slate-600 prose-li:leading-relaxed prose-li:mb-2
+              prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline"
+            >
               <h2>1. Agreement to Terms</h2>
               <p>
                 By accessing or using TagArchitect (&quot;Service&quot;), you agree to be bound by
@@ -184,16 +187,19 @@ export default function TermsOfServicePage() {
               <h2>13. Contact Information</h2>
               <p>
                 For questions about these Terms, please contact us at:{" "}
-                <a href="mailto:efwfew1611@gmail.com" className="font-semibold text-blue-600 hover:text-blue-500">
+                <a
+                  href="mailto:efwfew1611@gmail.com"
+                  className="font-semibold text-blue-600 hover:text-blue-500"
+                >
                   efwfew1611@gmail.com
                 </a>
               </p>
             </div>
           </div>
         </div>
-        
+
         {/* Footer Note */}
-        <div className="mt-8 text-center text-sm text-slate-500 dark:text-slate-400">
+        <div className="mt-8 text-center text-sm text-slate-500">
           &copy; 2026 TagArchitect. All rights reserved.
         </div>
       </main>
