@@ -11,7 +11,7 @@ const faqs = [
   {
     question: "Which marketplaces are supported?",
     answer:
-      "TagArchitect currently supports Etsy and Adobe Stock. Each marketplace has its own tagging strategy optimized for how buyers search on that platform. Etsy tags focus on gift occasions, emotions, and buyer intent, while Adobe Stock tags are more technical and descriptive.",
+      "VisionBatch currently supports Etsy and Adobe Stock. Each marketplace has its own tagging strategy optimized for how buyers search on that platform. Etsy tags focus on gift occasions, emotions, and buyer intent, while Adobe Stock tags are more technical and descriptive.",
   },
   {
     question: "Are my images stored?",
@@ -47,7 +47,7 @@ export default function HomePage() {
       <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-lg border-b border-slate-200">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <Link href="/" className="text-xl font-bold text-slate-900">
-            TagArchitect
+            VisionBatch
           </Link>
           <div className="flex items-center gap-4">
             <Link
@@ -71,7 +71,7 @@ export default function HomePage() {
       <section className="min-h-screen flex flex-col items-center justify-center px-6 pt-20">
         <div className="max-w-3xl mx-auto text-center">
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-slate-900 mb-6 leading-tight">
-            TagArchitect:{" "}
+            VisionBatch:{" "}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
               Marketplace SEO in Seconds.
             </span>
@@ -217,7 +217,7 @@ export default function HomePage() {
                 <div className="w-full h-48 bg-gradient-to-br from-amber-100 to-orange-100 rounded-xl mb-6 flex items-center justify-center">
                   <div className="text-6xl">🎁</div>
                 </div>
-                <h4 className="font-semibold text-slate-900 mb-3">What TagArchitect generates:</h4>
+                <h4 className="font-semibold text-slate-900 mb-3">What VisionBatch generates:</h4>
                 <div className="flex flex-wrap gap-2">
                   {[
                     "birthday gift",
@@ -259,7 +259,7 @@ export default function HomePage() {
               <HelpCircle className="w-7 h-7 text-blue-600" />
             </div>
             <h2 className="text-3xl font-bold text-slate-900 mb-3">Frequently Asked Questions</h2>
-            <p className="text-lg text-slate-600">Everything you need to know about TagArchitect</p>
+            <p className="text-lg text-slate-600">Everything you need to know about VisionBatch</p>
           </div>
 
           {/* FAQ Accordion */}

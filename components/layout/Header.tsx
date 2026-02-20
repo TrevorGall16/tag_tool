@@ -50,7 +50,7 @@ export function Header({ onNewBatch, isResetting = false, onHelpClick }: HeaderP
               href="/"
               className="text-2xl font-bold text-slate-900 tracking-tight hover:text-slate-700 transition-colors"
             >
-              TagArchitect
+              VisionBatch
             </Link>
             <nav className="hidden md:flex items-center gap-1">
               <Link

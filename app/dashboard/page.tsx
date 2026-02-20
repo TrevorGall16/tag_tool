@@ -641,7 +641,7 @@ function DashboardContent() {
       <AlertDialog open={showTutorial} onOpenChange={setShowTutorial}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>How TagArchitect Works</AlertDialogTitle>
+            <AlertDialogTitle>How VisionBatch Works</AlertDialogTitle>
             <AlertDialogDescription>
               Three simple steps to tag your images for Etsy or Adobe Stock.
             </AlertDialogDescription>

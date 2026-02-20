@@ -93,7 +93,7 @@ function PricingContent() {
               <ArrowLeft className="h-4 w-4" />
               Back to Dashboard
             </Link>
-            <h1 className="text-xl font-bold text-slate-900">TagArchitect</h1>
+            <h1 className="text-xl font-bold text-slate-900">VisionBatch</h1>
           </div>
         </div>
       </header>

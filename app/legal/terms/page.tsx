@@ -15,7 +15,7 @@ export default function TermsOfServicePage() {
               <ArrowLeft className="h-4 w-4" />
               Back to Home
             </Link>
-            <span className="text-sm font-medium text-slate-900">TagArchitect</span>
+            <span className="text-sm font-medium text-slate-900">VisionBatch</span>
           </div>
         </div>
       </header>
@@ -56,14 +56,14 @@ export default function TermsOfServicePage() {
             >
               <h2>1. Agreement to Terms</h2>
               <p>
-                By accessing or using TagArchitect (&quot;Service&quot;), you agree to be bound by
+                By accessing or using VisionBatch (&quot;Service&quot;), you agree to be bound by
                 these Terms of Service (&quot;Terms&quot;). If you disagree with any part of these
                 terms, you may not access the Service.
               </p>
 
               <h2>2. Description of Service</h2>
               <p>
-                TagArchitect is an AI-powered image tagging service that helps users generate
+                VisionBatch is an AI-powered image tagging service that helps users generate
                 metadata, keywords, and descriptions for images intended for stock photography
                 platforms such as Etsy and Adobe Stock.
               </p>
@@ -128,7 +128,7 @@ export default function TermsOfServicePage() {
               <h3>6.3 Our Property</h3>
               <p>
                 The Service, including its design, features, and underlying technology, is owned by
-                TagArchitect and protected by intellectual property laws.
+                VisionBatch and protected by intellectual property laws.
               </p>
 
               <h2>7. Disclaimer of Warranties</h2>
@@ -144,7 +144,7 @@ export default function TermsOfServicePage() {
 
               <h2>8. Limitation of Liability</h2>
               <p>
-                TO THE MAXIMUM EXTENT PERMITTED BY LAW, TAGARCHITECT SHALL NOT BE LIABLE FOR ANY
+                TO THE MAXIMUM EXTENT PERMITTED BY LAW, VISIONBATCH SHALL NOT BE LIABLE FOR ANY
                 INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, INCLUDING LOSS OF
                 PROFITS, DATA, OR BUSINESS OPPORTUNITIES, ARISING FROM YOUR USE OF THE SERVICE.
               </p>
@@ -155,7 +155,7 @@ export default function TermsOfServicePage() {
 
               <h2>9. Indemnification</h2>
               <p>
-                You agree to indemnify and hold harmless TagArchitect from any claims, damages, or
+                You agree to indemnify and hold harmless VisionBatch from any claims, damages, or
                 expenses arising from your use of the Service, your content, or your violation of
                 these Terms.
               </p>
@@ -200,7 +200,7 @@ export default function TermsOfServicePage() {
 
         {/* Footer Note */}
         <div className="mt-8 text-center text-sm text-slate-500">
-          &copy; 2026 TagArchitect. All rights reserved.
+          &copy; 2026 VisionBatch. All rights reserved.
         </div>
       </main>
     </div>

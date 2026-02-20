@@ -51,7 +51,7 @@ export default function ContactPage() {
               <ArrowLeft className="h-4 w-4" />
               Back to Dashboard
             </Link>
-            <h1 className="text-xl font-bold text-slate-900">TagArchitect</h1>
+            <h1 className="text-xl font-bold text-slate-900">VisionBatch</h1>
           </div>
         </div>
       </header>
@@ -74,7 +74,7 @@ export default function ContactPage() {
             <h2 className="text-lg font-semibold text-slate-900 mb-4">Get in Touch</h2>
 
             <a
-              href={`mailto:${SUPPORT_EMAIL}?subject=TagArchitect Support Request`}
+              href={`mailto:${SUPPORT_EMAIL}?subject=VisionBatch Support Request`}
               className={cn(
                 "flex items-center gap-4 p-4 rounded-xl border-2 border-blue-200 bg-blue-50",
                 "hover:border-blue-300 hover:bg-blue-100 transition-all group"

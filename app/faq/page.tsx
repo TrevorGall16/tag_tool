@@ -10,7 +10,7 @@ const faqs = [
   {
     question: "Which marketplaces are supported?",
     answer:
-      "TagArchitect currently supports Etsy and Adobe Stock. Each marketplace has its own tagging strategy optimized for how buyers search on that platform. Etsy tags focus on gift occasions, emotions, and buyer intent, while Adobe Stock tags are more technical and descriptive.",
+      "VisionBatch currently supports Etsy and Adobe Stock. Each marketplace has its own tagging strategy optimized for how buyers search on that platform. Etsy tags focus on gift occasions, emotions, and buyer intent, while Adobe Stock tags are more technical and descriptive.",
   },
   {
     question: "Are my images stored?",
@@ -61,7 +61,7 @@ export default function FAQPage() {
             <HelpCircle className="w-8 h-8 text-blue-600" />
           </div>
           <h1 className="text-3xl font-bold text-slate-900 mb-3">Frequently Asked Questions</h1>
-          <p className="text-lg text-slate-600">Everything you need to know about TagArchitect</p>
+          <p className="text-lg text-slate-600">Everything you need to know about VisionBatch</p>
         </div>
 
         {/* FAQ List */}

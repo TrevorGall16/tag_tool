@@ -15,7 +15,7 @@ export default function PrivacyPolicyPage() {
               <ArrowLeft className="h-4 w-4" />
               Back to Home
             </Link>
-            <span className="text-sm font-medium text-slate-900">TagArchitect</span>
+            <span className="text-sm font-medium text-slate-900">VisionBatch</span>
           </div>
         </div>
       </header>
@@ -57,7 +57,7 @@ export default function PrivacyPolicyPage() {
             >
               <h2>1. Introduction</h2>
               <p>
-                TagArchitect (&quot;we,&quot; &quot;our,&quot; or &quot;us&quot;) is committed to
+                VisionBatch (&quot;we,&quot; &quot;our,&quot; or &quot;us&quot;) is committed to
                 protecting your privacy. This Privacy Policy explains how we collect, use, disclose,
                 and safeguard your information when you use our AI-powered image tagging service.
               </p>
@@ -197,7 +197,7 @@ export default function PrivacyPolicyPage() {
 
         {/* Footer Note */}
         <div className="mt-8 text-center text-sm text-slate-500">
-          &copy; 2026 TagArchitect. All rights reserved.
+          &copy; 2026 VisionBatch. All rights reserved.
         </div>
       </main>
     </div>

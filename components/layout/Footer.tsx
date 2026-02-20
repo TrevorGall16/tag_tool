@@ -5,7 +5,7 @@ export function Footer() {
     <footer className="py-10 px-6 bg-slate-900 text-slate-400">
       <div className="max-w-5xl mx-auto">
         <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="text-xl font-bold text-white">TagArchitect</div>
+          <div className="text-xl font-bold text-white">VisionBatch</div>
           <div className="flex items-center gap-6 text-sm">
             <Link href="/pricing" className="hover:text-white transition-colors">
               Pricing
@@ -23,7 +23,7 @@ export function Footer() {
               Terms of Service
             </Link>
           </div>
-          <div className="text-sm">&copy; {new Date().getFullYear()} TagArchitect</div>
+          <div className="text-sm">&copy; {new Date().getFullYear()} VisionBatch</div>
         </div>
       </div>
     </footer>

@@ -16,7 +16,7 @@ export default function GuidePage() {
               <ArrowLeft className="h-4 w-4" />
               Back to Dashboard
             </Link>
-            <h1 className="text-xl font-bold text-slate-900">TagArchitect / Guide</h1>
+            <h1 className="text-xl font-bold text-slate-900">VisionBatch / Guide</h1>
             <div />
           </div>
         </div>
@@ -25,7 +25,7 @@ export default function GuidePage() {
       <main className="max-w-4xl mx-auto px-6 py-12">
         <div className="text-center mb-16">
           <h2 className="text-4xl font-bold text-slate-900 tracking-tight mb-4">
-            How TagArchitect Works
+            How VisionBatch Works
           </h2>
           <p className="text-lg text-slate-600 max-w-2xl mx-auto">
             Batch-tag your images for Etsy and Adobe Stock in four simple steps.
@@ -49,7 +49,7 @@ export default function GuidePage() {
               </div>
               <p className="text-slate-600 leading-relaxed">
                 Drag and drop your images into the dropzone, or click to browse your files.
-                TagArchitect supports JPEG, PNG, and WebP formats. All images are resized locally
+                VisionBatch supports JPEG, PNG, and WebP formats. All images are resized locally
                 before processing — nothing leaves your browser until you explicitly request AI
                 analysis.
               </p>
@@ -138,7 +138,7 @@ export default function GuidePage() {
                 </div>
               </div>
               <p className="text-slate-600 leading-relaxed">
-                When you export, TagArchitect writes your titles and tags directly into each image's
+                When you export, VisionBatch writes your titles and tags directly into each image's
                 IPTC/XMP metadata. This means Etsy and Adobe Stock can read the keywords
                 automatically when you upload — no manual copy-pasting required. You can also export
                 as a CSV spreadsheet for bulk upload tools.

@@ -24,7 +24,7 @@ function SignInContent() {
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-slate-900 tracking-tight mb-2">
-            Welcome to TagArchitect
+            Welcome to VisionBatch
           </h1>
           <p className="text-slate-600">Sign in to save your work and access premium features</p>
         </div>
