@@ -43,6 +43,11 @@ import {
 } from "@/components/ui";
 import type { VisionTagsResponse } from "@/types";
 
+// Max images rendered per group card before the "Show more" button appears.
+// Capping initial renders prevents the browser from decoding thousands of
+// base64 thumbnails simultaneously when a large batch is clustered.
+const VISIBLE_IMAGES_LIMIT = 20;
+
 const SORT_OPTIONS = [
   { value: "date", label: "Sort by Date" },
   { value: "name", label: "Sort by Name" },
@@ -415,6 +420,7 @@ function CollapsibleGroupCard({
   const [showFolderMenu, setShowFolderMenu] = useState(false);
   const [showGenerateDialog, setShowGenerateDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showAllImages, setShowAllImages] = useState(false);
   const folderMenuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const { balance: creditsBalance, isAuthenticated } = useCredits({ enablePolling: false });
@@ -826,17 +832,30 @@ function CollapsibleGroupCard({
             </div>
           ) : (
             /* Image Grid */
-            <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
-              {group.images.map((image) => (
-                <DraggableImage
-                  key={image.id}
-                  image={image}
-                  groupId={group.id}
-                  onImageClick={(img) => onImageClick(img, group.id)}
-                  onDeleteImage={onDeleteImage}
-                />
-              ))}
-            </div>
+            <>
+              <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
+                {(showAllImages ? group.images : group.images.slice(0, VISIBLE_IMAGES_LIMIT)).map(
+                  (image) => (
+                    <DraggableImage
+                      key={image.id}
+                      image={image}
+                      groupId={group.id}
+                      onImageClick={(img) => onImageClick(img, group.id)}
+                      onDeleteImage={onDeleteImage}
+                    />
+                  )
+                )}
+              </div>
+              {!showAllImages && group.images.length > VISIBLE_IMAGES_LIMIT && (
+                <button
+                  onClick={() => setShowAllImages(true)}
+                  className="mt-2 w-full py-1.5 text-sm text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg border border-dashed border-slate-300 transition-colors"
+                >
+                  Show {group.images.length - VISIBLE_IMAGES_LIMIT} more image
+                  {group.images.length - VISIBLE_IMAGES_LIMIT !== 1 ? "s" : ""}
+                </button>
+              )}
+            </>
           )}
         </div>
       )}

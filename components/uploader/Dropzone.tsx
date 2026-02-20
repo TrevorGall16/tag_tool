@@ -14,6 +14,9 @@ export interface DropzoneProps {
   className?: string;
 }
 
+// Max concurrent canvas/resize operations. Prevents OOM on large drops (100+ images).
+const UPLOAD_CONCURRENCY = 4;
+
 export function Dropzone({ maxFiles = 50, maxSizeMB = 25, disabled, className }: DropzoneProps) {
   const [isDragActive, setIsDragActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -69,9 +72,14 @@ export function Dropzone({ maxFiles = 50, maxSizeMB = 25, disabled, className }:
 
       let processed = 0;
 
-      // Process files in parallel
-      await Promise.all(
-        files.map(async (file) => {
+      // Concurrency-limited worker pool: at most UPLOAD_CONCURRENCY resize ops run at once.
+      // Workers share a mutable index. JS is single-threaded so index++ is race-free across
+      // async boundaries — each worker grabs a unique file before its first await.
+      let index = 0;
+      const worker = async () => {
+        while (index < files.length) {
+          const file = files[index++];
+          if (!file) continue;
           try {
             const id = crypto.randomUUID();
             const thumbnailDataUrl = await resizeImageForApi(file, 512);
@@ -92,8 +100,9 @@ export function Dropzone({ maxFiles = 50, maxSizeMB = 25, disabled, className }:
             processed++;
             setProcessingState((prev) => ({ ...prev, processed }));
           }
-        })
-      );
+        }
+      };
+      await Promise.all(Array.from({ length: Math.min(UPLOAD_CONCURRENCY, files.length) }, worker));
 
       setProcessingState({ isProcessing: false, processed: 0, total: 0 });
       setStoreProcessing({ isUploading: false });

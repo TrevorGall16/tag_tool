@@ -26,6 +26,70 @@ export interface ImageGalleryProps {
   className?: string;
 }
 
+// ─── Client-side orchestration constants ───────────────────────────────────────
+const CHUNK_SIZE = 20; // images per API call — matches MAX_IMAGES_PER_REQUEST in the route
+const MAX_RETRIES = 3;
+
+/**
+ * Send one chunk to /api/vision/cluster with automatic retry on transient errors
+ * (overloaded AI, 503s, timeouts). Uses exponential backoff: 1 s → 2 s → 4 s.
+ */
+async function fetchClusterChunk(
+  chunk: Array<{ id: string; thumbnailDataUrl: string; originalFilename: string }>,
+  totalImages: number,
+  marketplace: string,
+  settings: ClusterSettings | undefined
+): Promise<VisionClusterResponse["groups"]> {
+  const body = {
+    images: chunk.map((img) => ({
+      id: img.id,
+      dataUrl: img.thumbnailDataUrl,
+      name: img.originalFilename || "Untitled",
+    })),
+    marketplace,
+    maxGroups: Math.max(2, Math.ceil(10 * (chunk.length / totalImages))),
+    settings,
+  };
+
+  let lastError: Error = new Error("Clustering failed");
+
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    if (attempt > 0) {
+      await new Promise<void>((r) => setTimeout(r, 1000 * Math.pow(2, attempt - 1)));
+    }
+    try {
+      const response = await fetch("/api/vision/cluster", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const result = (await response.json()) as {
+        success: boolean;
+        data?: VisionClusterResponse;
+        error?: string;
+      };
+      if (!result.success || !result.data) {
+        const isTransient = /timeout|overloaded|rate.?limit|503|529|too many/i.test(
+          result.error ?? ""
+        );
+        if (isTransient && attempt < MAX_RETRIES - 1) {
+          lastError = new Error(result.error ?? "Clustering failed");
+          continue;
+        }
+        throw new Error(result.error ?? "Clustering failed");
+      }
+      return result.data.groups;
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      const isTransient = /timeout|overloaded|rate.?limit|503|529|too many|fetch failed/i.test(
+        lastError.message
+      );
+      if (!isTransient || attempt >= MAX_RETRIES - 1) throw lastError;
+    }
+  }
+  throw lastError;
+}
+
 export function ImageGallery({ className }: ImageGalleryProps) {
   const {
     groups,
@@ -47,8 +111,6 @@ export function ImageGallery({ className }: ImageGalleryProps) {
   const [showGroupAllConfirm, setShowGroupAllConfirm] = useState(false);
   const [clusterMode, setClusterMode] = useState<"append" | "clear" | null>(null);
   const [pendingSettings, setPendingSettings] = useState<ClusterSettings | undefined>(undefined);
-
-  const BATCH_SIZE = 20;
 
   const unclusteredGroup = groups.find((g) => g.id === "unclustered");
   const images = unclusteredGroup?.images ?? [];
@@ -152,7 +214,6 @@ export function ImageGallery({ className }: ImageGalleryProps) {
       return;
     }
 
-    // If clearing, do it before clustering
     if (mode === "clear") {
       markExplicitClear();
       clearAllGroups();
@@ -161,108 +222,46 @@ export function ImageGallery({ className }: ImageGalleryProps) {
     setError(null);
     setProcessingState({ isClustering: true });
 
-    // Calculate batches for progress tracking
-    const totalBatches = Math.ceil(images.length / BATCH_SIZE);
-    const needsBatching = images.length > BATCH_SIZE;
-
-    if (needsBatching) {
-      setClusteringProgress({
-        currentBatch: 0,
-        totalBatches,
-        totalImages: images.length,
-      });
-    }
+    // Always show progress — even a single chunk benefits from the indicator.
+    const totalChunks = Math.ceil(images.length / CHUNK_SIZE);
+    setClusteringProgress({
+      currentBatch: 0,
+      totalBatches: totalChunks,
+      totalImages: images.length,
+    });
 
     try {
       const allGroups: VisionClusterResponse["groups"] = [];
 
-      if (needsBatching) {
-        // Client-side batching for progress tracking
-        for (let i = 0; i < totalBatches; i++) {
-          const start = i * BATCH_SIZE;
-          const batchImages = images.slice(start, start + BATCH_SIZE);
+      // Sequential chunk loop with per-chunk retry. Each chunk is a single API call,
+      // so the server stays stateless and well under the 60 s timeout.
+      for (let i = 0; i < totalChunks; i++) {
+        const chunk = images.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
 
-          setClusteringProgress({
-            currentBatch: i + 1,
-            totalBatches,
-            totalImages: images.length,
-          });
-
-          const response = await fetch("/api/vision/cluster", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              images: batchImages.map((img) => ({
-                id: img.id,
-                dataUrl: img.thumbnailDataUrl,
-                name: img.originalFilename || "Untitled",
-              })),
-              marketplace,
-              maxGroups: Math.max(2, Math.ceil(10 * (batchImages.length / images.length))),
-              settings,
-            }),
-          });
-
-          const result = (await response.json()) as {
-            success: boolean;
-            data?: VisionClusterResponse;
-            error?: string;
-          };
-
-          if (!result.success || !result.data) {
-            throw new Error(result.error || `Clustering failed for batch ${i + 1}`);
-          }
-
-          allGroups.push(...result.data.groups);
-        }
-      } else {
-        // Single batch - no progress needed
-        const response = await fetch("/api/vision/cluster", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            images: images.map((img) => ({
-              id: img.id,
-              dataUrl: img.thumbnailDataUrl,
-              name: img.originalFilename || "Untitled",
-            })),
-            marketplace,
-            maxGroups: 10,
-            settings,
-          }),
+        setClusteringProgress({
+          currentBatch: i + 1,
+          totalBatches: totalChunks,
+          totalImages: images.length,
         });
 
-        const result = (await response.json()) as {
-          success: boolean;
-          data?: VisionClusterResponse;
-          error?: string;
-        };
-
-        if (!result.success || !result.data) {
-          throw new Error(result.error || "Clustering failed");
-        }
-
-        allGroups.push(...result.data.groups);
+        const chunkGroups = await fetchClusterChunk(chunk, images.length, marketplace, settings);
+        allGroups.push(...chunkGroups);
       }
 
-      // Transform API response into LocalGroup[] format
-      // CRITICAL: Always generate UUID for group IDs to ensure uniqueness
+      // Transform API response into LocalGroup[] — always use UUID for group IDs.
       const baseTimestamp = Date.now();
-      const newGroups: LocalGroup[] = allGroups.map((cluster, index) => {
-        const groupId = crypto.randomUUID(); // Always use UUID, ignore API's groupId
-        return {
-          id: groupId,
-          groupNumber: index + 1,
-          images: cluster.imageIds
-            .map((id) => images.find((img) => img.id === id))
-            .filter((img): img is NonNullable<typeof img> => img !== undefined),
-          sharedTags: [],
-          sharedTitle: cluster.title || cluster.suggestedLabel, // Use AI title with fallback
-          semanticTags: cluster.semanticTags, // Store semantic category tags array
-          isVerified: false,
-          createdAt: baseTimestamp + index, // Preserve order with incrementing timestamps
-        };
-      });
+      const newGroups: LocalGroup[] = allGroups.map((cluster, index) => ({
+        id: crypto.randomUUID(),
+        groupNumber: index + 1,
+        images: cluster.imageIds
+          .map((id) => images.find((img) => img.id === id))
+          .filter((img): img is NonNullable<typeof img> => img !== undefined),
+        sharedTags: [],
+        sharedTitle: cluster.title || cluster.suggestedLabel,
+        semanticTags: cluster.semanticTags,
+        isVerified: false,
+        createdAt: baseTimestamp + index,
+      }));
 
       appendGroups(newGroups);
     } catch (err) {
@@ -270,10 +269,9 @@ export function ImageGallery({ className }: ImageGalleryProps) {
       const isOverloaded =
         /timeout|overloaded|rate.?limit|503|529|too many/i.test(raw) ||
         raw.includes("fetch failed");
-      const message = isOverloaded
-        ? "The AI is currently overloaded. Please wait a moment and try again."
-        : raw;
-      setError(message);
+      setError(
+        isOverloaded ? "The AI is currently overloaded. Please wait a moment and try again." : raw
+      );
     } finally {
       setProcessingState({ isClustering: false });
       setClusteringProgress(null);

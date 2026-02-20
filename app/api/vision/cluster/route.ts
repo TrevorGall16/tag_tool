@@ -12,10 +12,14 @@ import { clusterImagesWithVision } from "@/lib/vision/cluster";
 import type { ClusterImageInput, ClusterResult, ImageClusterGroup } from "@/lib/vision";
 import { checkRateLimit } from "@/lib/ratelimit";
 
-const BATCH_SIZE = 20;
 const DEFAULT_MAX_GROUPS = 10;
-const MAX_IMAGES_PER_REQUEST = 100;
+// Each invocation processes ONE client-sent chunk. The frontend slices large batches
+// and calls this endpoint per chunk, keeping each invocation well within timeout limits.
+const MAX_IMAGES_PER_REQUEST = 20;
 const IS_MOCK_MODE = process.env.NODE_ENV === "development" && process.env.MOCK_API === "true";
+
+// Allow up to 60 s on Vercel Pro. One AI call per invocation keeps this easily under budget.
+export const maxDuration = 60;
 
 // Semantic tags for mock mode: [Broad Category, Specific Type, Vibe/Attribute]
 const MOCK_SEMANTIC_TAGS: string[][] = [
@@ -79,17 +83,6 @@ function validateRequest(body: VisionClusterRequest): string | null {
     return "Invalid marketplace. Must be ETSY or ADOBE_STOCK";
   }
   return null;
-}
-
-/**
- * Chunk an array into smaller arrays of specified size
- */
-function chunkArray<T>(array: T[], size: number): T[][] {
-  const chunks: T[][] = [];
-  for (let i = 0; i < array.length; i += size) {
-    chunks.push(array.slice(i, i + size));
-  }
-  return chunks;
 }
 
 // Approved categories from the prompt - if AI returns one of these, it's valid
@@ -367,40 +360,19 @@ export async function POST(
 
     let clusterResult: ClusterResult;
 
-    // Mock mode: bypass real API calls for development/testing
+    // Stateless: process exactly the chunk that was sent. No internal looping.
+    // The client orchestrates chunking and progress tracking.
     if (IS_MOCK_MODE) {
-      // Simulate network delay
       await new Promise((resolve) => setTimeout(resolve, 500 + Math.random() * 1000));
       clusterResult = generateMockClusterResult(images as ClusterImageInput[], maxGroups);
-    } else if (images.length <= BATCH_SIZE) {
-      // If images fit in a single batch, process directly
+    } else {
       const rawResult = await clusterImagesWithVision(
-        images,
+        images as ClusterImageInput[],
         marketplace,
         maxGroups,
         settings?.context
       );
       clusterResult = ensureLabels(rawResult, settings);
-    } else {
-      // Automatic batching: chunk images and process sequentially
-      const batches = chunkArray(images as ClusterImageInput[], BATCH_SIZE);
-      const batchResults: ClusterResult[] = [];
-
-      for (const [, batch] of batches.entries()) {
-        // Calculate proportional maxGroups for this batch
-        const batchMaxGroups = Math.max(2, Math.ceil((maxGroups * batch.length) / images.length));
-
-        const batchResult = await clusterImagesWithVision(
-          batch,
-          marketplace,
-          batchMaxGroups,
-          settings?.context
-        );
-        batchResults.push(batchResult);
-      }
-
-      // Merge all batch results
-      clusterResult = mergeClusterResults(batchResults, settings);
     }
 
     // Final processing: sanitize labels and merge duplicates

@@ -23,7 +23,8 @@
       "Bash(pnpm prisma generate:*)",
       "Bash(pnpm prisma migrate diff:*)",
       "Bash(pnpm prisma db push:*)",
-      "Bash(npx prettier --write \"lib/vision/providers/openai.ts\")"
+      "Bash(npx prettier --write \"lib/vision/providers/openai.ts\")",
+      "Bash(node:*)"
     ]
   }
 }
