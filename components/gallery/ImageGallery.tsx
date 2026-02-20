@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Layers, ImageIcon, Loader2, X, Users, Hand } from "lucide-react";
+import { Layers, ImageIcon, Loader2, X, Users, Hand, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useBatchStore, LocalGroup } from "@/store/useBatchStore";
@@ -102,6 +102,7 @@ export function ImageGallery({ className }: ImageGalleryProps) {
     setProcessingState,
     setError,
     removeImageFromGroup,
+    updateGroup,
     setClusteringProgress,
   } = useBatchStore();
 
@@ -126,6 +127,15 @@ export function ImageGallery({ className }: ImageGalleryProps) {
     } catch (err) {
       console.error("[ImageGallery] Failed to delete image from IndexedDB:", err);
     }
+  };
+
+  const handleClearUploads = async () => {
+    if (images.length === 0) return;
+    markExplicitClear();
+    // Purge every uploaded image from IndexedDB before clearing the store.
+    await Promise.allSettled(images.map((img) => deleteImageData(img.id)));
+    updateGroup("unclustered", { images: [] });
+    toast.success("All uploaded images cleared.");
   };
 
   // Check if there are existing clustered groups
@@ -300,6 +310,21 @@ export function ImageGallery({ className }: ImageGalleryProps) {
         </h2>
         <div className="flex items-center gap-2">
           <NamingSettings />
+          <button
+            onClick={handleClearUploads}
+            disabled={images.length === 0 || isClustering}
+            className={cn(
+              "inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium",
+              "text-red-600 hover:text-red-700 hover:bg-red-50",
+              "border border-red-200 hover:border-red-300",
+              "transition-all duration-200",
+              "disabled:opacity-40 disabled:pointer-events-none"
+            )}
+            title="Remove all uploaded images"
+          >
+            <Trash2 className="h-4 w-4" aria-hidden="true" />
+            Clear
+          </button>
           <button
             onClick={handleClusterButtonClick}
             disabled={images.length === 0 || isClustering}
