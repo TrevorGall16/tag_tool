@@ -106,6 +106,10 @@ export interface VisionClusterRequest {
   marketplace: "ETSY" | "ADOBE_STOCK";
   maxGroups?: number;
   settings?: ClusterSettings;
+  /** Zero-based index of this chunk (for telemetry). */
+  chunkIndex?: number;
+  /** Total number of chunks the client is sending (for telemetry). */
+  totalChunks?: number;
 }
 
 export interface ClusterImageInput {
@@ -139,8 +143,12 @@ export interface VisionTagsRequest {
   strategy?: "standard" | "etsy" | "stock";
   maxTags?: number;
   platform?: PlatformType;
-  /** Total images in the group (for billing). Defaults to images.length if omitted. */
+  /** Total images in the group (for billing in non-chunked mode). Defaults to images.length if omitted. */
   totalImageCount?: number;
+  /** Zero-based index of this chunk. When present, billing is per images.length (not totalImageCount). */
+  chunkIndex?: number;
+  /** Total number of chunks the client is sending (for telemetry). */
+  totalChunks?: number;
 }
 
 export interface TagImageInput {

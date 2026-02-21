@@ -86,6 +86,9 @@ interface BatchState {
     totalImages: number;
   } | null;
 
+  // Tagging progress (for chunked AI pipeline)
+  taggingProgress: { current: number; total: number } | null;
+
   // Error state
   error: string | null;
 
@@ -153,6 +156,7 @@ interface BatchState {
   setClusteringProgress: (
     progress: { currentBatch: number; totalBatches: number; totalImages: number } | null
   ) => void;
+  setTaggingProgress: (progress: { current: number; total: number } | null) => void;
   setTagBlacklist: (blacklist: string[]) => void;
   setNamingSettings: (settings: ClusterSettings) => void;
   setGroupSortOption: (option: GroupSortOption) => void;
@@ -190,6 +194,7 @@ export const useBatchStore = create<BatchState>()(
         isClustering: false,
         isTagging: false,
         clusteringProgress: null,
+        taggingProgress: null,
         error: null,
         exportSettings: DEFAULT_EXPORT_SETTINGS,
         tagBlacklist: DEFAULT_TAG_BLACKLIST,
@@ -610,6 +615,10 @@ export const useBatchStore = create<BatchState>()(
 
         setClusteringProgress: (progress) => {
           set({ clusteringProgress: progress });
+        },
+
+        setTaggingProgress: (progress) => {
+          set({ taggingProgress: progress });
         },
 
         setTagBlacklist: (blacklist) => {

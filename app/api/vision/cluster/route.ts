@@ -346,7 +346,14 @@ export async function POST(
       return NextResponse.json({ success: false, error: validationError }, { status: 400 });
     }
 
-    const { images, marketplace, maxGroups = DEFAULT_MAX_GROUPS, settings } = body;
+    const {
+      images,
+      marketplace,
+      maxGroups = DEFAULT_MAX_GROUPS,
+      settings,
+      chunkIndex,
+      totalChunks,
+    } = body;
 
     if (images.length > MAX_IMAGES_PER_REQUEST) {
       return NextResponse.json(
@@ -390,6 +397,7 @@ export async function POST(
         imageCount: images.length,
         groupCount: finalResult.groups.length,
         groupNames: finalResult.groups.map((g) => g.title),
+        ...(chunkIndex !== undefined && { chunkIndex, totalChunks }),
         processingTimeMs,
         mock: IS_MOCK_MODE,
       })

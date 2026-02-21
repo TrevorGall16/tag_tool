@@ -17,6 +17,9 @@ const STRATEGY_LABELS: Record<string, string> = {
 const MAX_IMAGES_PER_REQUEST = 10;
 const IS_MOCK_MODE = process.env.NODE_ENV === "development" && process.env.MOCK_API === "true";
 
+// Allow up to 60 s on Vercel Pro. One AI call per invocation keeps this easily under budget.
+export const maxDuration = 60;
+
 // Sample mock tags for realistic testing
 const MOCK_TAGS = [
   "handmade",
@@ -110,9 +113,22 @@ function validateRequest(body: VisionTagsRequest): string | null {
   }
   if (
     body.totalImageCount !== undefined &&
+    body.chunkIndex === undefined &&
     (body.totalImageCount < body.images.length || body.totalImageCount > 10_000)
   ) {
     return "totalImageCount must be >= images.length and <= 10000";
+  }
+  if (
+    body.chunkIndex !== undefined &&
+    (body.chunkIndex < 0 || !Number.isInteger(body.chunkIndex))
+  ) {
+    return "chunkIndex must be a non-negative integer";
+  }
+  if (
+    body.totalChunks !== undefined &&
+    (body.totalChunks < 1 || !Number.isInteger(body.totalChunks))
+  ) {
+    return "totalChunks must be a positive integer";
   }
   return null;
 }
@@ -150,6 +166,8 @@ export async function POST(
       maxTags = 25,
       platform,
       totalImageCount,
+      chunkIndex,
+      totalChunks,
     } = body;
 
     if (images.length > MAX_IMAGES_PER_REQUEST) {
@@ -162,11 +180,10 @@ export async function POST(
       );
     }
 
-    // Billing is based on the full group size (totalImageCount), not just the
-    // representative sample sent for AI analysis. The client declares how many
-    // images it is tagging; the server validates the claim is ≥ sample length
-    // and ≤ 10 000 (enforced in validateRequest above).
-    const creditsRequired = totalImageCount ?? images.length;
+    // Chunked mode: each chunk pays only for its own images.length credits.
+    // Non-chunked mode: totalImageCount covers a full group (representative sample billing).
+    const isChunked = chunkIndex !== undefined;
+    const creditsRequired = isChunked ? images.length : (totalImageCount ?? images.length);
     const strategyLabel = STRATEGY_LABELS[strategy] || "Standard";
 
     // Task 2: Pre-check balance without deducting (read-only, no lock).
@@ -240,11 +257,27 @@ export async function POST(
       }
     }
 
+    const processingTimeMs = Date.now() - startTime;
+
+    // Structured telemetry — never log base64 image data
+    console.log(
+      JSON.stringify({
+        event: "tags_complete",
+        userId: session.user.id,
+        imageCount: images.length,
+        creditsCharged: creditsRequired,
+        strategy: strategyLabel,
+        ...(isChunked && { chunkIndex, totalChunks }),
+        processingTimeMs,
+        mock: IS_MOCK_MODE,
+      })
+    );
+
     return NextResponse.json({
       success: true,
       data: {
         results,
-        processingTimeMs: Date.now() - startTime,
+        processingTimeMs,
       },
     });
   } catch (error) {
