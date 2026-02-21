@@ -53,7 +53,8 @@ export const authOptions: NextAuthOptions = {
     async signIn({ user }) {
       if (!user.id) return true;
 
-      // IP-based auth rate limit (fail-closed): blocks rapid sign-in attempts per IP.
+      // IP-based auth rate limit — strictly fail-closed.
+      // Unknown IP or any error → deny sign-in. No best-effort bypass.
       try {
         const { headers } = await import("next/headers");
         const headersList = await headers();
@@ -62,16 +63,22 @@ export const authOptions: NextAuthOptions = {
           headersList.get("x-real-ip")
         );
 
-        if (ip !== "unknown") {
-          const allowed = await checkAuthRateLimit(ip);
-          if (!allowed) {
-            console.warn("[SECURITY] Auth rate limit hit from IP:", ip);
-            return false;
-          }
+        if (ip === "unknown") {
+          console.warn("[SECURITY] Blocking sign-in: could not determine client IP");
+          return false;
+        }
+
+        const allowed = await checkAuthRateLimit(ip);
+        if (!allowed) {
+          console.warn("[SECURITY] Auth rate limit hit from IP:", ip);
+          return false;
         }
       } catch (error) {
-        console.error("[Auth] IP rate limit check failed:", error);
-        // Don't block sign-in on unexpected errors — rate limit is best-effort
+        console.error(
+          "[SECURITY] Auth rate limit check threw — blocking sign-in (fail-closed):",
+          error
+        );
+        return false;
       }
 
       // Promote anonymous batches to the authenticated user
@@ -173,8 +180,19 @@ export const authOptions: NextAuthOptions = {
           }
         }
       } catch (err) {
-        console.error("[Auth] IP bonus guard failed, granting full bonus as fallback:", err);
-        bonusAmount = 50; // Fail open — don't penalise users for Redis downtime
+        // Strict security fallback: unknown IP state → grant minimal credits only.
+        // 5 credits lets a legitimate user try the product; too few to farm value.
+        bonusAmount = 5;
+        console.error("[SECURITY] IP bonus guard threw — security fallback (5 credits):", err);
+        // Correct the Prisma @default(50) down to the restricted amount
+        try {
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { creditsBalance: 5 },
+          });
+        } catch (updateErr) {
+          console.error("[SECURITY] Failed to correct creditsBalance to 5:", updateErr);
+        }
       }
 
       await prisma.creditsLedger.create({

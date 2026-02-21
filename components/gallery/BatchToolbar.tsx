@@ -12,6 +12,8 @@ import {
   ShieldBan,
   Trash2,
   X,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -35,6 +37,12 @@ export interface BatchToolbarProps {
 export function BatchToolbar({ className, selectedProjectId, folderName }: BatchToolbarProps) {
   const { status } = useSession();
   const { groups, tagBlacklist, setTagBlacklist, sessionId } = useBatchStore();
+  const syncState = useBatchStore((s) => {
+    const allImages = s.groups.flatMap((g) => g.images);
+    if (allImages.some((img) => img.syncStatus === "pending")) return "pending";
+    if (allImages.some((img) => img.syncStatus === "error")) return "error";
+    return "synced";
+  });
   const [projects, setProjects] = useState<Project[]>([]);
   const [isProjectMenuOpen, setIsProjectMenuOpen] = useState(false);
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
@@ -451,9 +459,23 @@ export function BatchToolbar({ className, selectedProjectId, folderName }: Batch
 
       {/* Row 3: Export Toolkit */}
       <div className="px-4 py-3 bg-white rounded-xl border border-slate-200 shadow-sm">
-        <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
-          Export Toolkit
-        </span>
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+            Export Toolkit
+          </span>
+          {syncState === "pending" && (
+            <span className="flex items-center gap-1 text-xs text-blue-500">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Syncing…
+            </span>
+          )}
+          {syncState === "error" && (
+            <span className="flex items-center gap-1 text-xs text-amber-600">
+              <AlertCircle className="h-3 w-3" />
+              Sync error — changes may not be saved
+            </span>
+          )}
+        </div>
         <div className="mt-2">
           <ExportToolbar projectName={folderName || currentProject?.name} />
         </div>

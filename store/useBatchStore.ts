@@ -27,6 +27,8 @@ export interface LocalImageItem {
   userTags?: string[];
   status: "pending" | "processing" | "analyzed" | "verified" | "error";
   errorMessage?: string;
+  /** Tracks whether the last debounced server sync succeeded. Transient — not persisted. */
+  syncStatus?: "synced" | "pending" | "error";
 }
 
 export interface LocalGroup {
@@ -126,6 +128,11 @@ interface BatchState {
     imageId: string,
     status: LocalImageItem["status"],
     errorMessage?: string
+  ) => void;
+  updateImageSyncStatus: (
+    groupId: string,
+    imageId: string,
+    syncStatus: NonNullable<LocalImageItem["syncStatus"]>
   ) => void;
   verifyGroup: (groupId: string) => void;
   updateGroupTags: (
@@ -387,6 +394,7 @@ export const useBatchStore = create<BatchState>()(
                         ? {
                             ...img,
                             userTags: tags,
+                            syncStatus: "pending" as const,
                             ...(title !== undefined && { userTitle: title }),
                           }
                         : img
@@ -396,17 +404,21 @@ export const useBatchStore = create<BatchState>()(
             ),
           }));
 
-          // Debounced server sync with creation metadata for upsert
-          syncImageToServer(imageId, {
-            userTags: tags,
-            ...(title !== undefined && { userTitle: title }),
-            sessionId: state.sessionId || undefined,
-            groupId,
-            originalFilename: image?.originalFilename,
-            sanitizedSlug: image?.sanitizedSlug,
-            fileSize: image?.fileSize ?? image?.file?.size,
-            mimeType: image?.mimeType ?? image?.file?.type,
-          });
+          // Debounced server sync — marks image synced/error on completion
+          syncImageToServer(
+            imageId,
+            {
+              userTags: tags,
+              ...(title !== undefined && { userTitle: title }),
+              sessionId: state.sessionId || undefined,
+              groupId,
+              originalFilename: image?.originalFilename,
+              sanitizedSlug: image?.sanitizedSlug,
+              fileSize: image?.fileSize ?? image?.file?.size,
+              mimeType: image?.mimeType ?? image?.file?.type,
+            },
+            (status) => get().updateImageSyncStatus(groupId, imageId, status)
+          );
         },
 
         updateImageStatus: (groupId, imageId, status, errorMessage) => {
@@ -417,6 +429,21 @@ export const useBatchStore = create<BatchState>()(
                     ...group,
                     images: group.images.map((img) =>
                       img.id === imageId ? { ...img, status, errorMessage } : img
+                    ),
+                  }
+                : group
+            ),
+          }));
+        },
+
+        updateImageSyncStatus: (groupId, imageId, syncStatus) => {
+          set((state) => ({
+            groups: state.groups.map((group) =>
+              group.id === groupId
+                ? {
+                    ...group,
+                    images: group.images.map((img) =>
+                      img.id === imageId ? { ...img, syncStatus } : img
                     ),
                   }
                 : group
@@ -475,26 +502,32 @@ export const useBatchStore = create<BatchState>()(
                       ...img,
                       userTitle: title,
                       userTags: tags,
+                      syncStatus: "pending" as const,
                     })),
                   }
                 : g
             ),
           }));
 
-          // Debounced server sync for each image in the group (with upsert metadata)
+          // Debounced server sync for each image — marks each synced/error on completion
           if (group) {
             const sessionId = state.sessionId || undefined;
             for (const img of group.images) {
-              syncImageToServer(img.id, {
-                userTitle: title,
-                userTags: tags,
-                sessionId,
-                groupId,
-                originalFilename: img.originalFilename,
-                sanitizedSlug: img.sanitizedSlug,
-                fileSize: img.fileSize ?? img.file?.size,
-                mimeType: img.mimeType ?? img.file?.type,
-              });
+              const imgId = img.id;
+              syncImageToServer(
+                imgId,
+                {
+                  userTitle: title,
+                  userTags: tags,
+                  sessionId,
+                  groupId,
+                  originalFilename: img.originalFilename,
+                  sanitizedSlug: img.sanitizedSlug,
+                  fileSize: img.fileSize ?? img.file?.size,
+                  mimeType: img.mimeType ?? img.file?.type,
+                },
+                (status) => get().updateImageSyncStatus(groupId, imgId, status)
+              );
             }
           }
         },
