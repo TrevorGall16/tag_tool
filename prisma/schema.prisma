@@ -84,7 +84,7 @@ model User {
   email                String              @unique @db.VarChar(255)
   emailVerified        DateTime?
   image                String?             @db.Text
-  creditsBalance       Int                 @default(50)
+  creditsBalance       Int                 @default(0)
   subscriptionTier     SubscriptionTier    @default(FREE)
   stripeCustomerId     String?             @unique
   stripeSubscriptionId String?

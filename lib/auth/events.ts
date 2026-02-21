@@ -3,13 +3,16 @@
  *
  * createUser — guards the welcome bonus with IP fingerprinting.
  *
- * Credit grant rules:
- *   Fresh IP in Redis → 50 credits (mark IP for 24 h)
- *   Known IP in Redis → 5 credits  (farming detected)
- *   IP unknown OR Redis unavailable → 0 credits [FATAL SECURITY FALLBACK]
+ * Credit grant rules (schema default is now 0):
+ *   Fresh IP in Redis → GRANT 50 (prisma.user.update is the granting mechanism)
+ *   Repeat IP         → 0 credits (no pity bonus — deny entirely)
+ *   IP unknown        → 0 credits [FATAL SECURITY FALLBACK]
+ *   Redis unavailable → 0 credits [FATAL SECURITY FALLBACK]
+ *   Any thrown error  → 0 credits [FATAL SECURITY FALLBACK]
  *
- * The Prisma schema has creditsBalance @default(50), so when bonusAmount ≠ 50
- * we must correct the User row immediately after the ledger entry.
+ * Because creditsBalance @default(0), every non-grant path is already correct
+ * without any corrective DB update. The only prisma.user.update call is the
+ * positive grant, so a DB failure leaves the user safely at 0.
  */
 
 import { prisma } from "@/lib/prisma";
@@ -20,70 +23,81 @@ function extractClientIp(xForwardedFor: string | null, xRealIp: string | null): 
   return xRealIp ?? "unknown";
 }
 
+type GrantReason = "fresh_ip" | "repeat_ip" | "ip_unknown" | "redis_unavailable" | "error";
+
 export async function handleCreateUser({ user }: { user: { id: string } }) {
-  let bonusAmount = 50;
+  let bonusAmount = 0;
+  let grantReason: GrantReason = "ip_unknown";
 
   try {
     const { headers } = await import("next/headers");
     const headersList = await headers();
     const ip = extractClientIp(headersList.get("x-forwarded-for"), headersList.get("x-real-ip"));
 
-    if (ip === "unknown" || !redis) {
-      // Cannot verify the requester's identity — deny bonus entirely.
-      bonusAmount = 0;
-      console.error("[FATAL SECURITY FALLBACK] createUser: IP unknown or Redis unavailable", {
+    if (ip === "unknown") {
+      grantReason = "ip_unknown";
+      console.error("[FATAL SECURITY FALLBACK] createUser: could not determine client IP", {
         userId: user.id,
-        redisAvailable: !!redis,
+      });
+    } else if (!redis) {
+      grantReason = "redis_unavailable";
+      console.error("[FATAL SECURITY FALLBACK] createUser: Redis unavailable — 0 credits", {
+        userId: user.id,
       });
     } else {
       const key = `bonus:granted:${ip}`;
       const alreadyGranted = await redis.get(key);
 
       if (alreadyGranted) {
-        bonusAmount = 5;
-        console.warn("[SECURITY] Possible account farming detected from IP:", ip, {
+        grantReason = "repeat_ip";
+        console.warn("[SECURITY] Account farming detected — denying bonus from IP:", ip, {
           userId: user.id,
         });
       } else {
-        // First signup from this IP in the last 24 hours — grant full bonus
+        // Fresh IP — this is the ONLY path that grants credits
+        bonusAmount = 50;
+        grantReason = "fresh_ip";
         await redis.set(key, "1", { ex: 86400 });
       }
     }
   } catch (err) {
-    // Any Redis or headers() failure → treat as unverifiable identity
     bonusAmount = 0;
-    console.error("[FATAL SECURITY FALLBACK] createUser: IP bonus guard threw — 0 credits", err, {
+    grantReason = "error";
+    console.error("[FATAL SECURITY FALLBACK] createUser: IP guard threw — 0 credits", err, {
       userId: user.id,
     });
   }
 
-  // Correct the Prisma @default(50) when the bonus was reduced or denied
-  if (bonusAmount !== 50) {
+  // GRANT: prisma.user.update is the granting mechanism, not a corrective one.
+  // If this update fails, creditsBalance stays at 0 — the safe default.
+  if (bonusAmount > 0) {
     try {
       await prisma.user.update({
         where: { id: user.id },
         data: { creditsBalance: bonusAmount },
       });
     } catch (updateErr) {
-      console.error("[SECURITY] Failed to correct creditsBalance:", updateErr, {
+      bonusAmount = 0;
+      console.error("[SECURITY] Credit grant update failed — user stays at 0:", updateErr, {
         userId: user.id,
-        target: bonusAmount,
       });
     }
   }
 
-  // Always create a ledger entry — even for 0 credits — so the event is auditable
+  // Always write a ledger entry so every signup is auditable (amount: 0 for blocked cases)
+  const description =
+    bonusAmount === 50
+      ? "Welcome bonus - 50 free credits"
+      : grantReason === "repeat_ip"
+        ? "Welcome bonus blocked (repeat IP — possible farming)"
+        : "Welcome bonus blocked (security fallback — IP unverifiable)";
+
   await prisma.creditsLedger.create({
     data: {
       userId: user.id,
       amount: bonusAmount,
       reason: "BONUS",
-      description:
-        bonusAmount === 50
-          ? "Welcome bonus - 50 free credits"
-          : bonusAmount === 5
-            ? "Welcome bonus (restricted) - 5 free credits"
-            : "Welcome bonus blocked (security fallback — IP unverifiable)",
+      description,
     },
   });
 }

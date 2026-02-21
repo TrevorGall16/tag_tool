@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { Upload, Loader2, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isValidImageType, resizeImageForApi } from "@/lib/image-processing";
+import { preflightCheck } from "@/lib/image-processing/validation";
 import { useBatchStore, LocalImageItem } from "@/store/useBatchStore";
 import { sanitizeFilename } from "@/lib/utils/slugify";
 import { saveOriginalFile } from "@/lib/persistence/db";
@@ -21,6 +22,7 @@ const UPLOAD_CONCURRENCY = 4;
 export function Dropzone({ maxFiles = 500, maxSizeMB = 25, disabled, className }: DropzoneProps) {
   const [isDragActive, setIsDragActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [skippedInfo, setSkippedInfo] = useState<{ added: number; skipped: number } | null>(null);
   const [processingState, setProcessingState] = useState<{
     isProcessing: boolean;
     processed: number;
@@ -119,13 +121,26 @@ export function Dropzone({ maxFiles = 500, maxSizeMB = 25, disabled, className }
   );
 
   const handleFilesAccepted = useCallback(
-    (files: File[]) => {
-      const { valid, errors } = validateFiles(files);
+    async (files: File[]) => {
+      // Clear previous summary on each new drop
+      setSkippedInfo(null);
+
+      // 1. Size + MIME check (sync, fast)
+      const { valid: sizeValid, errors } = validateFiles(files);
 
       if (errors.length > 0 && errors[0]) {
         setError(errors[0]);
       } else {
         setError(null);
+      }
+
+      if (sizeValid.length === 0) return;
+
+      // 2. Pre-flight: magic-byte check for HEIC and corrupted files
+      const { valid, skipped } = await preflightCheck(sizeValid);
+
+      if (skipped.length > 0) {
+        setSkippedInfo({ added: valid.length, skipped: skipped.length });
       }
 
       if (valid.length > 0) {
@@ -256,6 +271,13 @@ export function Dropzone({ maxFiles = 500, maxSizeMB = 25, disabled, className }
       {error && (
         <p className="mt-2 text-sm text-red-600" role="alert">
           {error}
+        </p>
+      )}
+
+      {skippedInfo && skippedInfo.skipped > 0 && (
+        <p className="mt-2 text-sm text-amber-600" role="status">
+          {skippedInfo.added} image{skippedInfo.added !== 1 ? "s" : ""} added, {skippedInfo.skipped}{" "}
+          skipped (unsupported format)
         </p>
       )}
     </div>
