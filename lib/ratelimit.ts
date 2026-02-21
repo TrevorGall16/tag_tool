@@ -1,25 +1,36 @@
 import { Ratelimit } from "@upstash/ratelimit";
-import { Redis } from "@upstash/redis";
 import { NextResponse } from "next/server";
+import { redis } from "@/lib/redis";
 
+// ---------------------------------------------------------------------------
+// AI-route rate limiter — keyed by userId, FAIL-OPEN (infra outage ≠ user block)
+// ---------------------------------------------------------------------------
 let ratelimit: Ratelimit | null = null;
 
-if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
-  const redis = new Redis({
-    url: process.env.UPSTASH_REDIS_REST_URL,
-    token: process.env.UPSTASH_REDIS_REST_TOKEN,
-  });
+// ---------------------------------------------------------------------------
+// Auth-route rate limiter — keyed by IP, FAIL-CLOSED (outage ≠ bypass window)
+// ---------------------------------------------------------------------------
+let authRatelimit: Ratelimit | null = null;
 
+if (redis) {
   ratelimit = new Ratelimit({
     redis,
     limiter: Ratelimit.slidingWindow(10, "1 m"),
     analytics: true,
     prefix: "visionbatch:ratelimit",
   });
+
+  // Tighter window for sign-in / sign-up: 10 attempts per 10 minutes per IP.
+  authRatelimit = new Ratelimit({
+    redis,
+    limiter: Ratelimit.slidingWindow(10, "10 m"),
+    analytics: true,
+    prefix: "visionbatch:authratelimit",
+  });
 }
 
 /**
- * Check rate limit for a user. Fail-open: if Redis is unavailable,
+ * Check rate limit for a user (AI routes). FAIL-OPEN: if Redis is unavailable,
  * the request is allowed through so users aren't blocked by infra issues.
  *
  * Returns a 429 NextResponse if rate-limited, or null if allowed.
@@ -51,5 +62,30 @@ export async function checkRateLimit(userId: string): Promise<NextResponse<any> 
   } catch (error) {
     console.error("[RateLimit] Redis error, failing open:", error);
     return null; // Fail open — don't block users if Redis is down
+  }
+}
+
+/**
+ * Check rate limit for auth routes (sign-in / sign-up). Keyed by IP address.
+ *
+ * FAIL-CLOSED: returns false (blocked) when Redis is unavailable to prevent
+ * the fail-open loophole from being exploited during infrastructure outages.
+ * Returns true if the request is within limits.
+ */
+export async function checkAuthRateLimit(ip: string): Promise<boolean> {
+  if (!authRatelimit) {
+    // Redis not configured — fail closed for auth routes
+    console.warn(
+      "[RateLimit] Auth rate limiter: Redis not configured — denying request (fail-closed)"
+    );
+    return false;
+  }
+
+  try {
+    const { success } = await authRatelimit.limit(`auth:${ip}`);
+    return success;
+  } catch (error) {
+    console.error("[RateLimit] Auth Redis error, failing closed:", error);
+    return false; // Fail closed — deny on error to prevent bypass during outages
   }
 }

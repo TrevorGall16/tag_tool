@@ -3,6 +3,21 @@ import type { NextAuthOptions } from "next-auth";
 import type { Adapter } from "next-auth/adapters";
 import GoogleProvider from "next-auth/providers/google";
 import { prisma } from "@/lib/prisma";
+import { redis } from "@/lib/redis";
+import { checkAuthRateLimit } from "@/lib/ratelimit";
+
+/**
+ * Extract the real client IP from Next.js request headers.
+ * On Vercel, x-forwarded-for is set by the platform and can be trusted.
+ * The value may be a comma-separated chain ("client, proxy1, proxy2") —
+ * we take the leftmost entry (original client).
+ */
+function extractClientIp(xForwardedFor: string | null, xRealIp: string | null): string {
+  if (xForwardedFor) {
+    return xForwardedFor.split(",")[0]!.trim();
+  }
+  return xRealIp ?? "unknown";
+}
 
 /**
  * NextAuth configuration for VisionBatch
@@ -33,11 +48,33 @@ export const authOptions: NextAuthOptions = {
 
   callbacks: {
     /**
-     * Sign-in callback - promotes anonymous batches to the authenticated user
+     * Sign-in callback - IP rate limit check + anonymous batch promotion
      */
     async signIn({ user }) {
       if (!user.id) return true;
 
+      // IP-based auth rate limit (fail-closed): blocks rapid sign-in attempts per IP.
+      try {
+        const { headers } = await import("next/headers");
+        const headersList = await headers();
+        const ip = extractClientIp(
+          headersList.get("x-forwarded-for"),
+          headersList.get("x-real-ip")
+        );
+
+        if (ip !== "unknown") {
+          const allowed = await checkAuthRateLimit(ip);
+          if (!allowed) {
+            console.warn("[SECURITY] Auth rate limit hit from IP:", ip);
+            return false;
+          }
+        }
+      } catch (error) {
+        console.error("[Auth] IP rate limit check failed:", error);
+        // Don't block sign-in on unexpected errors — rate limit is best-effort
+      }
+
+      // Promote anonymous batches to the authenticated user
       try {
         const { cookies } = await import("next/headers");
         const cookieStore = await cookies();
@@ -65,7 +102,7 @@ export const authOptions: NextAuthOptions = {
      * JWT Callback - required when using strategy: "jwt"
      * Encrypts user state into the token to avoid redundant DB reads.
      */
-async jwt({ token, user, trigger, session }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
         token.creditsBalance = (user as any).creditsBalance ?? 0;
@@ -96,15 +133,59 @@ async jwt({ token, user, trigger, session }) {
 
   events: {
     /**
-     * Create user event - initialize new users with default credits
+     * Create user event - initialize new users with welcome credits.
+     *
+     * The Prisma schema sets creditsBalance @default(50), so the User row
+     * is already created with 50. Here we:
+     *   1. Check Redis for a prior bonus on this IP (24-hour window).
+     *   2. If already granted: correct the balance to 5 and log a security warning.
+     *   3. If fresh: mark the IP in Redis and record the full 50-credit ledger entry.
+     *
+     * Fails open (full bonus) if Redis is unavailable — we don't punish legitimate
+     * users for infrastructure outages.
      */
     async createUser({ user }) {
+      let bonusAmount = 50;
+
+      try {
+        const { headers } = await import("next/headers");
+        const headersList = await headers();
+        const ip = extractClientIp(
+          headersList.get("x-forwarded-for"),
+          headersList.get("x-real-ip")
+        );
+
+        if (redis && ip !== "unknown") {
+          const key = `bonus:granted:${ip}`;
+          const alreadyGranted = await redis.get(key);
+
+          if (alreadyGranted) {
+            bonusAmount = 5;
+            console.warn("[SECURITY] Possible account farming detected from IP:", ip);
+            // Correct the Prisma @default(50) down to the restricted amount
+            await prisma.user.update({
+              where: { id: user.id },
+              data: { creditsBalance: bonusAmount },
+            });
+          } else {
+            // Mark IP as bonus-granted for the next 24 hours
+            await redis.set(key, "1", { ex: 86400 });
+          }
+        }
+      } catch (err) {
+        console.error("[Auth] IP bonus guard failed, granting full bonus as fallback:", err);
+        bonusAmount = 50; // Fail open — don't penalise users for Redis downtime
+      }
+
       await prisma.creditsLedger.create({
         data: {
           userId: user.id,
-          amount: 50,
+          amount: bonusAmount,
           reason: "BONUS",
-          description: "Welcome bonus - 50 free credits",
+          description:
+            bonusAmount === 50
+              ? "Welcome bonus - 50 free credits"
+              : "Welcome bonus (restricted) - 5 free credits",
         },
       });
     },
