@@ -1,17 +1,42 @@
 import { openDB, type IDBPDatabase } from "idb";
-import type { TagArchitectDB } from "./schema";
+import type { VisionBatchDB } from "./schema";
 
-const DB_NAME = "tagarchitect-db";
+const DB_NAME = "visionbatch-db";
 const DB_VERSION = 1;
 
-let dbInstance: IDBPDatabase<TagArchitectDB> | null = null;
+// One-time migration: delete the legacy "tagarchitect-db" so returning users
+// don't accumulate a stale unused database in their browser.
+const LEGACY_DB_NAME = "tagarchitect-db";
+let legacyCleanupDone = false;
 
-export async function getDB(): Promise<IDBPDatabase<TagArchitectDB>> {
+async function deleteIfExists(name: string): Promise<void> {
+  if (typeof indexedDB === "undefined") return;
+  try {
+    await new Promise<void>((resolve) => {
+      const req = indexedDB.deleteDatabase(name);
+      req.onsuccess = () => resolve();
+      req.onerror = () => resolve(); // non-fatal
+      req.onblocked = () => resolve(); // proceed even if blocked
+    });
+  } catch {
+    // best-effort — never block the main DB open
+  }
+}
+
+let dbInstance: IDBPDatabase<VisionBatchDB> | null = null;
+
+export async function getDB(): Promise<IDBPDatabase<VisionBatchDB>> {
   if (dbInstance) {
     return dbInstance;
   }
 
-  dbInstance = await openDB<TagArchitectDB>(DB_NAME, DB_VERSION, {
+  // Run legacy cleanup once per browser session before opening the new DB
+  if (!legacyCleanupDone) {
+    legacyCleanupDone = true;
+    await deleteIfExists(LEGACY_DB_NAME);
+  }
+
+  dbInstance = await openDB<VisionBatchDB>(DB_NAME, DB_VERSION, {
     upgrade(db) {
       // Batches store
       if (!db.objectStoreNames.contains("batches")) {

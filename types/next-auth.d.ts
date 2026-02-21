@@ -8,28 +8,25 @@ declare module "next-auth" {
       name?: string | null;
       email?: string | null;
       image?: string | null;
-      creditsBalance?: number;
-      subscriptionTier?: SubscriptionTier;
-      subscriptionStatus?: SubscriptionStatus | null;
+      creditsBalance: number; // Removed '?'
+      subscriptionTier: SubscriptionTier; // Removed '?'
+      subscriptionStatus: SubscriptionStatus; // Removed '?'
     };
   }
 
   interface User {
     id: string;
-    name?: string | null;
-    email?: string | null;
-    image?: string | null;
-    creditsBalance?: number;
-    subscriptionTier?: SubscriptionTier;
-    subscriptionStatus?: SubscriptionStatus | null;
+    creditsBalance: number;
+    subscriptionTier: SubscriptionTier;
+    subscriptionStatus: SubscriptionStatus;
   }
 }
 
 declare module "next-auth/jwt" {
   interface JWT {
     id: string;
-    creditsBalance?: number;
-    subscriptionTier?: SubscriptionTier;
-    subscriptionStatus?: SubscriptionStatus | null;
+    creditsBalance: number;
+    subscriptionTier: SubscriptionTier;
+    subscriptionStatus: SubscriptionStatus;
   }
 }

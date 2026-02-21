@@ -14,7 +14,7 @@ if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) 
     redis,
     limiter: Ratelimit.slidingWindow(10, "1 m"),
     analytics: true,
-    prefix: "tagarchitect:ratelimit",
+    prefix: "visionbatch:ratelimit",
   });
 }
 

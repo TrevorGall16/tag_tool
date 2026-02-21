@@ -5,7 +5,7 @@ import GoogleProvider from "next-auth/providers/google";
 import { prisma } from "@/lib/prisma";
 
 /**
- * NextAuth configuration for TagArchitect
+ * NextAuth configuration for VisionBatch
  * Supports Google OAuth and Magic Link (Email) authentication
  */
 export const authOptions: NextAuthOptions = {
@@ -35,13 +35,13 @@ export const authOptions: NextAuthOptions = {
     /**
      * Sign-in callback - promotes anonymous batches to the authenticated user
      */
-    async signIn({ user, account }) {
+    async signIn({ user }) {
       if (!user.id) return true;
 
       try {
         const { cookies } = await import("next/headers");
         const cookieStore = await cookies();
-        const anonymousSessionId = cookieStore.get("tagarchitect_session")?.value;
+        const anonymousSessionId = cookieStore.get("visionbatch_session")?.value;
 
         if (anonymousSessionId) {
           await prisma.batch.updateMany({
@@ -63,37 +63,32 @@ export const authOptions: NextAuthOptions = {
 
     /**
      * JWT Callback - required when using strategy: "jwt"
-     * Transfers user ID from the database profile into the token
+     * Encrypts user state into the token to avoid redundant DB reads.
      */
-    async jwt({ token, user }) {
+async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
+        token.creditsBalance = (user as any).creditsBalance ?? 0;
+        token.subscriptionTier = (user as any).subscriptionTier;
+        token.subscriptionStatus = (user as any).subscriptionStatus;
       }
+
+      if (trigger === "update" && session) {
+        if (session.creditsBalance !== undefined) token.creditsBalance = session.creditsBalance;
+        if (session.subscriptionTier) token.subscriptionTier = session.subscriptionTier;
+        if (session.subscriptionStatus) token.subscriptionStatus = session.subscriptionStatus;
+      }
+
       return token;
     },
 
-    /**
-     * Session callback - extracts ID from token and fetches fresh DB data
-     */
     async session({ session, token }) {
-      if (session.user && token && token.id) {
-        session.user.id = token.id as string;
-
-        // Fetch additional user data for the session
-        const dbUser = await prisma.user.findUnique({
-          where: { id: session.user.id },
-          select: {
-            creditsBalance: true,
-            subscriptionTier: true,
-            subscriptionStatus: true,
-          },
-        });
-
-        if (dbUser) {
-          session.user.creditsBalance = dbUser.creditsBalance;
-          session.user.subscriptionTier = dbUser.subscriptionTier;
-          session.user.subscriptionStatus = dbUser.subscriptionStatus;
-        }
+      if (session.user && token) {
+        session.user.id = token.id;
+        // The red lines happen here if the types above aren't matched
+        session.user.creditsBalance = token.creditsBalance;
+        session.user.subscriptionTier = token.subscriptionTier;
+        session.user.subscriptionStatus = token.subscriptionStatus;
       }
       return session;
     },

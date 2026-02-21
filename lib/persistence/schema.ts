@@ -45,7 +45,7 @@ export interface BlobRecord {
   size: number;
 }
 
-export interface TagArchitectDB extends DBSchema {
+export interface VisionBatchDB extends DBSchema {
   batches: {
     key: string;
     value: BatchRecord;

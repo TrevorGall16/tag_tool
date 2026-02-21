@@ -181,7 +181,7 @@ export const useBatchStore = create<BatchState>()(
           if (typeof document !== "undefined") {
             const expires = new Date();
             expires.setDate(expires.getDate() + 30);
-            document.cookie = `tagarchitect_session=${sessionId}; path=/; expires=${expires.toUTCString()}; SameSite=Lax`;
+            document.cookie = `visionbatch_session=${sessionId}; path=/; expires=${expires.toUTCString()}; SameSite=Lax`;
           }
 
           set({
@@ -505,10 +505,9 @@ export const useBatchStore = create<BatchState>()(
 
           // Clear localStorage completely
           if (typeof window !== "undefined") {
-            localStorage.removeItem("tagarchitect-batch-storage");
+            localStorage.removeItem("visionbatch-batch-storage");
             // Also clear the session cookie
-            document.cookie =
-              "tagarchitect_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+            document.cookie = "visionbatch_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
           }
         },
 
@@ -648,7 +647,16 @@ export const useBatchStore = create<BatchState>()(
         },
       }),
       {
-        name: "tagarchitect-batch-storage",
+        name: "visionbatch-batch-storage",
+        // One-time cleanup: remove the legacy localStorage key left by the old brand name
+        onRehydrateStorage: () => () => {
+          if (typeof window !== "undefined") {
+            localStorage.removeItem("tagarchitect-batch-storage");
+            // Also expire the old session cookie
+            document.cookie =
+              "tagarchitect_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+          }
+        },
         // Only persist essential state, not file objects
         partialize: (state) => ({
           sessionId: state.sessionId,

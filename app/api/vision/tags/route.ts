@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import type { ApiResponse, VisionTagsRequest, VisionTagsResponse, TagImageInput } from "@/types";
 import { generateTagsForImages } from "@/lib/vision/tags";
 import type { ImageTagResult } from "@/lib/vision";
@@ -140,111 +141,79 @@ export async function POST(
       );
     }
 
-    // Billing: charge for total images in the group, not just the sample sent for analysis.
-    // totalImageCount is the real group size; images.length is the sample (up to 4).
-    const creditsRequired = body.totalImageCount ?? images.length;
+    // Task 1: Cost is always derived from the actual images received.
+    // The server never trusts any client-supplied count for billing amounts.
+    const creditsRequired = images.length;
     const strategyLabel = STRATEGY_LABELS[strategy] || "Standard";
 
-    // Validate: totalImageCount must be >= sample size (can't undercount)
-    if (body.totalImageCount !== undefined) {
-      if (!Number.isInteger(body.totalImageCount) || body.totalImageCount < images.length) {
+    // Task 2: Pre-check balance without deducting (read-only, no lock).
+    // Deduction happens AFTER AI succeeds, so a serverless crash/timeout never
+    // orphans credits in a PENDING state. The WHERE guard on the post-deduct
+    // transaction closes the concurrent-request race window at the DB level.
+    if (!IS_MOCK_MODE) {
+      const userBalance = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { creditsBalance: true },
+      });
+      if (!userBalance || userBalance.creditsBalance < creditsRequired) {
         return NextResponse.json(
-          {
-            success: false,
-            error: "totalImageCount must be an integer >= the number of sample images",
-          },
-          { status: 400 }
-        );
-      }
-    }
-
-    // ── RESERVE: Deduct credits + create PENDING ledger entry ──
-    let ledgerEntryId: string | null = null;
-
-    if (session?.user?.id && !IS_MOCK_MODE) {
-      try {
-        ledgerEntryId = await prisma.$transaction(async (tx) => {
-          const user = await tx.user.update({
-            where: { id: session.user.id },
-            data: { creditsBalance: { decrement: creditsRequired } },
-          });
-
-          if (user.creditsBalance < 0) {
-            throw new Error("Insufficient credits");
-          }
-
-          const ledgerEntry = await tx.creditsLedger.create({
-            data: {
-              userId: session.user.id,
-              amount: -creditsRequired,
-              reason: "USAGE",
-              status: "PENDING",
-              description: `Tag Generation (${strategyLabel}) - ${creditsRequired} image${creditsRequired > 1 ? "s" : ""}`,
-            },
-          });
-
-          return ledgerEntry.id;
-        });
-      } catch (creditError) {
-        const msg = creditError instanceof Error ? creditError.message : "Unknown";
-        console.error("[Credits] Reserve failed:", msg);
-        return NextResponse.json(
-          {
-            success: false,
-            error: msg.includes("Insufficient credits")
-              ? "Insufficient credits. Please purchase more to continue."
-              : "Credit deduction failed. Please try again.",
-          },
+          { success: false, error: "Insufficient credits. Please purchase more to continue." },
           { status: 402 }
         );
       }
     }
 
     // ── PROCESS: Call AI ──
+    // If this throws, no credits were touched — the outer catch returns 500 cleanly.
     let results: ImageTagResult[];
-
-    // Mock mode: bypass real API calls for development/testing
     if (IS_MOCK_MODE) {
       await new Promise((resolve) => setTimeout(resolve, 300 + Math.random() * 700));
       results = generateMockTagResults(images, maxTags);
     } else {
-      try {
-        results = await generateTagsForImages(images, marketplace, strategy, maxTags, platform);
-      } catch (aiError) {
-        // ── FAILED: Mark ledger entry FAILED and refund credits ──
-        if (ledgerEntryId && session?.user?.id) {
-          try {
-            await prisma.$transaction(async (tx) => {
-              await tx.creditsLedger.update({
-                where: { id: ledgerEntryId },
-                data: { status: "FAILED" },
-              });
-              await tx.user.update({
-                where: { id: session.user.id },
-                data: { creditsBalance: { increment: creditsRequired } },
-              });
-            });
-          } catch (refundError) {
-            console.error(
-              "[Credits] Refund failed — PENDING entry remains for manual resolution:",
-              refundError
-            );
-          }
-        }
-        throw aiError; // Re-throw to hit the outer catch → 500 response
-      }
+      results = await generateTagsForImages(images, marketplace, strategy, maxTags, platform);
     }
 
-    // ── CAPTURE: Mark ledger entry CONFIRMED ──
-    if (ledgerEntryId) {
+    // ── CAPTURE: Atomically deduct credits only after AI succeeds ──
+    // WHERE creditsBalance >= creditsRequired is a conditional row-level guard:
+    // if a concurrent request drained the balance between the pre-check and here,
+    // Prisma throws P2025 instead of letting the balance go negative.
+    if (!IS_MOCK_MODE) {
       try {
-        await prisma.creditsLedger.update({
-          where: { id: ledgerEntryId },
-          data: { status: "CONFIRMED" },
+        await prisma.$transaction(async (tx) => {
+          await tx.user.update({
+            where: {
+              id: session.user.id,
+              creditsBalance: { gte: creditsRequired },
+            },
+            data: { creditsBalance: { decrement: creditsRequired } },
+          });
+          await tx.creditsLedger.create({
+            data: {
+              userId: session.user.id,
+              amount: -creditsRequired,
+              reason: "USAGE",
+              status: "CONFIRMED",
+              description: `Tag Generation (${strategyLabel}) - ${creditsRequired} image${creditsRequired > 1 ? "s" : ""}`,
+            },
+          });
         });
-      } catch (confirmError) {
-        // Non-fatal: credits already deducted, just log the status update failure
-        console.error("[Credits] Failed to confirm ledger entry:", confirmError);
+      } catch (deductErr) {
+        if (
+          deductErr instanceof Prisma.PrismaClientKnownRequestError &&
+          deductErr.code === "P2025"
+        ) {
+          // Concurrent race: another request consumed the credits between pre-check and deduct.
+          console.error("[Credits] Race condition on deduct — returning 402", {
+            userId: session.user.id,
+          });
+          return NextResponse.json(
+            { success: false, error: "Insufficient credits. Please purchase more to continue." },
+            { status: 402 }
+          );
+        }
+        // Non-fatal DB error after AI already succeeded. Return the result to the user
+        // and log for manual credit review.
+        console.error("[Credits] CRITICAL: post-deduct failed after AI success:", deductErr);
       }
     }
 

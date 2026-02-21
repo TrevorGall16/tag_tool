@@ -14,6 +14,7 @@ import {
   Settings,
   HelpCircle,
   BookOpen,
+  CreditCard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCredits, setCreditsRefreshCallback } from "@/hooks/useCredits";
@@ -29,8 +30,27 @@ export function Header({ onNewBatch, isResetting = false, onHelpClick }: HeaderP
   const { data: session, status } = useSession();
   const router = useRouter();
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [isPortalLoading, setIsPortalLoading] = useState(false);
   const { balance: creditsBalance, refresh: refreshCredits } = useCredits();
   const clearStore = useBatchStore((state) => state.clearStore);
+
+  const handleManageSubscription = async () => {
+    setIsPortalLoading(true);
+    setShowUserMenu(false);
+    try {
+      const res = await fetch("/api/stripe/portal", { method: "POST" });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        router.push("/pricing");
+      }
+    } catch {
+      router.push("/pricing");
+    } finally {
+      setIsPortalLoading(false);
+    }
+  };
 
   // Register the refresh callback for global use (e.g., after payments)
   useEffect(() => {
@@ -177,6 +197,14 @@ export function Header({ onNewBatch, isResetting = false, onHelpClick }: HeaderP
                           <Settings className="w-4 h-4" />
                           Account Settings
                         </Link>
+                        <button
+                          onClick={handleManageSubscription}
+                          disabled={isPortalLoading}
+                          className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50"
+                        >
+                          <CreditCard className="w-4 h-4" />
+                          {isPortalLoading ? "Loading..." : "Manage Subscription"}
+                        </button>
                         <button
                           onClick={() => {
                             setShowUserMenu(false);

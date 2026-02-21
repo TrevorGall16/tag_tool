@@ -163,7 +163,7 @@ export function ExportToolbar({ className, projectName }: ExportToolbarProps) {
     // Pass projectName as prefix to handle deduplication
     const csv = generateStockCSV(groupsToExport, marketplace, exportSettings.naming.projectName);
 
-    // Build filename: tagarchitect-[FolderName]-[GroupName].csv
+    // Build filename: visionbatch-[FolderName]-[GroupName].csv
     const firstGroup = groupsToExport[0];
     const groupSlug = firstGroup?.sharedTitle
       ? slugify(firstGroup.sharedTitle)
@@ -171,9 +171,9 @@ export function ExportToolbar({ className, projectName }: ExportToolbarProps) {
 
     let filename: string;
     if (projectName) {
-      filename = `tagarchitect-${slugify(projectName)}-${groupSlug}.csv`;
+      filename = `visionbatch-${slugify(projectName)}-${groupSlug}.csv`;
     } else {
-      filename = `tagarchitect-${groupSlug}.csv`;
+      filename = `visionbatch-${groupSlug}.csv`;
     }
 
     downloadString(csv, filename, "text/csv;charset=utf-8");

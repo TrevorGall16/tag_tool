@@ -36,12 +36,18 @@ function PaymentSuccessContent() {
 
   // Refresh the session to get updated credits
   useEffect(() => {
+    // Fire immediately so the JWT — and therefore the header balance — updates
+    // as soon as the user lands, without waiting for any timer.
+    updateSession();
+
     if (sessionId) {
-      // Give the webhook a moment to process, then refresh session
-      const timer = setTimeout(() => {
-        updateSession();
-      }, 2000);
-      return () => clearTimeout(timer);
+      // Retry at 2 s and 5 s to catch webhook processing lag.
+      const t1 = setTimeout(() => updateSession(), 2000);
+      const t2 = setTimeout(() => updateSession(), 5000);
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+      };
     }
   }, [sessionId, updateSession]);
 

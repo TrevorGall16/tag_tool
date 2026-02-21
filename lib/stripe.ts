@@ -14,7 +14,7 @@ export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
 });
 
 /**
- * Pricing configuration for TagArchitect plans
+ * Pricing configuration for VisionBatch plans
  */
 export const PRICING = {
   STARTER: {

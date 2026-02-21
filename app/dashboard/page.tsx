@@ -317,7 +317,7 @@ function DashboardContent() {
               {/* Title */}
               <div className="text-center mb-10">
                 <h2 className="text-4xl font-bold text-slate-900 mb-3 tracking-tight">
-                  Tag Architect
+                  VisionBatch
                 </h2>
                 <p className="text-lg text-slate-600">Upload, Cluster, and Tag</p>
               </div>

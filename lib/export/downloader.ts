@@ -127,8 +127,8 @@ export class ExportEngine {
       const timestamp = new Date().toISOString().slice(0, 10);
       // Name ZIP after folder if inside one, otherwise use generic name
       const zipFilename = this.folderName
-        ? `tagarchitect-${slugify(this.folderName)}-${timestamp}.zip`
-        : `tagarchitect-export-${timestamp}.zip`;
+        ? `visionbatch-${slugify(this.folderName)}-${timestamp}.zip`
+        : `visionbatch-export-${timestamp}.zip`;
 
       this.reportProgress({
         current: totalImages,

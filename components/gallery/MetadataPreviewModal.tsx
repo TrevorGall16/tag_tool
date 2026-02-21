@@ -129,7 +129,7 @@ export function MetadataPreviewModal({ isOpen, onClose, groups }: MetadataPrevie
 
   const handleDownloadSampleCsv = () => {
     const csv = generateStockCSV(groups, marketplace, exportSettings.naming.projectName);
-    downloadString(csv, "tagarchitect-sample.csv", "text/csv;charset=utf-8");
+    downloadString(csv, "visionbatch-sample.csv", "text/csv;charset=utf-8");
     toast.success(
       `Downloaded sample CSV with ${groups.reduce((s, g) => s + g.images.length, 0)} images`
     );
