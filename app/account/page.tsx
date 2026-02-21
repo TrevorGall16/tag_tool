@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -88,6 +88,9 @@ export default function AccountPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showDeleteAccountDialog, setShowDeleteAccountDialog] = useState(false);
+  // Prevent re-fetching when NextAuth `status` bounces through "loading"
+  // (e.g. triggered by updateSession() retries from the payment success page).
+  const hasFetchedRef = useRef(false);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -95,7 +98,8 @@ export default function AccountPage() {
       return;
     }
 
-    if (status === "authenticated") {
+    if (status === "authenticated" && !hasFetchedRef.current) {
+      hasFetchedRef.current = true;
       fetchAccountData();
     }
   }, [status, router]);

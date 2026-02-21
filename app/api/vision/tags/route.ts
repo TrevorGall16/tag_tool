@@ -79,6 +79,8 @@ function generateMockTagResults(images: TagImageInput[], maxTags: number): Image
   });
 }
 
+const MAX_DATA_URL_BYTES = 4 * 1024 * 1024; // 4 MB per image (post-resize thumbnails are well under this)
+
 function validateRequest(body: VisionTagsRequest): string | null {
   if (!body.images || !Array.isArray(body.images)) {
     return "Images array is required";
@@ -93,12 +95,24 @@ function validateRequest(body: VisionTagsRequest): string | null {
     if (!img.dataUrl || !img.dataUrl.startsWith("data:image/")) {
       return "Each image must have a valid base64 data URL";
     }
+    // Reject oversized payloads before they reach the AI layer.
+    // JS strings are UTF-16 internally but base64 is pure ASCII, so
+    // .length ≈ byte length for this check.
+    if (img.dataUrl.length > MAX_DATA_URL_BYTES) {
+      return `Image ${img.id} exceeds the 4 MB payload limit. Resize before uploading.`;
+    }
   }
   if (!body.marketplace || !["ETSY", "ADOBE_STOCK"].includes(body.marketplace)) {
     return "Invalid marketplace. Must be ETSY or ADOBE_STOCK";
   }
   if (body.platform && !["GENERIC", "ADOBE", "SHUTTERSTOCK", "ETSY"].includes(body.platform)) {
     return "Invalid platform. Must be GENERIC, ADOBE, SHUTTERSTOCK, or ETSY";
+  }
+  if (
+    body.totalImageCount !== undefined &&
+    (body.totalImageCount < body.images.length || body.totalImageCount > 10_000)
+  ) {
+    return "totalImageCount must be >= images.length and <= 10000";
   }
   return null;
 }
@@ -129,7 +143,14 @@ export async function POST(
       return NextResponse.json({ success: false, error: validationError }, { status: 400 });
     }
 
-    const { images, marketplace, strategy = "standard", maxTags = 25, platform } = body;
+    const {
+      images,
+      marketplace,
+      strategy = "standard",
+      maxTags = 25,
+      platform,
+      totalImageCount,
+    } = body;
 
     if (images.length > MAX_IMAGES_PER_REQUEST) {
       return NextResponse.json(
@@ -141,9 +162,11 @@ export async function POST(
       );
     }
 
-    // Task 1: Cost is always derived from the actual images received.
-    // The server never trusts any client-supplied count for billing amounts.
-    const creditsRequired = images.length;
+    // Billing is based on the full group size (totalImageCount), not just the
+    // representative sample sent for AI analysis. The client declares how many
+    // images it is tagging; the server validates the claim is ≥ sample length
+    // and ≤ 10 000 (enforced in validateRequest above).
+    const creditsRequired = totalImageCount ?? images.length;
     const strategyLabel = STRATEGY_LABELS[strategy] || "Standard";
 
     // Task 2: Pre-check balance without deducting (read-only, no lock).

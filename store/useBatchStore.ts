@@ -7,11 +7,16 @@ import { DEFAULT_EXPORT_SETTINGS } from "@/lib/export";
 import { DEFAULT_TAG_BLACKLIST } from "@/lib/utils/tag-processing";
 import type { ClusterSettings } from "@/types";
 import { syncImageToServer } from "@/lib/persistence/server-sync";
+import { deleteOriginalFile } from "@/lib/persistence/db";
+import { hydrateSession } from "@/lib/persistence/hydrate";
 
 // Types for the store
 export interface LocalImageItem {
   id: string;
-  file: File;
+  /** Raw File is dropped after thumbnail extraction to free RAM. Use fileSize/mimeType instead. */
+  file?: File;
+  fileSize?: number;
+  mimeType?: string;
   originalFilename: string;
   sanitizedSlug: string;
   thumbnailDataUrl: string;
@@ -48,6 +53,18 @@ interface BatchState {
   marketplace: MarketplaceType;
   strategy: StrategyType;
   maxTags: number;
+  /**
+   * True after the first successful IDB hydration (from either usePersistence or
+   * initializeFromStorage). Prevents a second caller from overwriting live state.
+   * Reset to false on clearBatch / clearStore so the next session can re-hydrate.
+   */
+  hasHydrated: boolean;
+  /**
+   * Coarse lock: true while useCredits is fetching /api/account.
+   * Components that react to the same auth-status change check this flag to
+   * avoid racing each other to the same endpoints in the same render cycle.
+   */
+  isFetchingServerData: boolean;
 
   // Batch data
   groups: LocalGroup[];
@@ -142,6 +159,16 @@ interface BatchState {
   getSortedGroups: () => LocalGroup[];
   appendGroups: (newGroups: LocalGroup[]) => void;
   clearAllGroups: () => void;
+  /** Mark the store as hydrated without loading data (called by usePersistence). */
+  setHydrated: (value: boolean) => void;
+  setFetchingServerData: (value: boolean) => void;
+  /**
+   * Restore batch state from IndexedDB on app startup.
+   * Loads thumbnail + tag metadata for every image in the session.
+   * Original File objects are not loaded into React state — they stay in IDB
+   * and are fetched on-demand (e.g. for export) via `getOriginalFile(imageId)`.
+   */
+  initializeFromStorage: (sessionId: string) => Promise<void>;
 }
 
 export const useBatchStore = create<BatchState>()(
@@ -153,6 +180,8 @@ export const useBatchStore = create<BatchState>()(
         marketplace: "ETSY",
         strategy: "etsy",
         maxTags: 25,
+        hasHydrated: false,
+        isFetchingServerData: false,
         groups: [],
         currentGroupIndex: 0,
         selectedGroupIds: new Set<string>(),
@@ -290,6 +319,8 @@ export const useBatchStore = create<BatchState>()(
         },
 
         removeImageFromGroup: (groupId, imageId) => {
+          // Fire-and-forget: drop the stored File from IDB alongside the state update.
+          void deleteOriginalFile(imageId);
           set((state) => ({
             groups: state.groups.map((group) =>
               group.id === groupId
@@ -368,8 +399,8 @@ export const useBatchStore = create<BatchState>()(
             groupId,
             originalFilename: image?.originalFilename,
             sanitizedSlug: image?.sanitizedSlug,
-            fileSize: image?.file?.size,
-            mimeType: image?.file?.type,
+            fileSize: image?.fileSize ?? image?.file?.size,
+            mimeType: image?.mimeType ?? image?.file?.type,
           });
         },
 
@@ -456,8 +487,8 @@ export const useBatchStore = create<BatchState>()(
                 groupId,
                 originalFilename: img.originalFilename,
                 sanitizedSlug: img.sanitizedSlug,
-                fileSize: img.file?.size,
-                mimeType: img.file?.type,
+                fileSize: img.fileSize ?? img.file?.size,
+                mimeType: img.mimeType ?? img.file?.type,
               });
             }
           }
@@ -472,6 +503,11 @@ export const useBatchStore = create<BatchState>()(
         },
 
         clearBatch: () => {
+          // Collect all image IDs before wiping state so we can clean IDB.
+          const imageIds = get().groups.flatMap((g) => g.images.map((i) => i.id));
+          if (imageIds.length > 0) {
+            void Promise.all(imageIds.map((id) => deleteOriginalFile(id)));
+          }
           set({
             sessionId: null,
             groups: [],
@@ -482,10 +518,16 @@ export const useBatchStore = create<BatchState>()(
             isClustering: false,
             isTagging: false,
             error: null,
+            hasHydrated: false, // allow the next session to re-hydrate
           });
         },
 
         clearStore: () => {
+          // Collect all image IDs before wiping state so we can clean IDB.
+          const imageIds = get().groups.flatMap((g) => g.images.map((i) => i.id));
+          if (imageIds.length > 0) {
+            void Promise.all(imageIds.map((id) => deleteOriginalFile(id)));
+          }
           // Clear all state including persisted localStorage
           set({
             sessionId: null,
@@ -501,6 +543,7 @@ export const useBatchStore = create<BatchState>()(
             isTagging: false,
             error: null,
             exportSettings: DEFAULT_EXPORT_SETTINGS,
+            hasHydrated: false, // allow the next session to re-hydrate
           });
 
           // Clear localStorage completely
@@ -644,6 +687,34 @@ export const useBatchStore = create<BatchState>()(
             groups: state.groups.filter((g) => g.id === "unclustered"),
             selectedGroupIds: new Set(),
           }));
+        },
+
+        setHydrated: (value) => {
+          set({ hasHydrated: value });
+        },
+
+        setFetchingServerData: (value) => {
+          set({ isFetchingServerData: value });
+        },
+
+        initializeFromStorage: async (sessionId) => {
+          // Guard: usePersistence may have already hydrated this session.
+          // "First caller wins" — a second concurrent call is a no-op.
+          if (get().hasHydrated) return;
+          // Claim the slot synchronously before any await so a second concurrent
+          // caller sees hasHydrated = true and exits without waiting.
+          set({ hasHydrated: true });
+          try {
+            const hydrated = await hydrateSession(sessionId);
+            if (!hydrated) return;
+            // Use setGroups so the unclustered-first sort is applied consistently.
+            get().setGroups(hydrated.groups);
+            set({ marketplace: hydrated.marketplace });
+          } catch (err) {
+            // Roll back the flag so the caller can retry if desired.
+            set({ hasHydrated: false });
+            console.error("[Store] initializeFromStorage failed:", err);
+          }
         },
       }),
       {

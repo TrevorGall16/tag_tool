@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { isValidImageType, resizeImageForApi } from "@/lib/image-processing";
 import { useBatchStore, LocalImageItem } from "@/store/useBatchStore";
 import { sanitizeFilename } from "@/lib/utils/slugify";
+import { saveOriginalFile } from "@/lib/persistence/db";
 
 export interface DropzoneProps {
   maxFiles?: number;
@@ -17,7 +18,7 @@ export interface DropzoneProps {
 // Max concurrent canvas/resize operations. Prevents OOM on large drops (100+ images).
 const UPLOAD_CONCURRENCY = 4;
 
-export function Dropzone({ maxFiles = 50, maxSizeMB = 25, disabled, className }: DropzoneProps) {
+export function Dropzone({ maxFiles = 500, maxSizeMB = 25, disabled, className }: DropzoneProps) {
   const [isDragActive, setIsDragActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [processingState, setProcessingState] = useState<{
@@ -50,11 +51,6 @@ export function Dropzone({ maxFiles = 50, maxSizeMB = 25, disabled, className }:
         valid.push(file);
       }
 
-      if (valid.length > maxFiles) {
-        errors.push(`Only the first ${maxFiles} files will be processed.`);
-        return { valid: valid.slice(0, maxFiles), errors };
-      }
-
       return { valid, errors };
     },
     [maxFiles, maxSizeMB]
@@ -82,11 +78,23 @@ export function Dropzone({ maxFiles = 50, maxSizeMB = 25, disabled, className }:
           if (!file) continue;
           try {
             const id = crypto.randomUUID();
+            // Capture metadata before the File reference is dropped.
+            const fileSize = file.size;
+            const mimeType = file.type;
             const thumbnailDataUrl = await resizeImageForApi(file, 512);
+            // Persist the original File to IndexedDB BEFORE releasing the reference.
+            // IDB stores File objects natively via structured-clone (no ArrayBuffer needed).
+            // Failures are non-fatal: the session still works with thumbnail-only data.
+            try {
+              await saveOriginalFile(id, file);
+            } catch (idbErr) {
+              console.warn(`[IDB] Failed to persist original file for ${file.name}:`, idbErr);
+            }
 
             const image: LocalImageItem = {
               id,
-              file,
+              fileSize,
+              mimeType,
               originalFilename: file.name,
               sanitizedSlug: sanitizeFilename(file.name),
               thumbnailDataUrl,

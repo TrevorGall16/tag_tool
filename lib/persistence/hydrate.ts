@@ -1,4 +1,4 @@
-import { getDB } from "./db";
+import { getDB, getOriginalFile } from "./db";
 import type { LocalGroup, LocalImageItem, MarketplaceType } from "@/store/useBatchStore";
 
 export interface HydratedSession {
@@ -33,36 +33,36 @@ export async function hydrateSession(sessionId: string): Promise<HydratedSession
     imagesByGroup.set(img.groupId, existing);
   }
 
-  // Reconstruct groups with hydrated images
-  // CRITICAL: Skip images without blobs to prevent "zombie" images
-  let skippedImages = 0;
+  // Reconstruct groups with hydrated images.
+  // File objects are loaded lazily: originalFiles first, blobs as legacy fallback.
+  // Images with no stored file hydrate as thumbnail-only — this is valid because
+  // `file` is optional in LocalImageItem. Nothing is skipped.
 
   const groups: LocalGroup[] = await Promise.all(
     groupRecords.map(async (groupRecord) => {
       const groupImages = imagesByGroup.get(groupRecord.id) ?? [];
 
-      // Hydrate each image with its File object
-      // Use Promise.all then filter out nulls for images without blobs
-      const maybeHydratedImages = await Promise.all(
-        groupImages.map(async (imgRecord): Promise<LocalImageItem | null> => {
-          const blob = await db.get("blobs", imgRecord.id);
-
-          // CRITICAL: If no blob exists, skip this image entirely
-          if (!blob) {
-            console.error(
-              `[HYDRATE] CRITICAL: NO BLOB for image "${imgRecord.id.slice(0, 8)}" (${imgRecord.originalFilename}) - SKIPPING`
-            );
-            skippedImages++;
-            return null;
+      const hydratedImages: LocalImageItem[] = await Promise.all(
+        groupImages.map(async (imgRecord): Promise<LocalImageItem> => {
+          // Try originalFiles (new path), then blobs (legacy path).
+          let file: File | undefined;
+          try {
+            file = await getOriginalFile(imgRecord.id);
+            if (!file) {
+              const blob = await db.get("blobs", imgRecord.id);
+              if (blob) {
+                file = new File([blob.data], imgRecord.originalFilename, { type: blob.type });
+              }
+            }
+          } catch {
+            // Non-fatal — proceed with thumbnail-only
           }
-
-          const file = new File([blob.data], imgRecord.originalFilename, {
-            type: blob.type,
-          });
 
           return {
             id: imgRecord.id,
-            file,
+            file, // undefined when neither store has the file (thumbnail-only session)
+            fileSize: file?.size,
+            mimeType: file?.type,
             originalFilename: imgRecord.originalFilename,
             sanitizedSlug: imgRecord.sanitizedSlug || "",
             thumbnailDataUrl: imgRecord.thumbnailDataUrl,
@@ -75,11 +75,6 @@ export async function hydrateSession(sessionId: string): Promise<HydratedSession
             errorMessage: imgRecord.errorMessage,
           };
         })
-      );
-
-      // Filter out null entries (images without blobs)
-      const hydratedImages = maybeHydratedImages.filter(
-        (img): img is LocalImageItem => img !== null
       );
 
       return {
@@ -97,10 +92,6 @@ export async function hydrateSession(sessionId: string): Promise<HydratedSession
       };
     })
   );
-
-  if (skippedImages > 0) {
-    console.warn(`[HYDRATE] WARNING: Skipped ${skippedImages} images due to missing blobs`);
-  }
 
   return {
     groups,

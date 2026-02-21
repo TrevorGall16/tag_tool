@@ -45,6 +45,17 @@ export interface BlobRecord {
   size: number;
 }
 
+/**
+ * Stores the original high-res File object for each ingested image.
+ * IDB serialises File via the structured-clone algorithm — no ArrayBuffer conversion needed.
+ * Keyed by imageId so it can be looked up or deleted in O(1).
+ */
+export interface OriginalFileRecord {
+  imageId: string;
+  file: File;
+  storedAt: number;
+}
+
 export interface VisionBatchDB extends DBSchema {
   batches: {
     key: string;
@@ -68,5 +79,9 @@ export interface VisionBatchDB extends DBSchema {
   blobs: {
     key: string;
     value: BlobRecord;
+  };
+  originalFiles: {
+    key: string;
+    value: OriginalFileRecord;
   };
 }

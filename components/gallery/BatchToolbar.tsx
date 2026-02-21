@@ -50,9 +50,13 @@ export function BatchToolbar({ className, selectedProjectId, folderName }: Batch
 
   const isAuthenticated = status === "authenticated";
   const hasContent = groups.some((g) => g.id !== "unclustered" && g.images.length > 0);
+  // One-shot guard: prevents re-fetching when status briefly toggles
+  // "loading → authenticated" due to background session refreshes.
+  const hasFetchedProjectsRef = useRef(false);
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && !hasFetchedProjectsRef.current) {
+      hasFetchedProjectsRef.current = true;
       fetchProjects();
     }
   }, [isAuthenticated]);

@@ -110,39 +110,65 @@ export async function GET() {
         (entry) => entry.reason === "PURCHASE" && entry.stripeSessionId
       );
 
+      // Determine which session-ID prefix is valid for the current Stripe key.
+      // Calling stripe.checkout.sessions.retrieve with a live ID against a test
+      // key (or vice-versa) throws resource_missing and would 500 the endpoint.
+      const stripeIsTestMode =
+        (process.env.STRIPE_SECRET_KEY ?? "").startsWith("sk_test_") ||
+        process.env.NODE_ENV === "development";
+      const expectedSessionPrefix = stripeIsTestMode ? "cs_test_" : "cs_live_";
+
       for (const purchase of ledgerPurchases.slice(0, 10)) {
-        if (purchase.stripeSessionId) {
-          try {
-            const checkoutSession = await stripe.checkout.sessions.retrieve(
-              purchase.stripeSessionId,
-              { expand: ["payment_intent"] }
-            );
+        const sid = purchase.stripeSessionId;
+        if (!sid) continue;
 
-            if (checkoutSession.payment_intent) {
-              const paymentIntent =
-                typeof checkoutSession.payment_intent === "string"
-                  ? await stripe.paymentIntents.retrieve(checkoutSession.payment_intent)
-                  : checkoutSession.payment_intent;
+        // Hard skip: cross-mode session IDs will always 404 on Stripe's side.
+        if (!sid.startsWith(expectedSessionPrefix)) {
+          console.warn(
+            `[Account API] Skipping session ${sid.slice(0, 20)}… — wrong Stripe mode (expected ${expectedSessionPrefix})`
+          );
+          continue;
+        }
 
-              if (paymentIntent.latest_charge) {
-                const charge = await stripe.charges.retrieve(
-                  typeof paymentIntent.latest_charge === "string"
-                    ? paymentIntent.latest_charge
-                    : paymentIntent.latest_charge.id
-                );
+        try {
+          const checkoutSession = await stripe.checkout.sessions.retrieve(sid, {
+            expand: ["payment_intent"],
+          });
 
-                payments.push({
-                  id: charge.id,
-                  amount: charge.amount,
-                  currency: charge.currency,
-                  status: charge.status,
-                  created: charge.created,
-                  description: purchase.description || "Credit purchase",
-                  receiptUrl: charge.receipt_url,
-                });
-              }
+          if (checkoutSession.payment_intent) {
+            const paymentIntent =
+              typeof checkoutSession.payment_intent === "string"
+                ? await stripe.paymentIntents.retrieve(checkoutSession.payment_intent)
+                : checkoutSession.payment_intent;
+
+            if (paymentIntent.latest_charge) {
+              const charge = await stripe.charges.retrieve(
+                typeof paymentIntent.latest_charge === "string"
+                  ? paymentIntent.latest_charge
+                  : paymentIntent.latest_charge.id
+              );
+
+              payments.push({
+                id: charge.id,
+                amount: charge.amount,
+                currency: charge.currency,
+                status: charge.status,
+                created: charge.created,
+                description: purchase.description || "Credit purchase",
+                receiptUrl: charge.receipt_url,
+              });
             }
-          } catch (e) {
+          }
+        } catch (e: unknown) {
+          // resource_missing = session exists in the other Stripe environment.
+          // Any other Stripe error is logged at warn level so it doesn't spam
+          // error dashboards, but we never let it propagate to a 500.
+          const code = (e as { code?: string })?.code;
+          if (code === "resource_missing") {
+            console.warn(
+              `[Account API] Session ${sid.slice(0, 20)}… not found in this Stripe mode`
+            );
+          } else {
             console.error("[Account API] Error fetching checkout session:", e);
           }
         }

@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState, useCallback } from "react";
+import { Suspense, useEffect, useRef, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useBatchStore } from "@/store/useBatchStore";
@@ -101,16 +101,23 @@ function DashboardContent() {
   } | null>(null);
 
   const isAuthenticated = status === "authenticated";
+  // One-shot guard: prevents re-fetching folders when NextAuth status briefly
+  // toggles "loading → authenticated" due to background session refreshes.
+  const hasFetchedFoldersRef = useRef(false);
 
   useEffect(() => {
-    if (!sessionId) {
+    // Do NOT call initSession while usePersistence is actively reading from
+    // IndexedDB. initSession resets groups:[] and would wipe the in-flight
+    // hydration result, causing a one-frame flicker of empty state.
+    if (!sessionId && !isRestoring) {
       initSession();
     }
-  }, [sessionId, initSession]);
+  }, [sessionId, isRestoring, initSession]);
 
-  // Fetch folders
+  // Fetch folders — runs exactly once after authentication is confirmed.
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && !hasFetchedFoldersRef.current) {
+      hasFetchedFoldersRef.current = true;
       fetchFolders();
     }
   }, [isAuthenticated]);

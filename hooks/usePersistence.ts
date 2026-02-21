@@ -66,6 +66,8 @@ export function usePersistence(): UsePersistenceResult {
       if (!exists) {
         setIsRestoring(false);
         setIsHydrated(true);
+        // Nothing in IDB — mark the store so initializeFromStorage skips.
+        useBatchStore.setState({ hasHydrated: true });
         return;
       }
 
@@ -80,6 +82,9 @@ export function usePersistence(): UsePersistenceResult {
         setMarketplace(session.marketplace);
       }
 
+      // Stamp the store BEFORE flipping local isHydrated so that any component
+      // that reads hasHydrated sees it set at the same time as the groups update.
+      useBatchStore.setState({ hasHydrated: true });
       setIsHydrated(true);
     } catch (err) {
       console.error("[Persistence] Failed to hydrate session:", err);
